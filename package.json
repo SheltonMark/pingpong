@@ -1,0 +1,30 @@
+{
+  "name": "pingpong",
+  "version": "1.0.0",
+  "description": "``` pingpong/ ├── backend/              # 后端服务（云托管） │   ├── app.js           # Express 应用入口 │   ├── package.json     # 依赖配置 │   ├── Dockerfile       # Docker 构建文件 │   └── src/             # 源代码目录 │       ├── routes/      # 路由 │       ├── controllers/ # 控制器 │       ├── config/      # 配置 │       └── utils/       # 工具函数 ├── pages/               # 小程序页面 │   └── index/           # 首页 ├── app.js               # 小程序入口 ├── app.json             # 小程序配置 └── app.wxss             # 全局样式 ```",
+  "main": "app.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SheltonMark/pingpong.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/SheltonMark/pingpong/issues"
+  },
+  "homepage": "https://github.com/SheltonMark/pingpong#readme",
+  "dependencies": {
+    "weui-miniprogram": "^1.5.6"
+  },
+  "devDependencies": {
+    "jimp": "^1.6.0",
+    "pureimage": "^0.4.18"
+  }
+}

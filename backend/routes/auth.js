@@ -14,18 +14,28 @@ router.post('/wx-login', async (req, res) => {
       return res.status(400).json({ success: false, message: '缺少 code' });
     }
 
-    // 调用微信接口获取 openid
-    const wxUrl = `https://api.weixin.qq.com/sns/jscode2session?appid=${WX_APPID}&secret=${WX_SECRET}&js_code=${code}&grant_type=authorization_code`;
+    let openid, unionid;
 
-    const wxRes = await axios.get(wxUrl);
-    const { openid, session_key, unionid, errcode, errmsg } = wxRes.data;
+    // 开发模式：如果没有配置 WX_SECRET，使用模拟 openid
+    if (!WX_SECRET || WX_SECRET === 'your_app_secret_here') {
+      console.log('⚠️ 开发模式：使用模拟 openid');
+      openid = 'dev_' + code.substring(0, 16);
+    } else {
+      // 生产模式：调用微信接口获取 openid
+      const wxUrl = `https://api.weixin.qq.com/sns/jscode2session?appid=${WX_APPID}&secret=${WX_SECRET}&js_code=${code}&grant_type=authorization_code`;
 
-    if (errcode) {
-      console.error('微信登录失败:', errcode, errmsg);
-      return res.status(400).json({
-        success: false,
-        message: `微信登录失败: ${errmsg}`
-      });
+      const wxRes = await axios.get(wxUrl);
+      const { errcode, errmsg } = wxRes.data;
+      openid = wxRes.data.openid;
+      unionid = wxRes.data.unionid;
+
+      if (errcode) {
+        console.error('微信登录失败:', errcode, errmsg);
+        return res.status(400).json({
+          success: false,
+          message: `微信登录失败: ${errmsg}`
+        });
+      }
     }
 
     // 查找或创建用户
