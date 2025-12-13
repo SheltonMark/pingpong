@@ -1,0 +1,40 @@
+# 微信小程序
+.DS_Store
+node_modules/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 编辑器配置
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# 系统文件
+Thumbs.db
+.DS_Store
+
+# 云开发相关
+miniprogram_npm/
+.tea/
+
+# 私有配置
+project.private.config.json
+
+# 后端
+backend/node_modules/
+backend/.env
+backend/npm-debug.log
+
+# 临时文件
+*.log
+*.tmp
+
+# 文档目录
+docs/
+*.txt
+*.md
+!README.md

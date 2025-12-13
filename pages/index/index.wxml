@@ -1,0 +1,20 @@
+<view class="container">
+  <view class="header">
+    <text class="title">浙工大乒乓球协会</text>
+  </view>
+
+  <view class="content">
+    <view class="hello-box">
+      <text class="hello-text">{{message}}</text>
+      <text class="time-text">{{timestamp}}</text>
+    </view>
+
+    <button class="fetch-btn" bindtap="fetchHello" loading="{{loading}}">
+      {{loading ? '加载中...' : '获取Hello World'}}
+    </button>
+
+    <view class="tip-text" wx:if="{{error}}">
+      <text class="error">{{error}}</text>
+    </view>
+  </view>
+</view>
