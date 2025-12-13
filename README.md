@@ -18,13 +18,16 @@ pingpong/
 ├── app.js               # 小程序入口
 ├── app.json             # 小程序配置
 └── app.wxss             # 全局样式
+```
 
 ## 快速开始
 
 ### 1. 部署后端到云托管
 
 1. 进入后端目录：
+   ```
    cd backend
+   ```
 
 2. 在微信开发者工具中，打开云托管控制台
 
@@ -35,13 +38,15 @@ pingpong/
 ### 2. 配置小程序
 
 1. 在 app.js 中，将 apiBase 替换为实际的云托管地址：
+   ```javascript
    globalData: {
      apiBase: 'https://你的云托管地址.com'
    }
+   ```
 
 2. 在微信公众平台后台配置服务器域名白名单：
-   登录 mp.weixin.qq.com > 开发 > 开发管理 > 服务器域名
-   将云托管地址添加到 request 合法域名
+   - 登录 mp.weixin.qq.com > 开发 > 开发管理 > 服务器域名
+   - 将云托管地址添加到 request 合法域名
 
 ### 3. 运行小程序
 
@@ -57,6 +62,7 @@ pingpong/
 获取 Hello World 消息
 
 响应示例：
+```json
 {
   "success": true,
   "message": "Hello World",
@@ -65,6 +71,7 @@ pingpong/
     "timestamp": "2025-12-13T07:24:00.000Z"
   }
 }
+```
 
 ## 后续开发
 
