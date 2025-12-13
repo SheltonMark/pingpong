@@ -1,3 +1,71 @@
+/* 全局样式变量 */
 page {
-  background-color: #F5F5F5;
+  --orange: #FF6B00;
+  --orange-dark: #E55D00;
+  --orange-light: #FFF5EB;
+  --black: #000000;
+  --gray-900: #1A1A1A;
+  --gray-700: #374151;
+  --gray-600: #666666;
+  --gray-400: #9CA3AF;
+  --gray-300: #D1D5DB;
+  --gray-200: #E5E7EB;
+  --gray-100: #F5F5F5;
+  --gray-50: #FAFAFA;
+  --white: #FFFFFF;
+  --green: #10B981;
+  --green-light: #D1FAE5;
+  --red: #EF4444;
+
+  background-color: var(--gray-50);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* 通用样式 */
+.container {
+  padding: 24rpx 32rpx;
+}
+
+.card {
+  background: var(--white);
+  border-radius: 32rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.05);
+}
+
+/* 按钮样式 */
+.btn-primary {
+  background: var(--orange);
+  color: var(--white);
+  border: none;
+  border-radius: 48rpx;
+  padding: 24rpx 48rpx;
+  font-size: 32rpx;
+  font-weight: 500;
+}
+
+.btn-primary:active {
+  background: var(--orange-dark);
+}
+
+.btn-secondary {
+  background: var(--gray-100);
+  color: var(--gray-700);
+  border: none;
+  border-radius: 48rpx;
+  padding: 24rpx 48rpx;
+  font-size: 32rpx;
+}
+
+/* 文字样式 */
+.text-orange {
+  color: var(--orange);
+}
+
+.text-gray {
+  color: var(--gray-600);
+}
+
+.text-muted {
+  color: var(--gray-400);
 }

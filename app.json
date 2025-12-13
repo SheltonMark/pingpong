@@ -1,12 +1,50 @@
 {
   "pages": [
-    "pages/index/index"
+    "pages/index/index",
+    "pages/square/square",
+    "pages/events/events",
+    "pages/profile/profile",
+    "pages/register/register",
+    "pages/privacy/privacy",
+    "pages/settings/settings"
   ],
   "window": {
-    "navigationBarTitleText": "浙工大乒协",
-    "navigationBarBackgroundColor": "#FF6B35",
+    "navigationBarTitleText": "校乒网",
+    "navigationBarBackgroundColor": "#FF6B00",
     "navigationBarTextStyle": "white",
     "backgroundColor": "#F5F5F5"
+  },
+  "tabBar": {
+    "color": "#9CA3AF",
+    "selectedColor": "#FF6B00",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "assets/icons/home.png",
+        "selectedIconPath": "assets/icons/home-active.png"
+      },
+      {
+        "pagePath": "pages/square/square",
+        "text": "广场",
+        "iconPath": "assets/icons/square.png",
+        "selectedIconPath": "assets/icons/square-active.png"
+      },
+      {
+        "pagePath": "pages/events/events",
+        "text": "赛事",
+        "iconPath": "assets/icons/trophy.png",
+        "selectedIconPath": "assets/icons/trophy-active.png"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的",
+        "iconPath": "assets/icons/user.png",
+        "selectedIconPath": "assets/icons/user-active.png"
+      }
+    ]
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json",
