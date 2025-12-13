@@ -4,6 +4,7 @@ require('dotenv').config();
 
 const { testConnection } = require('./config/database');
 const indexRoutes = require('./routes/index');
+const commonRoutes = require('./routes/common');
 
 const app = express();
 const PORT = process.env.PORT || 80;
@@ -14,6 +15,7 @@ app.use(express.json());
 
 // 路由
 app.use('/api', indexRoutes);
+app.use('/api/common', commonRoutes);
 
 // 启动服务器
 async function startServer() {
