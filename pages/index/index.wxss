@@ -1,70 +1,344 @@
-.container {
+.home-page {
+  min-height: 100vh;
+  background: var(--gray-50);
+  padding-bottom: 140rpx;
+}
+
+/* ============ 未登录欢迎页 ============ */
+.welcome-section {
+  position: relative;
+  min-height: 70vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.welcome-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, var(--orange) 0%, #FF8533 100%);
+}
+
+.welcome-content {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  background-color: #F5F5F5;
+  align-items: center;
+  padding: 60rpx 40rpx;
 }
 
-.header {
-  background: linear-gradient(135deg, #FF6B35 0%, #FF8C5A 100%);
-  padding: 60rpx 30rpx 40rpx;
-  text-align: center;
+.welcome-icon {
+  font-size: 120rpx;
+  margin-bottom: 24rpx;
 }
 
-.title {
-  font-size: 40rpx;
-  font-weight: bold;
-  color: white;
+.welcome-title {
+  font-size: 56rpx;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 16rpx;
 }
 
-.content {
-  flex: 1;
-  padding: 40rpx 30rpx;
-}
-
-.hello-box {
-  background-color: white;
-  border-radius: 20rpx;
-  padding: 60rpx 30rpx;
-  margin-bottom: 40rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
-  text-align: center;
-}
-
-.hello-text {
-  display: block;
-  font-size: 36rpx;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 20rpx;
-}
-
-.time-text {
-  display: block;
-  font-size: 24rpx;
-  color: #999;
-}
-
-.fetch-btn {
-  background-color: #FF6B35;
-  color: white;
-  border-radius: 50rpx;
-  height: 90rpx;
-  line-height: 90rpx;
+.welcome-subtitle {
   font-size: 32rpx;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 16rpx;
+}
+
+.welcome-desc {
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.75);
+  margin-bottom: 60rpx;
+}
+
+.login-btn {
+  background: var(--white);
+  color: var(--orange);
+  font-size: 32rpx;
+  font-weight: 600;
+  padding: 28rpx 100rpx;
+  border-radius: 48rpx;
   border: none;
 }
 
-.fetch-btn:active {
-  opacity: 0.8;
+.login-btn:active {
+  opacity: 0.9;
 }
 
-.tip-text {
-  margin-top: 30rpx;
-  text-align: center;
+/* 功能预览 */
+.preview-section {
+  padding: 40rpx 32rpx;
+  margin-top: -40rpx;
+  background: var(--white);
+  border-radius: 40rpx 40rpx 0 0;
 }
 
-.error {
+.section-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--gray-900);
+  margin-bottom: 24rpx;
+}
+
+.feature-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 24rpx;
+  background: var(--gray-50);
+  border-radius: 24rpx;
+}
+
+.feature-icon {
+  font-size: 48rpx;
+  width: 80rpx;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--orange-light);
+  border-radius: 20rpx;
+}
+
+.feature-info {
+  flex: 1;
+}
+
+.feature-name {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--gray-900);
+  margin-bottom: 8rpx;
+}
+
+.feature-desc {
+  display: block;
   font-size: 24rpx;
-  color: #FF3B30;
+  color: var(--gray-500);
+}
+
+/* ============ 已登录状态 ============ */
+.user-header {
+  position: relative;
+  padding: 60rpx 32rpx 80rpx;
+  overflow: hidden;
+}
+
+.header-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, var(--orange) 0%, #FF8533 100%);
+}
+
+.header-content {
+  position: relative;
+  z-index: 1;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+}
+
+.avatar {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
+  border: 4rpx solid rgba(255, 255, 255, 0.3);
+  background: var(--white);
+}
+
+.user-text {
+  flex: 1;
+}
+
+.greeting {
+  display: block;
+  font-size: 36rpx;
+  font-weight: 600;
+  color: var(--white);
+  margin-bottom: 8rpx;
+}
+
+.user-school {
+  display: block;
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.complete-tip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 24rpx;
+  padding: 20rpx 24rpx;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 16rpx;
+}
+
+.complete-tip .tip-text {
+  font-size: 26rpx;
+  color: var(--white);
+}
+
+.complete-tip .tip-arrow {
+  font-size: 28rpx;
+  color: var(--white);
+}
+
+/* 快捷入口 */
+.quick-section {
+  margin-top: -40rpx;
+  padding: 0 32rpx;
+}
+
+.quick-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16rpx;
+  background: var(--white);
+  border-radius: 32rpx;
+  padding: 32rpx 16rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+}
+
+.quick-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.quick-icon {
+  font-size: 48rpx;
+  margin-bottom: 8rpx;
+}
+
+.quick-label {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--gray-900);
+}
+
+.quick-desc {
+  font-size: 20rpx;
+  color: var(--gray-400);
+}
+
+/* 统计数据 */
+.stats-section {
+  margin: 32rpx 32rpx 0;
+  padding: 32rpx;
+  background: var(--white);
+  border-radius: 32rpx;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16rpx;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.stat-value {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: var(--orange);
+}
+
+.stat-label {
+  font-size: 24rpx;
+  color: var(--gray-500);
+}
+
+/* 赛事列表 */
+.events-section {
+  margin: 32rpx 32rpx 0;
+  padding: 32rpx;
+  background: var(--white);
+  border-radius: 32rpx;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24rpx;
+}
+
+.section-more {
+  font-size: 24rpx;
+  color: var(--gray-400);
+}
+
+.event-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.event-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24rpx;
+  background: var(--gray-50);
+  border-radius: 20rpx;
+}
+
+.event-info {
+  flex: 1;
+}
+
+.event-title {
+  display: block;
+  font-size: 28rpx;
+  font-weight: 500;
+  color: var(--gray-900);
+  margin-bottom: 8rpx;
+}
+
+.event-date {
+  display: block;
+  font-size: 24rpx;
+  color: var(--gray-400);
+}
+
+.event-status {
+  font-size: 24rpx;
+  font-weight: 500;
+  padding: 8rpx 16rpx;
+  border-radius: 8rpx;
+}
+
+.event-status.green {
+  background: var(--green-light);
+  color: var(--green);
+}
+
+.event-status.orange {
+  background: var(--orange-light);
+  color: var(--orange);
 }

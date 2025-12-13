@@ -1,20 +1,140 @@
-<view class="container">
-  <view class="header">
-    <text class="title">浙工大乒乓球协会</text>
-  </view>
-
-  <view class="content">
-    <view class="hello-box">
-      <text class="hello-text">{{message}}</text>
-      <text class="time-text">{{timestamp}}</text>
+<view class="home-page">
+  <!-- 未登录状态 -->
+  <block wx:if="{{!isLoggedIn}}">
+    <view class="welcome-section">
+      <view class="welcome-bg"></view>
+      <view class="welcome-content">
+        <text class="welcome-icon">🏓</text>
+        <text class="welcome-title">校乒网</text>
+        <text class="welcome-subtitle">校园乒乓球爱好者社区</text>
+        <text class="welcome-desc">约球、赛事、排行、签到，一站搞定</text>
+        <button class="login-btn" bindtap="onTapLogin">微信登录</button>
+      </view>
     </view>
 
-    <button class="fetch-btn" bindtap="fetchHello" loading="{{loading}}">
-      {{loading ? '加载中...' : '获取Hello World'}}
-    </button>
-
-    <view class="tip-text" wx:if="{{error}}">
-      <text class="error">{{error}}</text>
+    <!-- 功能预览 -->
+    <view class="preview-section">
+      <view class="section-title">功能亮点</view>
+      <view class="feature-list">
+        <view class="feature-item">
+          <text class="feature-icon">🎯</text>
+          <view class="feature-info">
+            <text class="feature-name">智能约球</text>
+            <text class="feature-desc">发布约球信息，匹配合适球友</text>
+          </view>
+        </view>
+        <view class="feature-item">
+          <text class="feature-icon">🏆</text>
+          <view class="feature-info">
+            <text class="feature-name">赛事管理</text>
+            <text class="feature-desc">报名参赛，自动记录成绩</text>
+          </view>
+        </view>
+        <view class="feature-item">
+          <text class="feature-icon">📊</text>
+          <view class="feature-info">
+            <text class="feature-name">积分排行</text>
+            <text class="feature-desc">校内/学院排名，记录交手战绩</text>
+          </view>
+        </view>
+      </view>
     </view>
-  </view>
+  </block>
+
+  <!-- 已登录状态 -->
+  <block wx:else>
+    <!-- 用户信息头部 -->
+    <view class="user-header">
+      <view class="header-bg"></view>
+      <view class="header-content">
+        <view class="user-info">
+          <image
+            class="avatar"
+            src="{{userInfo.avatar_url || '/images/default-avatar.png'}}"
+            mode="aspectFill"
+          />
+          <view class="user-text">
+            <text class="greeting">Hi，{{userInfo.name || '球友'}}</text>
+            <text class="user-school" wx:if="{{userInfo.school_name}}">{{userInfo.school_name}}</text>
+          </view>
+        </view>
+
+        <!-- 未完善信息提示 -->
+        <view class="complete-tip" wx:if="{{!isRegistered}}" bindtap="goToRegister">
+          <text class="tip-text">完善个人信息，解锁全部功能</text>
+          <text class="tip-arrow">→</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 快捷入口 -->
+    <view class="quick-section">
+      <view class="quick-grid">
+        <view
+          wx:for="{{quickActions}}"
+          wx:key="label"
+          class="quick-item"
+          data-url="{{item.url}}"
+          bindtap="onTapAction"
+        >
+          <text class="quick-icon">{{item.icon}}</text>
+          <text class="quick-label">{{item.label}}</text>
+          <text class="quick-desc">{{item.desc}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 我的数据 -->
+    <view class="stats-section" wx:if="{{isRegistered}}">
+      <view class="section-title">我的数据</view>
+      <view class="stats-grid">
+        <view class="stat-item">
+          <text class="stat-value">{{stats.matches}}</text>
+          <text class="stat-label">总场次</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-value">{{stats.wins}}</text>
+          <text class="stat-label">胜利</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-value">{{stats.events}}</text>
+          <text class="stat-label">赛事</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-value">{{stats.checkins}}</text>
+          <text class="stat-label">签到</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 最近赛事 -->
+    <view class="events-section">
+      <view class="section-header">
+        <text class="section-title">最近赛事</text>
+        <text class="section-more">查看更多 ></text>
+      </view>
+      <view class="event-list">
+        <view
+          wx:for="{{recentEvents}}"
+          wx:key="id"
+          class="event-item"
+          data-id="{{item.id}}"
+          bindtap="onTapEvent"
+        >
+          <view class="event-info">
+            <text class="event-title">{{item.title}}</text>
+            <text class="event-date">{{item.date}}</text>
+          </view>
+          <view class="event-status {{item.statusColor}}">{{item.status}}</view>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <!-- 隐私政策弹窗 -->
+  <privacy-modal
+    show="{{showPrivacyModal}}"
+    bind:agree="onAgreePrivacy"
+    bind:disagree="onDisagreePrivacy"
+  />
 </view>

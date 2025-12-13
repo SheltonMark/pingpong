@@ -1,3 +1,6 @@
 {
-  "navigationBarTitleText": "注册"
+  "navigationBarTitleText": "注册",
+  "usingComponents": {
+    "custom-picker": "/components/custom-picker/custom-picker"
+  }
 }

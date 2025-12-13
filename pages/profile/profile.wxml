@@ -1,3 +1,92 @@
-<view class="container">
-  <text>个人中心页面 - 开发中</text>
+<view class="profile-page">
+  <!-- 用户信息头部 -->
+  <view class="user-header">
+    <view class="header-bg"></view>
+    <view class="header-content">
+      <!-- 未登录 -->
+      <block wx:if="{{!isLoggedIn}}">
+        <view class="avatar-placeholder" bindtap="goToLogin">
+          <text class="avatar-icon">👤</text>
+        </view>
+        <text class="login-text" bindtap="goToLogin">点击登录</text>
+      </block>
+
+      <!-- 已登录 -->
+      <block wx:else>
+        <image
+          class="avatar"
+          src="{{userInfo.avatar_url || '/images/default-avatar.png'}}"
+          mode="aspectFill"
+        />
+        <view class="user-info">
+          <text class="user-name">{{userInfo.name || '未设置昵称'}}</text>
+          <view class="user-tags" wx:if="{{isRegistered}}">
+            <text class="tag">{{userInfo.school_name || '未知学校'}}</text>
+            <text class="tag" wx:if="{{userInfo.college_name}}">{{userInfo.college_name}}</text>
+          </view>
+          <view class="complete-btn" wx:if="{{!isRegistered}}" bindtap="goToRegister">
+            完善个人信息 →
+          </view>
+        </view>
+      </block>
+    </view>
+  </view>
+
+  <!-- 数据统计 -->
+  <view class="stats-card" wx:if="{{isRegistered}}">
+    <view class="stat-item">
+      <text class="stat-value">0</text>
+      <text class="stat-label">约球</text>
+    </view>
+    <view class="stat-divider"></view>
+    <view class="stat-item">
+      <text class="stat-value">0</text>
+      <text class="stat-label">赛事</text>
+    </view>
+    <view class="stat-divider"></view>
+    <view class="stat-item">
+      <text class="stat-value">0</text>
+      <text class="stat-label">胜场</text>
+    </view>
+    <view class="stat-divider"></view>
+    <view class="stat-item">
+      <text class="stat-value">0</text>
+      <text class="stat-label">积分</text>
+    </view>
+  </view>
+
+  <!-- 菜单列表 -->
+  <view class="menu-section">
+    <view
+      wx:for="{{menuItems}}"
+      wx:key="label"
+      class="menu-item"
+      data-url="{{item.url}}"
+      bindtap="onTapMenu"
+    >
+      <text class="menu-icon">{{item.icon}}</text>
+      <view class="menu-info">
+        <text class="menu-label">{{item.label}}</text>
+        <text class="menu-desc">{{item.desc}}</text>
+      </view>
+      <text class="menu-arrow">›</text>
+    </view>
+  </view>
+
+  <!-- 底部链接 -->
+  <view class="footer-links">
+    <text class="link" bindtap="viewPrivacy">隐私政策</text>
+    <text class="divider">|</text>
+    <text class="link" bindtap="viewAgreement">用户协议</text>
+  </view>
+
+  <!-- 退出登录按钮 -->
+  <view class="logout-section" wx:if="{{isLoggedIn}}">
+    <button class="logout-btn" bindtap="onLogout">退出登录</button>
+  </view>
+
+  <!-- 版本信息 -->
+  <view class="version-info">
+    <text>校乒网 v1.0.0</text>
+  </view>
 </view>
