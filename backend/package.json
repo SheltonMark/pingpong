@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
+    "migrate": "node scripts/migrate.js",
     "test": "echo \"No tests yet\" && exit 0"
   },
   "dependencies": {
