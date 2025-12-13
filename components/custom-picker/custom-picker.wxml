@@ -1,0 +1,38 @@
+<view class="custom-picker">
+  <!-- 标签 -->
+  <view class="picker-label" wx:if="{{label}}">
+    {{label}}
+    <text class="required" wx:if="{{required}}">*</text>
+  </view>
+
+  <!-- 触发器 -->
+  <view
+    class="picker-trigger {{isOpen ? 'active' : ''}} {{disabled ? 'disabled' : ''}}"
+    bindtap="toggleDropdown"
+  >
+    <text class="{{selectedItem ? '' : 'placeholder'}}">
+      {{selectedItem ? selectedItem.name : placeholder}}
+    </text>
+    <view class="arrow {{isOpen ? 'up' : ''}}">
+      <text class="arrow-icon">▾</text>
+    </view>
+  </view>
+
+  <!-- 下拉选项 -->
+  <view class="dropdown" wx:if="{{isOpen}}">
+    <view
+      wx:for="{{options}}"
+      wx:key="id"
+      class="option {{selectedItem && selectedItem.id === item.id ? 'selected' : ''}}"
+      data-id="{{item.id}}"
+      data-name="{{item.name}}"
+      bindtap="selectOption"
+    >
+      <text>{{item.name}}</text>
+      <text class="check" wx:if="{{selectedItem && selectedItem.id === item.id}}">✓</text>
+    </view>
+  </view>
+
+  <!-- 遮罩层 -->
+  <view class="mask" wx:if="{{isOpen}}" bindtap="closeDropdown"></view>
+</view>

@@ -1,3 +1,39 @@
 .container {
-  padding: 40rpx;
+  padding: 32rpx;
+  background: var(--white);
+  min-height: 100vh;
+}
+
+.update-date {
+  font-size: 24rpx;
+  color: var(--gray-400);
+  margin-bottom: 32rpx;
+}
+
+.section {
+  margin-bottom: 32rpx;
+}
+
+.section-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--gray-900);
+  margin-bottom: 24rpx;
+}
+
+.section-content {
+  font-size: 28rpx;
+  color: var(--gray-700);
+  line-height: 1.8;
+  margin-bottom: 16rpx;
+}
+
+.list {
+  padding-left: 16rpx;
+}
+
+.list-item {
+  font-size: 28rpx;
+  color: var(--gray-700);
+  line-height: 2;
 }

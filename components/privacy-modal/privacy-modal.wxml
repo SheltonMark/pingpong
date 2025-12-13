@@ -1,0 +1,34 @@
+<view class="modal-overlay" wx:if="{{show}}" catchtouchmove="preventBubble">
+  <view class="modal-content" catchtap="preventBubble">
+    <view class="modal-header">
+      <text class="modal-title">服务协议和隐私政策</text>
+    </view>
+
+    <view class="modal-body">
+      <text class="welcome">欢迎使用校乒网！</text>
+
+      <text class="desc">
+        在您使用本小程序前，请仔细阅读
+        <text class="link" bindtap="viewUserAgreement">《用户协议》</text>
+        和
+        <text class="link" bindtap="viewPrivacyPolicy">《隐私政策》</text>
+        。
+      </text>
+
+      <text class="desc">为了向您提供更好的服务，我们需要收集以下信息：</text>
+
+      <view class="info-list">
+        <text class="info-item">• 微信头像和昵称</text>
+        <text class="info-item">• 手机号码</text>
+        <text class="info-item">• 位置信息（用于签到）</text>
+      </view>
+
+      <text class="tip">点击"同意"即表示您已阅读并同意上述协议。</text>
+    </view>
+
+    <view class="modal-footer">
+      <view class="btn btn-secondary" bindtap="onDisagree">不同意</view>
+      <view class="btn btn-primary" bindtap="onAgree">同意</view>
+    </view>
+  </view>
+</view>

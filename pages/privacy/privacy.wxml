@@ -1,3 +1,81 @@
 <view class="container">
-  <text>隐私政策页面 - 开发中</text>
+  <view class="update-date">更新日期：{{updateDate}}</view>
+
+  <!-- 隐私政策内容 -->
+  <block wx:if="{{type === 'privacy-policy'}}">
+    <view class="section">
+      <view class="section-title">一、信息收集</view>
+      <view class="section-content">
+        <text>为了向您提供更好的服务，我们可能会收集以下信息：</text>
+      </view>
+      <view class="list">
+        <view class="list-item">• 微信头像和昵称</view>
+        <view class="list-item">• 手机号码</view>
+        <view class="list-item">• 学校、学院等基本信息</view>
+        <view class="list-item">• 位置信息（用于签到功能）</view>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-title">二、信息使用</view>
+      <view class="section-content">
+        <text>我们收集的信息将用于：</text>
+      </view>
+      <view class="list">
+        <view class="list-item">• 提供赛事报名和管理服务</view>
+        <view class="list-item">• 展示排行榜和交手记录</view>
+        <view class="list-item">• 验证签到位置</view>
+        <view class="list-item">• 发送赛事通知</view>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-title">三、信息保护</view>
+      <view class="section-content">
+        <text>我们采取严格的数据安全措施保护您的个人信息，未经您的同意，不会向第三方披露您的个人信息。</text>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-title">四、联系我们</view>
+      <view class="section-content">
+        <text>如您对本隐私政策有任何疑问，请联系我们：privacy@example.com</text>
+      </view>
+    </view>
+  </block>
+
+  <!-- 用户协议内容 -->
+  <block wx:if="{{type === 'user-agreement'}}">
+    <view class="section">
+      <view class="section-title">一、服务说明</view>
+      <view class="section-content">
+        <text>本小程序为校园乒乓球爱好者提供赛事管理、约球、签到等服务。使用本服务即表示您同意本协议。</text>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-title">二、用户行为规范</view>
+      <view class="list">
+        <view class="list-item">• 请使用真实身份信息注册</view>
+        <view class="list-item">• 报名赛事后请准时参加</view>
+        <view class="list-item">• 如实录入比赛成绩</view>
+        <view class="list-item">• 尊重其他用户，文明交流</view>
+        <view class="list-item">• 不得发布违法违规内容</view>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-title">三、免责声明</view>
+      <view class="section-content">
+        <text>用户在使用本小程序过程中发生的人身伤害、财产损失等，本平台不承担责任。请在运动前做好热身准备。</text>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-title">四、协议修改</view>
+      <view class="section-content">
+        <text>我们保留随时修改本协议的权利，修改后的协议将在小程序内公布。</text>
+      </view>
+    </view>
+  </block>
 </view>
