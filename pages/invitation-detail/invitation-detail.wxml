@@ -1,0 +1,84 @@
+<view class="detail-page">
+  <view class="invitation-card" wx:if="{{invitation}}">
+    <view class="inv-header">
+      <image class="creator-avatar" src="{{invitation.creator_avatar || '/images/default-avatar.png'}}" />
+      <view class="creator-info">
+        <text class="creator-name">{{invitation.creator_name}}</text>
+        <text class="inv-school">{{invitation.school_name}}</text>
+      </view>
+      <view class="inv-status status-{{invitation.status}}">
+        {{statusLabels[invitation.status]}}
+      </view>
+    </view>
+
+    <view class="inv-body">
+      <text class="inv-title">{{invitation.title || '约球'}}</text>
+      <text class="inv-content" wx:if="{{invitation.post_content}}">{{invitation.post_content}}</text>
+
+      <view class="inv-meta">
+        <view class="meta-item" wx:if="{{invitation.location}}">
+          <text class="meta-icon">📍</text>
+          <text>{{invitation.location}}</text>
+        </view>
+        <view class="meta-item" wx:if="{{invitation.scheduled_time}}">
+          <text class="meta-icon">🕐</text>
+          <text>{{invitation.time_label}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="participants-section">
+      <view class="section-title">参与者 ({{invitation.participants.length}}/{{invitation.max_participants}})</view>
+      <view class="participant-list">
+        <view class="participant-item" wx:for="{{invitation.participants}}" wx:key="id">
+          <image class="participant-avatar" src="{{item.avatar_url || '/images/default-avatar.png'}}" />
+          <text class="participant-name">{{item.name}}</text>
+          <text class="participant-tag" wx:if="{{item.user_id === invitation.creator_id}}">发起人</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="match-section" wx:if="{{match}}">
+    <view class="section-title">比赛比分</view>
+    <view class="match-card">
+      <view class="players">
+        <view class="player">
+          <image src="{{match.player1_avatar || '/images/default-avatar.png'}}" />
+          <text>{{match.player1_name}}</text>
+        </view>
+        <view class="vs">VS</view>
+        <view class="player">
+          <image src="{{match.player2_avatar || '/images/default-avatar.png'}}" />
+          <text>{{match.player2_name}}</text>
+        </view>
+      </view>
+      <view class="scores" wx:if="{{match.scores.length > 0}}">
+        <view class="score-row" wx:for="{{match.scores}}" wx:key="game_number">
+          <text class="game-label">第{{item.game_number}}局</text>
+          <text class="score {{item.player1_score > item.player2_score ? 'winner' : ''}}">{{item.player1_score}}</text>
+          <text class="score-sep">:</text>
+          <text class="score {{item.player2_score > item.player1_score ? 'winner' : ''}}">{{item.player2_score}}</text>
+        </view>
+      </view>
+      <view class="total-score">
+        <text class="total {{match.player1_games > match.player2_games ? 'winner' : ''}}">{{match.player1_games}}</text>
+        <text class="total-sep">:</text>
+        <text class="total {{match.player2_games > match.player1_games ? 'winner' : ''}}">{{match.player2_games}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="action-bar">
+    <block wx:if="{{invitation.status === 'open'}}">
+      <button wx:if="{{!hasJoined}}" class="action-btn primary" bindtap="onJoin">参与约球</button>
+      <button wx:elif="{{!isCreator}}" class="action-btn secondary" bindtap="onLeave">退出约球</button>
+    </block>
+    <block wx:if="{{isCreator && (invitation.status === 'full' || (invitation.status === 'open' && invitation.participants.length >= 2))}}">
+      <button class="action-btn primary" bindtap="onStartMatch">开始比赛</button>
+    </block>
+    <block wx:if="{{isPlayer && invitation.status === 'ongoing'}}">
+      <button class="action-btn primary" bindtap="onEnterScore">录入比分</button>
+    </block>
+  </view>
+</view>

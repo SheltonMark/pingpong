@@ -1,0 +1,52 @@
+<view class="detail-page">
+  <view class="post-card" wx:if="{{post}}">
+    <view class="post-header">
+      <image class="author-avatar" src="{{post.author_avatar || '/images/default-avatar.png'}}" />
+      <view class="author-info">
+        <text class="author-name">{{post.author_name}}</text>
+        <text class="post-time">{{post.time_label}}</text>
+      </view>
+    </view>
+
+    <text class="post-content">{{post.content}}</text>
+
+    <view class="post-images" wx:if="{{post.images.length > 0}}">
+      <image wx:for="{{post.images}}" wx:key="*this" src="{{item}}" mode="aspectFill" bindtap="onPreviewImage" data-current="{{item}}" />
+    </view>
+
+    <view class="post-stats">
+      <view class="stat-item" bindtap="onTapLike">
+        <text class="stat-icon {{post.is_liked ? 'liked' : ''}}">{{post.is_liked ? '❤️' : '🤍'}}</text>
+        <text>{{post.like_count}}</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-icon">💬</text>
+        <text>{{comments.length}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="comments-section">
+    <view class="section-title">评论 ({{comments.length}})</view>
+    <view class="comment-list">
+      <view class="comment-item" wx:for="{{comments}}" wx:key="id">
+        <image class="comment-avatar" src="{{item.author_avatar || '/images/default-avatar.png'}}" />
+        <view class="comment-body">
+          <view class="comment-header">
+            <text class="comment-author">{{item.author_name}}</text>
+            <text class="comment-time">{{item.time_label}}</text>
+          </view>
+          <text class="comment-content">{{item.content}}</text>
+        </view>
+      </view>
+      <view class="empty-comments" wx:if="{{comments.length === 0}}">
+        <text>还没有评论，快来说两句吧</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="comment-input-bar">
+    <input class="comment-input" placeholder="写评论..." bindinput="onCommentInput" value="{{commentText}}" />
+    <button class="send-btn" bindtap="onSendComment" disabled="{{!commentText.trim()}}">发送</button>
+  </view>
+</view>

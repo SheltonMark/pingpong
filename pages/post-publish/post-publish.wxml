@@ -1,0 +1,77 @@
+<view class="publish-page">
+  <!-- 类型选择 -->
+  <view class="type-selector">
+    <view class="type-item {{postType === 'post' ? 'active' : ''}}" bindtap="onSelectType" data-type="post">
+      <text class="type-icon">📝</text>
+      <text class="type-label">发动态</text>
+    </view>
+    <view class="type-item {{postType === 'invitation' ? 'active' : ''}}" bindtap="onSelectType" data-type="invitation">
+      <text class="type-icon">🏓</text>
+      <text class="type-label">约球</text>
+    </view>
+  </view>
+
+  <!-- 内容输入 -->
+  <view class="content-section">
+    <textarea
+      class="content-input"
+      placeholder="{{postType === 'post' ? '分享你的乒乓日常...' : '说说你的约球计划...'}}"
+      maxlength="150"
+      bindinput="onContentInput"
+      value="{{content}}"
+    />
+    <text class="char-count">{{content.length}}/150</text>
+  </view>
+
+  <!-- 图片上传 -->
+  <view class="image-section">
+    <view class="image-grid">
+      <view class="image-item" wx:for="{{images}}" wx:key="*this">
+        <image src="{{item}}" mode="aspectFill" />
+        <view class="remove-btn" catchtap="onRemoveImage" data-index="{{index}}">×</view>
+      </view>
+      <view class="add-image" wx:if="{{images.length < 9}}" bindtap="onAddImage">
+        <text class="add-icon">+</text>
+        <text class="add-text">添加图片</text>
+      </view>
+    </view>
+    <text class="image-tip">最多9张图片</text>
+  </view>
+
+  <!-- 约球专属字段 -->
+  <block wx:if="{{postType === 'invitation'}}">
+    <view class="form-section">
+      <view class="form-item">
+        <text class="form-label">📍 地点</text>
+        <input class="form-input" placeholder="比赛地点" bindinput="onLocationInput" value="{{location}}" />
+      </view>
+      <view class="form-item">
+        <text class="form-label">🕐 日期</text>
+        <picker mode="date" bindchange="onDateChange" value="{{date}}">
+          <view class="picker-value">{{date || '选择日期'}}</view>
+        </picker>
+      </view>
+      <view class="form-item">
+        <text class="form-label">🕐 时间</text>
+        <picker mode="time" bindchange="onTimeChange" value="{{time}}">
+          <view class="picker-value">{{time || '选择时间'}}</view>
+        </picker>
+      </view>
+      <view class="form-item">
+        <text class="form-label">👥 人数</text>
+        <view class="number-picker">
+          <view class="num-btn" bindtap="onDecrease">-</view>
+          <text class="num-value">{{maxParticipants}}</text>
+          <view class="num-btn" bindtap="onIncrease">+</view>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <!-- 发布按钮 -->
+  <view class="submit-section">
+    <button class="submit-btn" bindtap="onSubmit" disabled="{{!content || isSubmitting}}">
+      {{isSubmitting ? '发布中...' : '发布'}}
+    </button>
+  </view>
+</view>

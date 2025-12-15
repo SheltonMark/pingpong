@@ -9,7 +9,10 @@
     "pages/settings/settings",
     "pages/event-detail/event-detail",
     "pages/score-entry/score-entry",
-    "pages/score-confirm/score-confirm"
+    "pages/score-confirm/score-confirm",
+    "pages/post-publish/post-publish",
+    "pages/post-detail/post-detail",
+    "pages/invitation-detail/invitation-detail"
   ],
   "window": {
     "navigationBarTitleText": "校乒网",

@@ -1,8 +1,334 @@
-.container {
-  padding: 40rpx;
+.square-page {
+  min-height: 100vh;
+  background: #F5F5F5;
+  padding-bottom: 120rpx;
+}
+
+/* 筛选栏 */
+.filter-bar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #FFFFFF;
+  padding: 20rpx 32rpx;
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
-  height: 100vh;
-  color: var(--gray-600);
+  box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.05);
+}
+
+.school-filter {
+  display: flex;
+  align-items: center;
+  padding: 12rpx 24rpx;
+  background: #F5F5F5;
+  border-radius: 20rpx;
+}
+
+.filter-text {
+  font-size: 28rpx;
+  color: #333;
+  margin-right: 8rpx;
+}
+
+.filter-arrow {
+  font-size: 20rpx;
+  color: #999;
+}
+
+.tab-bar {
+  display: flex;
+  gap: 32rpx;
+}
+
+.tab-item {
+  font-size: 30rpx;
+  color: #666;
+  padding: 8rpx 0;
+  position: relative;
+}
+
+.tab-item.active {
+  color: #FF6B00;
+  font-weight: 600;
+}
+
+.tab-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40rpx;
+  height: 6rpx;
+  background: #FF6B00;
+  border-radius: 3rpx;
+}
+
+/* 帖子列表 */
+.post-list, .invitation-list {
+  height: calc(100vh - 120rpx);
+}
+
+.post-item {
+  background: #FFFFFF;
+  margin: 20rpx 24rpx;
+  border-radius: 24rpx;
+  padding: 28rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+}
+
+.post-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.author-avatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  margin-right: 20rpx;
+}
+
+.author-info {
+  flex: 1;
+}
+
+.author-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1A1A1A;
+  display: block;
+}
+
+.post-time {
+  font-size: 24rpx;
+  color: #9CA3AF;
+  margin-top: 4rpx;
+}
+
+.post-content {
+  font-size: 30rpx;
+  color: #374151;
+  line-height: 1.6;
+  display: block;
+  margin-bottom: 20rpx;
+}
+
+/* 图片网格 */
+.post-images {
+  display: grid;
+  gap: 8rpx;
+  margin-bottom: 20rpx;
+}
+
+.post-images.single {
+  grid-template-columns: 1fr;
+}
+
+.post-images.single .post-image {
+  max-width: 400rpx;
+  height: 400rpx;
+  border-radius: 16rpx;
+}
+
+.post-images.grid-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.post-images.grid-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.post-image {
+  width: 100%;
+  height: 200rpx;
+  border-radius: 12rpx;
+  object-fit: cover;
+}
+
+/* 互动栏 */
+.post-actions {
+  display: flex;
+  gap: 48rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx solid #F0F0F0;
+}
+
+.action-item {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.action-icon {
+  font-size: 32rpx;
+}
+
+.action-icon.liked {
+  color: #EF4444;
+}
+
+.action-count {
+  font-size: 26rpx;
+  color: #9CA3AF;
+}
+
+/* 约球卡片 */
+.invitation-item {
+  background: #FFFFFF;
+  margin: 20rpx 24rpx;
+  border-radius: 24rpx;
+  padding: 28rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+}
+
+.invitation-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.creator-avatar {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  margin-right: 16rpx;
+}
+
+.creator-info {
+  flex: 1;
+}
+
+.creator-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1A1A1A;
+  display: block;
+}
+
+.invitation-school {
+  font-size: 24rpx;
+  color: #9CA3AF;
+}
+
+.invitation-status {
+  font-size: 24rpx;
+  padding: 8rpx 20rpx;
+  border-radius: 20rpx;
+}
+
+.invitation-status.status-open {
+  background: #D1FAE5;
+  color: #10B981;
+}
+
+.invitation-status.status-full {
+  background: #FEF3C7;
+  color: #F59E0B;
+}
+
+.invitation-status.status-ongoing {
+  background: #DBEAFE;
+  color: #3B82F6;
+}
+
+.invitation-status.status-finished {
+  background: #E5E7EB;
+  color: #6B7280;
+}
+
+.invitation-body {
+  padding-left: 88rpx;
+}
+
+.invitation-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1A1A1A;
+  display: block;
+  margin-bottom: 12rpx;
+}
+
+.invitation-meta {
+  display: flex;
+  gap: 24rpx;
+  font-size: 26rpx;
+  color: #666;
+  margin-bottom: 16rpx;
+}
+
+.invitation-progress {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.progress-text {
+  font-size: 26rpx;
+  color: #FF6B00;
+  font-weight: 500;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 12rpx;
+  background: #F0F0F0;
+  border-radius: 6rpx;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #FF6B00, #FF8533);
+  border-radius: 6rpx;
+  transition: width 0.3s;
+}
+
+/* 发布按钮 */
+.fab-button {
+  position: fixed;
+  right: 40rpx;
+  bottom: 200rpx;
+  width: 100rpx;
+  height: 100rpx;
+  background: linear-gradient(135deg, #FF6B00, #E55D00);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8rpx 24rpx rgba(255, 107, 0, 0.4);
+}
+
+.fab-icon {
+  font-size: 56rpx;
+  color: #FFFFFF;
+  font-weight: 300;
+}
+
+/* 空状态 */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 0;
+}
+
+.empty-icon {
+  font-size: 80rpx;
+  margin-bottom: 24rpx;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: #9CA3AF;
+}
+
+.load-more, .no-more {
+  text-align: center;
+  padding: 32rpx;
+  font-size: 26rpx;
+  color: #9CA3AF;
 }
