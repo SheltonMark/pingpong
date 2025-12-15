@@ -9,11 +9,9 @@ Page({
     showPrivacyModal: false,
     greeting: '你好',
 
-    // 公告
-    announcement: {
-      title: '体育馆12月25日闭馆通知',
-      desc: '因设备维护，当日暂停开放'
-    },
+    // 轮播公告
+    announcements: [],
+    currentSwiperIndex: 0,
 
     // 快捷入口
     quickActions: [
@@ -60,12 +58,15 @@ Page({
         score: 2456,
         avatar_url: ''
       }
-    ]
+    ],
+
+    useMock: true
   },
 
   onLoad() {
     this.updateLoginStatus();
     this.updateGreeting();
+    this.loadAnnouncements();
   },
 
   onShow() {
@@ -150,8 +151,83 @@ Page({
   },
 
   // 点击公告
-  onTapAnnouncement() {
-    wx.showToast({ title: '公告详情页开发中', icon: 'none' });
+  onTapAnnouncement(e) {
+    const { item } = e.currentTarget.dataset;
+    if (!item) return;
+
+    if (item.link_type === 'event' && item.link_event_id) {
+      wx.navigateTo({ url: `/pages/event-detail/event-detail?id=${item.link_event_id}` });
+    } else if (item.link_type === 'url' && item.link_url) {
+      // 小程序内 webview 或复制链接
+      wx.setClipboardData({
+        data: item.link_url,
+        success: () => wx.showToast({ title: '链接已复制', icon: 'success' })
+      });
+    }
+  },
+
+  // 轮播图切换
+  onSwiperChange(e) {
+    this.setData({ currentSwiperIndex: e.detail.current });
+  },
+
+  // 加载公告
+  async loadAnnouncements() {
+    if (this.data.useMock) {
+      this.setData({
+        announcements: this.getMockAnnouncements()
+      });
+      return;
+    }
+
+    try {
+      const res = await new Promise((resolve, reject) => {
+        wx.request({
+          url: `${app.globalData.baseUrl}/api/announcements`,
+          data: {
+            school_id: app.globalData.userInfo?.school_id,
+            limit: 5
+          },
+          success: (res) => resolve(res.data),
+          fail: reject
+        });
+      });
+
+      if (res.success) {
+        this.setData({ announcements: res.data });
+      }
+    } catch (error) {
+      console.error('加载公告失败:', error);
+    }
+  },
+
+  // Mock 公告数据
+  getMockAnnouncements() {
+    return [
+      {
+        id: 1,
+        title: '新生杯乒乓球赛报名开始',
+        content: '12月20日开赛，欢迎新生参加',
+        image_url: '',
+        link_type: 'event',
+        link_event_id: 1
+      },
+      {
+        id: 2,
+        title: '体育馆12月25日闭馆通知',
+        content: '因设备维护，当日暂停开放',
+        image_url: '',
+        link_type: 'none'
+      },
+      {
+        id: 3,
+        title: '校队选拔赛即将开始',
+        content: '欢迎有实力的同学报名参加',
+        image_url: '',
+        link_type: 'event',
+        link_event_id: 2
+      }
+    ];
   },
 
   // 点击快捷入口

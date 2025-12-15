@@ -33,17 +33,39 @@
       </view>
     </view>
 
-    <!-- 公告卡片 -->
-    <view class="announcement-card" wx:if="{{announcement}}" bindtap="onTapAnnouncement">
-      <view class="announcement-tag">
-        <text class="tag-icon">📢</text>
-        <text class="tag-text">公告</text>
+    <!-- 公告轮播图 -->
+    <view class="announcement-swiper-wrapper" wx:if="{{announcements.length > 0}}">
+      <swiper
+        class="announcement-swiper"
+        indicator-dots="{{false}}"
+        autoplay="{{true}}"
+        interval="{{4000}}"
+        duration="{{500}}"
+        circular="{{true}}"
+        bindchange="onSwiperChange"
+      >
+        <swiper-item wx:for="{{announcements}}" wx:key="id">
+          <view class="announcement-card" data-item="{{item}}" bindtap="onTapAnnouncement">
+            <view class="announcement-tag">
+              <text class="tag-icon">📢</text>
+              <text class="tag-text">{{item.link_type === 'event' ? '赛事' : '公告'}}</text>
+            </view>
+            <view class="announcement-content">
+              <text class="announcement-title">{{item.title}}</text>
+              <text class="announcement-desc">{{item.content}}</text>
+            </view>
+            <text class="announcement-arrow">›</text>
+          </view>
+        </swiper-item>
+      </swiper>
+      <!-- 指示器 -->
+      <view class="swiper-dots" wx:if="{{announcements.length > 1}}">
+        <view
+          class="dot {{currentSwiperIndex === index ? 'active' : ''}}"
+          wx:for="{{announcements}}"
+          wx:key="id"
+        ></view>
       </view>
-      <view class="announcement-content">
-        <text class="announcement-title">{{announcement.title}}</text>
-        <text class="announcement-desc">{{announcement.desc}}</text>
-      </view>
-      <text class="announcement-emoji">📋</text>
     </view>
 
     <!-- 快捷入口 -->

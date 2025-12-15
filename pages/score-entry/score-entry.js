@@ -1,0 +1,189 @@
+// pages/score-entry/score-entry.js
+const app = getApp();
+
+Page({
+  data: {
+    matchId: null,
+    match: null,
+    bestOf: 5, // 默认5局3胜
+    scores: [],
+    totalScore: { player1: 0, player2: 0 },
+    loading: true,
+    submitting: false,
+    useMock: true
+  },
+
+  onLoad(options) {
+    this.setData({ matchId: options.match_id });
+    this.loadMatchDetail();
+  },
+
+  // 加载比赛详情
+  async loadMatchDetail() {
+    if (this.data.useMock) {
+      setTimeout(() => {
+        const match = this.getMockMatch();
+        const scores = this.initScores(5);
+        this.setData({
+          match,
+          bestOf: 5,
+          scores,
+          loading: false
+        });
+      }, 300);
+      return;
+    }
+
+    try {
+      const res = await new Promise((resolve, reject) => {
+        wx.request({
+          url: `${app.globalData.baseUrl}/api/events/matches/${this.data.matchId}`,
+          success: (res) => resolve(res.data),
+          fail: reject
+        });
+      });
+
+      if (res.success) {
+        const scores = this.initScores(res.data.best_of || 5);
+        this.setData({
+          match: res.data,
+          bestOf: res.data.best_of || 5,
+          scores,
+          loading: false
+        });
+      }
+    } catch (error) {
+      console.error('加载失败:', error);
+      wx.showToast({ title: '加载失败', icon: 'none' });
+      this.setData({ loading: false });
+    }
+  },
+
+  // 初始化比分数组
+  initScores(bestOf) {
+    const scores = [];
+    for (let i = 0; i < bestOf; i++) {
+      scores.push({
+        game_number: i + 1,
+        player1_score: '',
+        player2_score: ''
+      });
+    }
+    return scores;
+  },
+
+  // 输入比分
+  onScoreInput(e) {
+    const { game, player } = e.currentTarget.dataset;
+    const value = e.detail.value;
+    const scores = [...this.data.scores];
+
+    if (player === 1) {
+      scores[game - 1].player1_score = value;
+    } else {
+      scores[game - 1].player2_score = value;
+    }
+
+    // 计算总比分
+    const totalScore = this.calculateTotalScore(scores);
+
+    this.setData({ scores, totalScore });
+  },
+
+  // 计算总比分
+  calculateTotalScore(scores) {
+    let player1 = 0, player2 = 0;
+
+    scores.forEach(s => {
+      const p1 = parseInt(s.player1_score) || 0;
+      const p2 = parseInt(s.player2_score) || 0;
+
+      if (p1 > 0 || p2 > 0) {
+        if (p1 > p2) player1++;
+        else if (p2 > p1) player2++;
+      }
+    });
+
+    return { player1, player2 };
+  },
+
+  // 提交比分
+  async onSubmit() {
+    const { scores, totalScore, bestOf } = this.data;
+    const winGames = Math.ceil(bestOf / 2);
+
+    // 验证比分
+    const validScores = scores.filter(s =>
+      s.player1_score !== '' && s.player2_score !== ''
+    );
+
+    if (validScores.length === 0) {
+      wx.showToast({ title: '请输入比分', icon: 'none' });
+      return;
+    }
+
+    // 检查是否有胜者
+    if (totalScore.player1 < winGames && totalScore.player2 < winGames) {
+      wx.showModal({
+        title: '提示',
+        content: `比赛尚未结束，需要${winGames}局才能决出胜负`,
+        showCancel: false
+      });
+      return;
+    }
+
+    this.setData({ submitting: true });
+
+    if (this.data.useMock) {
+      setTimeout(() => {
+        wx.showToast({ title: '提交成功', icon: 'success' });
+        setTimeout(() => wx.navigateBack(), 1500);
+      }, 500);
+      return;
+    }
+
+    try {
+      const res = await new Promise((resolve, reject) => {
+        wx.request({
+          url: `${app.globalData.baseUrl}/api/events/matches/${this.data.matchId}/score`,
+          method: 'POST',
+          data: {
+            scores: validScores,
+            recorded_by: app.globalData.userInfo?.user_id
+          },
+          success: (res) => resolve(res.data),
+          fail: reject
+        });
+      });
+
+      if (res.success) {
+        wx.showToast({ title: '提交成功', icon: 'success' });
+        setTimeout(() => wx.navigateBack(), 1500);
+      } else {
+        wx.showToast({ title: res.message || '提交失败', icon: 'none' });
+      }
+    } catch (error) {
+      console.error('提交失败:', error);
+      wx.showToast({ title: '提交失败', icon: 'none' });
+    } finally {
+      this.setData({ submitting: false });
+    }
+  },
+
+  // Mock 数据
+  getMockMatch() {
+    return {
+      id: 1,
+      event_id: 1,
+      round: 1,
+      match_order: 1,
+      player1_id: 101,
+      player2_id: 102,
+      player1_name: '张明远',
+      player2_name: '李思源',
+      player1_avatar: '',
+      player2_avatar: '',
+      status: 'ongoing'
+    };
+  }
+});

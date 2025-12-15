@@ -1,0 +1,51 @@
+<!-- pages/score-confirm/score-confirm.wxml -->
+<view class="score-confirm-page" wx:if="{{!loading}}">
+  <!-- 对阵双方和总比分 -->
+  <view class="match-card">
+    <view class="player-side">
+      <image class="player-avatar" src="{{match.player1_avatar || '/images/default-avatar.png'}}" mode="aspectFill" />
+      <text class="player-name">{{match.player1_name}}</text>
+    </view>
+    <view class="score-center">
+      <view class="total-score">
+        <text class="score-num {{totalScore.player1 > totalScore.player2 ? 'winner' : ''}}">{{totalScore.player1}}</text>
+        <text class="score-colon">:</text>
+        <text class="score-num {{totalScore.player2 > totalScore.player1 ? 'winner' : ''}}">{{totalScore.player2}}</text>
+      </view>
+      <text class="score-label">总比分</text>
+    </view>
+    <view class="player-side">
+      <image class="player-avatar" src="{{match.player2_avatar || '/images/default-avatar.png'}}" mode="aspectFill" />
+      <text class="player-name">{{match.player2_name}}</text>
+    </view>
+  </view>
+
+  <!-- 详细比分 -->
+  <view class="scores-card">
+    <view class="card-title">每局比分</view>
+
+    <view class="score-rows">
+      <view
+        class="score-row {{item.player1_score > item.player2_score ? 'player1-win' : 'player2-win'}}"
+        wx:for="{{scores}}"
+        wx:key="game_number"
+      >
+        <text class="game-label">第{{item.game_number}}局</text>
+        <text class="game-score">{{item.player1_score}} : {{item.player2_score}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部按钮 -->
+  <view class="bottom-actions">
+    <button class="dispute-btn" bindtap="onDispute">有异议</button>
+    <button class="confirm-btn" bindtap="onConfirm" disabled="{{confirming}}">
+      {{confirming ? '确认中...' : '确认无误'}}
+    </button>
+  </view>
+</view>
+
+<!-- 加载中 -->
+<view class="loading" wx:if="{{loading}}">
+  <text>加载中...</text>
+</view>

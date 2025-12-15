@@ -1,0 +1,173 @@
+/* pages/score-entry/score-entry.wxss */
+.score-entry-page {
+  min-height: 100vh;
+  background: var(--gray-50);
+  padding: 24rpx 32rpx;
+  padding-bottom: 160rpx;
+}
+
+/* 对阵卡片 */
+.match-card {
+  background: var(--white);
+  border-radius: 24rpx;
+  padding: 40rpx 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  margin-bottom: 24rpx;
+}
+
+.player-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.player-avatar {
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: 32rpx;
+  background: var(--gray-100);
+}
+
+.player-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--gray-900);
+}
+
+.vs-text {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: var(--gray-300);
+}
+
+/* 比分卡片 */
+.scores-card {
+  background: var(--white);
+  border-radius: 24rpx;
+  padding: 32rpx;
+}
+
+.card-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--gray-700);
+  margin-bottom: 24rpx;
+}
+
+.score-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.score-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.game-label {
+  font-size: 26rpx;
+  color: var(--gray-400);
+  width: 80rpx;
+}
+
+.score-inputs {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+}
+
+.score-input {
+  width: 120rpx;
+  padding: 20rpx 12rpx;
+  border: 4rpx solid var(--gray-200);
+  border-radius: 16rpx;
+  font-size: 32rpx;
+  font-weight: 600;
+  text-align: center;
+  background: var(--white);
+}
+
+.score-input:focus {
+  border-color: var(--orange);
+}
+
+.score-colon {
+  font-size: 32rpx;
+  color: var(--gray-300);
+  font-weight: 600;
+}
+
+/* 总比分 */
+.total-score-box {
+  margin-top: 32rpx;
+  padding: 28rpx;
+  background: var(--orange-light);
+  border-radius: 24rpx;
+  text-align: center;
+}
+
+.total-label {
+  font-size: 26rpx;
+  color: var(--gray-600);
+}
+
+.total-score {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+  margin-top: 8rpx;
+}
+
+.score-num {
+  font-size: 56rpx;
+  font-weight: 700;
+  color: var(--orange);
+}
+
+.score-separator {
+  font-size: 48rpx;
+  font-weight: 700;
+  color: var(--orange);
+}
+
+/* 底部按钮 */
+.bottom-action {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 24rpx 32rpx;
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+  background: var(--white);
+  box-shadow: 0 -4rpx 20rpx rgba(0,0,0,0.05);
+}
+
+.submit-btn {
+  width: 100%;
+  padding: 28rpx;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--white);
+  background: linear-gradient(135deg, var(--orange), var(--orange-dark));
+  border-radius: 48rpx;
+  border: none;
+}
+
+.submit-btn[disabled] {
+  opacity: 0.6;
+}
+
+.loading {
+  text-align: center;
+  padding: 100rpx;
+  color: var(--gray-400);
+  font-size: 28rpx;
+}
