@@ -7,32 +7,65 @@ Page({
     isRegistered: false,
     userInfo: null,
     showPrivacyModal: false,
+    greeting: '你好',
+
+    // 公告
+    announcement: {
+      title: '体育馆12月25日闭馆通知',
+      desc: '因设备维护，当日暂停开放'
+    },
 
     // 快捷入口
     quickActions: [
-      { icon: '🏓', label: '约球', desc: '找球友切磋', url: '/pages/square/square' },
-      { icon: '📍', label: '签到', desc: '活动打卡', url: '' },
-      { icon: '🏆', label: '赛事', desc: '报名比赛', url: '/pages/events/events' },
-      { icon: '📊', label: '排行', desc: '积分排名', url: '' }
+      { icon: '🏆', label: '赛事', bgColor: 'bg-yellow', url: '/pages/events/events' },
+      { icon: '🏓', label: '约球', bgColor: 'bg-pink', url: '/pages/square/square' },
+      { icon: '📍', label: '签到', bgColor: 'bg-green', url: '' },
+      { icon: '📚', label: '学习', bgColor: 'bg-blue', url: '' }
     ],
 
-    // 最近赛事
-    recentEvents: [
-      { id: 1, title: '新生杯乒乓球赛', date: '12月20日', status: '报名中', statusColor: 'green' },
-      { id: 2, title: '学院友谊赛', date: '12月25日', status: '即将开始', statusColor: 'orange' }
-    ],
-
-    // 统计数据
-    stats: {
-      matches: 0,
-      wins: 0,
-      events: 0,
-      checkins: 0
-    }
+    // ============================================================
+    // 【Mock 排行榜数据】
+    // TODO: 上线后从后端 API 获取真实数据
+    // ============================================================
+    rankingList: [
+      {
+        user_id: 101,
+        name: '张明远',
+        college_name: '体育学院',
+        user_type_label: '在校生',
+        score: 2847,
+        avatar_url: ''
+      },
+      {
+        user_id: 102,
+        name: '李思源',
+        college_name: '计算机学院',
+        user_type_label: '在校生',
+        score: 2634,
+        avatar_url: ''
+      },
+      {
+        user_id: 103,
+        name: '王浩然',
+        college_name: '物理学院',
+        user_type_label: '老师',
+        score: 2518,
+        avatar_url: ''
+      },
+      {
+        user_id: 104,
+        name: '陈雨婷',
+        college_name: '外国语学院',
+        user_type_label: '在校生',
+        score: 2456,
+        avatar_url: ''
+      }
+    ]
   },
 
   onLoad() {
     this.updateLoginStatus();
+    this.updateGreeting();
   },
 
   onShow() {
@@ -47,6 +80,24 @@ Page({
       isRegistered,
       userInfo
     });
+  },
+
+  // 更新问候语（根据时间）
+  updateGreeting() {
+    const hour = new Date().getHours();
+    let greeting = '你好';
+    if (hour >= 5 && hour < 12) {
+      greeting = '早上好';
+    } else if (hour >= 12 && hour < 14) {
+      greeting = '中午好';
+    } else if (hour >= 14 && hour < 18) {
+      greeting = '下午好';
+    } else if (hour >= 18 && hour < 22) {
+      greeting = '晚上好';
+    } else {
+      greeting = '夜深了';
+    }
+    this.setData({ greeting });
   },
 
   // 点击登录
@@ -93,6 +144,16 @@ Page({
     });
   },
 
+  // 点击学校选择器
+  onTapSchoolSelector() {
+    wx.showToast({ title: '学校切换功能开发中', icon: 'none' });
+  },
+
+  // 点击公告
+  onTapAnnouncement() {
+    wx.showToast({ title: '公告详情页开发中', icon: 'none' });
+  },
+
   // 点击快捷入口
   onTapAction(e) {
     const { url } = e.currentTarget.dataset;
@@ -119,14 +180,14 @@ Page({
     }
   },
 
-  // 点击赛事
-  onTapEvent(e) {
-    const { id } = e.currentTarget.dataset;
-    wx.showToast({ title: `赛事详情 ${id}`, icon: 'none' });
+  // 查看排行榜详情
+  onTapRankingMore() {
+    wx.showToast({ title: '排行榜页面开发中', icon: 'none' });
   },
 
-  // 去完善信息
-  goToRegister() {
-    wx.navigateTo({ url: '/pages/register/register' });
+  // 点击排行榜用户
+  onTapRankingUser(e) {
+    const { id } = e.currentTarget.dataset;
+    wx.showToast({ title: `用户详情 ${id}`, icon: 'none' });
   }
 });

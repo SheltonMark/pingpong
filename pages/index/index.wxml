@@ -15,28 +15,35 @@
 
   <!-- 已登录状态 -->
   <block wx:else>
-    <!-- 用户信息头部 -->
-    <view class="user-header">
+    <!-- 头部区域 -->
+    <view class="header-section">
       <view class="header-bg"></view>
       <view class="header-content">
-        <view class="user-info">
-          <image
-            class="avatar"
-            src="{{userInfo.avatar_url || '/images/default-avatar.png'}}"
-            mode="aspectFill"
-          />
-          <view class="user-text">
-            <text class="greeting">Hi，{{userInfo.name || '球友'}}</text>
-            <text class="user-school" wx:if="{{userInfo.school_name}}">{{userInfo.school_name}}</text>
-          </view>
+        <!-- 学校选择器 -->
+        <view class="school-selector" bindtap="onTapSchoolSelector">
+          <text class="school-name">{{userInfo.school_name || '选择学校'}}</text>
+          <text class="selector-arrow">▼</text>
         </view>
 
-        <!-- 未完善信息提示 -->
-        <view class="complete-tip" wx:if="{{!isRegistered}}" bindtap="goToRegister">
-          <text class="tip-text">完善个人信息，解锁全部功能</text>
-          <text class="tip-arrow">→</text>
+        <!-- 问候语 -->
+        <view class="greeting-section">
+          <text class="greeting-time">{{greeting}}</text>
+          <text class="greeting-name">{{userInfo.name || '球友'}}</text>
         </view>
       </view>
+    </view>
+
+    <!-- 公告卡片 -->
+    <view class="announcement-card" wx:if="{{announcement}}" bindtap="onTapAnnouncement">
+      <view class="announcement-tag">
+        <text class="tag-icon">📢</text>
+        <text class="tag-text">公告</text>
+      </view>
+      <view class="announcement-content">
+        <text class="announcement-title">{{announcement.title}}</text>
+        <text class="announcement-desc">{{announcement.desc}}</text>
+      </view>
+      <text class="announcement-emoji">📋</text>
     </view>
 
     <!-- 快捷入口 -->
@@ -49,55 +56,41 @@
           data-url="{{item.url}}"
           bindtap="onTapAction"
         >
-          <text class="quick-icon">{{item.icon}}</text>
-          <text class="quick-label">{{item.label}}</text>
-          <text class="quick-desc">{{item.desc}}</text>
-        </view>
-      </view>
-    </view>
-
-    <!-- 我的数据 -->
-    <view class="stats-section" wx:if="{{isRegistered}}">
-      <view class="section-title">我的数据</view>
-      <view class="stats-grid">
-        <view class="stat-item">
-          <text class="stat-value">{{stats.matches}}</text>
-          <text class="stat-label">总场次</text>
-        </view>
-        <view class="stat-item">
-          <text class="stat-value">{{stats.wins}}</text>
-          <text class="stat-label">胜利</text>
-        </view>
-        <view class="stat-item">
-          <text class="stat-value">{{stats.events}}</text>
-          <text class="stat-label">赛事</text>
-        </view>
-        <view class="stat-item">
-          <text class="stat-value">{{stats.checkins}}</text>
-          <text class="stat-label">签到</text>
-        </view>
-      </view>
-    </view>
-
-    <!-- 最近赛事 -->
-    <view class="events-section">
-      <view class="section-header">
-        <text class="section-title">最近赛事</text>
-        <text class="section-more">查看更多 ></text>
-      </view>
-      <view class="event-list">
-        <view
-          wx:for="{{recentEvents}}"
-          wx:key="id"
-          class="event-item"
-          data-id="{{item.id}}"
-          bindtap="onTapEvent"
-        >
-          <view class="event-info">
-            <text class="event-title">{{item.title}}</text>
-            <text class="event-date">{{item.date}}</text>
+          <view class="quick-icon-wrapper {{item.bgColor}}">
+            <image class="quick-icon-img" src="{{item.iconUrl}}" mode="aspectFit" wx:if="{{item.iconUrl}}" />
+            <text class="quick-icon-text" wx:else>{{item.icon}}</text>
           </view>
-          <view class="event-status {{item.statusColor}}">{{item.status}}</view>
+          <text class="quick-label">{{item.label}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 积分排行 -->
+    <view class="ranking-section">
+      <view class="section-header">
+        <text class="section-title">积分排行</text>
+        <text class="section-more" bindtap="onTapRankingMore">查看全部</text>
+      </view>
+      <view class="ranking-list">
+        <view
+          wx:for="{{rankingList}}"
+          wx:key="user_id"
+          class="ranking-item"
+          data-id="{{item.user_id}}"
+          bindtap="onTapRankingUser"
+        >
+          <view class="rank-badge rank-{{index + 1}}">
+            <text class="rank-num">{{index + 1}}</text>
+          </view>
+          <image class="rank-avatar" src="{{item.avatar_url || '/images/default-avatar.png'}}" mode="aspectFill" />
+          <view class="rank-info">
+            <text class="rank-name">{{item.name}}</text>
+            <text class="rank-college">{{item.college_name}} · {{item.user_type_label}}</text>
+          </view>
+          <view class="rank-score">
+            <text class="score-value">{{item.score}}</text>
+            <text class="score-label">积分</text>
+          </view>
         </view>
       </view>
     </view>

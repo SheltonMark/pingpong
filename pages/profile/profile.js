@@ -1,18 +1,36 @@
 const app = getApp();
 
+// 用户类型标签映射
+const USER_TYPE_LABELS = {
+  student: '在校生',
+  graduate: '毕业生',
+  teacher: '老师',
+  staff: '教职工'
+};
+
 Page({
   data: {
     isLoggedIn: false,
     isRegistered: false,
     userInfo: null,
+    userTypeLabel: '',
 
-    // 菜单列表
+    // ============================================================
+    // 【Mock 用户统计数据】
+    // TODO: 上线后从后端 API 获取真实数据
+    // ============================================================
+    stats: {
+      score: 2847,
+      rank: 1,
+      winRate: 78
+    },
+
+    // 菜单列表（匹配设计稿）
     menuItems: [
-      { icon: '🏓', label: '我的约球', desc: '查看约球记录', url: '' },
-      { icon: '🏆', label: '我的赛事', desc: '查看参赛记录', url: '' },
-      { icon: '👥', label: '我的队伍', desc: '管理队伍信息', url: '' },
-      { icon: '📊', label: '战绩统计', desc: '胜负数据分析', url: '' },
-      { icon: '⚙️', label: '设置', desc: '账号与偏好设置', url: '/pages/settings/settings' }
+      { icon: '📊', label: '交手记录', url: '' },
+      { icon: '🏆', label: '我的赛事', url: '' },
+      { icon: '✉️', label: '邀请管理', url: '', badge: 2 },
+      { icon: '⚙️', label: '设置', url: '/pages/settings/settings' }
     ]
   },
 
@@ -27,10 +45,17 @@ Page({
   // 更新用户信息
   updateUserInfo() {
     const { isLoggedIn, isRegistered, userInfo } = app.globalData;
+
+    let userTypeLabel = '';
+    if (userInfo && userInfo.user_type) {
+      userTypeLabel = USER_TYPE_LABELS[userInfo.user_type] || userInfo.user_type;
+    }
+
     this.setData({
       isLoggedIn,
       isRegistered,
-      userInfo
+      userInfo,
+      userTypeLabel
     });
   },
 
@@ -64,30 +89,5 @@ Page({
     }
 
     wx.navigateTo({ url });
-  },
-
-  // 查看隐私政策
-  viewPrivacy() {
-    wx.navigateTo({ url: '/pages/privacy/privacy?type=privacy-policy' });
-  },
-
-  // 查看用户协议
-  viewAgreement() {
-    wx.navigateTo({ url: '/pages/privacy/privacy?type=user-agreement' });
-  },
-
-  // 退出登录
-  onLogout() {
-    wx.showModal({
-      title: '提示',
-      content: '确定要退出登录吗？',
-      success: (res) => {
-        if (res.confirm) {
-          app.logout();
-          this.updateUserInfo();
-          wx.showToast({ title: '已退出登录', icon: 'success' });
-        }
-      }
-    });
   }
 });

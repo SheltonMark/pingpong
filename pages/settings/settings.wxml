@@ -1,3 +1,37 @@
-<view class="container">
-  <text>设置页面 - 开发中</text>
+<view class="settings-page">
+  <!-- 设置列表 -->
+  <view class="settings-section">
+    <view class="settings-item" bindtap="onTapEditProfile">
+      <text class="item-label">编辑资料</text>
+      <text class="item-arrow">›</text>
+    </view>
+    <view class="settings-item" bindtap="onTapNotification">
+      <text class="item-label">消息通知</text>
+      <view class="item-right">
+        <switch class="item-switch" checked="{{notificationEnabled}}" bindchange="onToggleNotification" />
+      </view>
+    </view>
+    <view class="settings-item" bindtap="onTapPrivacy">
+      <text class="item-label">隐私政策</text>
+      <text class="item-arrow">›</text>
+    </view>
+    <view class="settings-item" bindtap="onTapAgreement">
+      <text class="item-label">用户协议</text>
+      <text class="item-arrow">›</text>
+    </view>
+    <view class="settings-item" bindtap="onTapAbout">
+      <text class="item-label">关于我们</text>
+      <text class="item-arrow">›</text>
+    </view>
+  </view>
+
+  <!-- 退出登录 -->
+  <view class="logout-section">
+    <button class="logout-btn" bindtap="onLogout">退出登录</button>
+  </view>
+
+  <!-- 版本信息 -->
+  <view class="version-info">
+    <text>校乒网 v1.0.0</text>
+  </view>
 </view>

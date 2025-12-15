@@ -1,3 +1,79 @@
-.container {
-  padding: 40rpx;
+.settings-page {
+  min-height: 100vh;
+  background: var(--gray-50);
+  padding-bottom: 60rpx;
+}
+
+/* 设置列表 */
+.settings-section {
+  margin: 24rpx 32rpx;
+  background: var(--white);
+  border-radius: 24rpx;
+  overflow: hidden;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+}
+
+.settings-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 36rpx 32rpx;
+  border-bottom: 1rpx solid var(--gray-100);
+}
+
+.settings-item:last-child {
+  border-bottom: none;
+}
+
+.settings-item:active {
+  background: var(--gray-50);
+}
+
+.item-label {
+  font-size: 32rpx;
+  color: var(--gray-900);
+}
+
+.item-arrow {
+  font-size: 40rpx;
+  color: var(--gray-300);
+}
+
+.item-right {
+  display: flex;
+  align-items: center;
+}
+
+.item-switch {
+  transform: scale(0.8);
+}
+
+/* 退出登录 */
+.logout-section {
+  padding: 0 32rpx;
+  margin-top: 48rpx;
+}
+
+.logout-btn {
+  width: 100%;
+  padding: 32rpx;
+  background: var(--white);
+  color: var(--red);
+  font-size: 32rpx;
+  font-weight: 500;
+  border-radius: 24rpx;
+  border: none;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+}
+
+.logout-btn:active {
+  background: var(--gray-50);
+}
+
+/* 版本信息 */
+.version-info {
+  text-align: center;
+  padding: 48rpx;
+  font-size: 24rpx;
+  color: var(--gray-300);
 }
