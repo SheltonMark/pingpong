@@ -1,0 +1,108 @@
+<!-- pages/event-detail/event-detail.wxml -->
+<view class="event-detail-page" wx:if="{{!loading}}">
+  <!-- 头部信息 -->
+  <view class="event-header">
+    <view class="header-bg"></view>
+    <view class="header-content">
+      <view class="event-type-tag {{event.event_type}}">
+        {{event.event_type === 'singles' ? '单打' : event.event_type === 'doubles' ? '双打' : '团体'}}
+      </view>
+      <view class="event-title">{{event.title}}</view>
+      <view class="event-status-tag {{event.status}}">
+        {{event.status === 'registration' ? '报名中' : event.status === 'ongoing' ? '进行中' : '已结束'}}
+      </view>
+    </view>
+  </view>
+
+  <!-- 标签切换 -->
+  <view class="tab-bar">
+    <view class="tab-item {{currentTab === 'info' ? 'active' : ''}}" data-tab="info" bindtap="onTabChange">赛事信息</view>
+    <view class="tab-item {{currentTab === 'players' ? 'active' : ''}}" data-tab="players" bindtap="onTabChange">参赛选手 ({{registrations.length}})</view>
+    <view class="tab-item {{currentTab === 'matches' ? 'active' : ''}}" data-tab="matches" bindtap="onTabChange">对阵表</view>
+  </view>
+
+  <!-- 赛事信息 -->
+  <view class="tab-content" wx:if="{{currentTab === 'info'}}">
+    <view class="info-card">
+      <view class="info-row">
+        <text class="info-label">📅 比赛时间</text>
+        <text class="info-value">{{event.event_start}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">📍 比赛地点</text>
+        <text class="info-value">{{event.location}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">🏆 赛制</text>
+        <text class="info-value">{{event.event_format === 'knockout' ? '淘汰赛' : '循环赛'}} · {{event.best_of}}局{{(event.best_of + 1) / 2}}胜</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">📊 计入排名</text>
+        <text class="info-value">{{event.counts_for_ranking ? '是' : '否'}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">👤 报名人数</text>
+        <text class="info-value">{{registrations.length}}/{{event.max_participants}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">⏰ 报名截止</text>
+        <text class="info-value">{{event.registration_end}}</text>
+      </view>
+    </view>
+
+    <view class="desc-card" wx:if="{{event.description}}">
+      <view class="card-title">赛事说明</view>
+      <view class="desc-content">{{event.description}}</view>
+    </view>
+  </view>
+
+  <!-- 参赛选手 -->
+  <view class="tab-content" wx:if="{{currentTab === 'players'}}">
+    <view class="player-list" wx:if="{{registrations.length > 0}}">
+      <view class="player-item" wx:for="{{registrations}}" wx:key="id">
+        <view class="player-rank">{{index + 1}}</view>
+        <image class="player-avatar" src="{{item.avatar_url || '/images/default-avatar.png'}}" mode="aspectFill" />
+        <view class="player-info">
+          <text class="player-name">{{item.name}}</text>
+          <text class="player-college">{{item.college_name}}</text>
+        </view>
+      </view>
+    </view>
+    <view class="empty-tip" wx:else>暂无报名</view>
+  </view>
+
+  <!-- 对阵表 -->
+  <view class="tab-content" wx:if="{{currentTab === 'matches'}}">
+    <view class="match-list" wx:if="{{matches.length > 0}}">
+      <view class="match-item" wx:for="{{matches}}" wx:key="id">
+        <view class="match-round">第{{item.round}}轮 · 第{{item.match_order}}场</view>
+        <view class="match-players">
+          <view class="player-side">
+            <text class="player">{{item.player1_name || '待定'}}</text>
+            <text class="score" wx:if="{{item.status === 'finished'}}">{{item.player1_games}}</text>
+          </view>
+          <text class="vs">VS</text>
+          <view class="player-side">
+            <text class="score" wx:if="{{item.status === 'finished'}}">{{item.player2_games}}</text>
+            <text class="player">{{item.player2_name || '待定'}}</text>
+          </view>
+        </view>
+        <view class="match-status {{item.status}}">
+          {{item.status === 'finished' ? '已结束' : item.status === 'ongoing' ? '进行中' : '待进行'}}
+        </view>
+      </view>
+    </view>
+    <view class="empty-tip" wx:else>对阵表尚未生成</view>
+  </view>
+
+  <!-- 底部按钮 -->
+  <view class="bottom-action" wx:if="{{event.status === 'registration'}}">
+    <button class="register-btn" wx:if="{{!isRegistered}}" bindtap="onRegister">立即报名</button>
+    <button class="cancel-btn" wx:else bindtap="onCancelRegister">取消报名</button>
+  </view>
+</view>
+
+<!-- 加载中 -->
+<view class="loading" wx:if="{{loading}}">
+  <text>加载中...</text>
+</view>

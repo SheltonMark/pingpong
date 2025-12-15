@@ -6,7 +6,8 @@
     "pages/profile/profile",
     "pages/register/register",
     "pages/privacy/privacy",
-    "pages/settings/settings"
+    "pages/settings/settings",
+    "pages/event-detail/event-detail"
   ],
   "window": {
     "navigationBarTitleText": "校乒网",
