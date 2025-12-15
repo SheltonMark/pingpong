@@ -25,9 +25,18 @@ async function runMigrations() {
         await pool.execute(statement);
         console.log('  ✅ Statement executed');
       } catch (error) {
-        // 忽略"表已存在"等非致命错误
-        if (error.code === 'ER_TABLE_EXISTS_ERROR' || error.code === 'ER_DUP_ENTRY') {
-          console.log(`  ⚠️ Skipped: ${error.message.substring(0, 50)}...`);
+        // 忽略"表已存在"、"重复键"、"列已存在"等非致命错误
+        const ignorableErrors = [
+          'ER_TABLE_EXISTS_ERROR',
+          'ER_DUP_ENTRY',
+          'ER_DUP_KEY',
+          'ER_DUP_KEYNAME',
+          'ER_FK_DUP_KEY',
+          'ER_DUP_FIELDNAME',
+          'ER_COLUMN_EXISTS'
+        ];
+        if (ignorableErrors.includes(error.code) || error.errno === 1022 || error.errno === 1060 || error.errno === 1061) {
+          console.log(`  ⚠️ Skipped: ${error.message.substring(0, 60)}...`);
         } else {
           console.error(`  ❌ Error: ${error.message}`);
           throw error;
