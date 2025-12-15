@@ -1,27 +1,29 @@
 <view class="square-page">
-  <!-- 顶部筛选栏 -->
-  <view class="filter-bar">
-    <view class="school-filter" bindtap="onTapSchoolFilter">
-      <text class="filter-text">{{currentSchoolName || '全部学校'}}</text>
-      <text class="filter-arrow">▼</text>
+  <!-- 顶部标题栏 -->
+  <view class="square-header">
+    <view class="header-top">
+      <text class="page-title">广场</text>
+      <view class="add-btn" bindtap="onTapPublish">+</view>
     </view>
-    <view class="tab-bar">
+    <!-- 学校标签滚动 -->
+    <scroll-view class="school-tabs" scroll-x enable-flex>
       <view
-        class="tab-item {{currentTab === 'posts' ? 'active' : ''}}"
-        bindtap="onSwitchTab"
-        data-tab="posts"
-      >动态</view>
+        class="school-tab {{currentSchoolId === null ? 'active' : ''}}"
+        bindtap="onSelectSchool"
+        data-id=""
+      >全部</view>
       <view
-        class="tab-item {{currentTab === 'invitations' ? 'active' : ''}}"
-        bindtap="onSwitchTab"
-        data-tab="invitations"
-      >约球</view>
-    </view>
+        wx:for="{{schools}}"
+        wx:key="id"
+        class="school-tab {{currentSchoolId === item.id ? 'active' : ''}}"
+        bindtap="onSelectSchool"
+        data-id="{{item.id}}"
+      >{{item.short_name || item.name}}</view>
+    </scroll-view>
   </view>
 
   <!-- 帖子列表 -->
   <scroll-view
-    wx:if="{{currentTab === 'posts'}}"
     class="post-list"
     scroll-y
     bindscrolltolower="onLoadMore"
@@ -34,13 +36,24 @@
         <image class="author-avatar" src="{{item.author_avatar || '/images/default-avatar.png'}}" mode="aspectFill" />
         <view class="author-info">
           <text class="author-name">{{item.author_name}}</text>
-          <text class="post-time">{{item.time_label}}</text>
+          <text class="post-meta">{{item.time_label}} · {{item.college_name || item.school_name || ''}}</text>
         </view>
       </view>
 
       <text class="post-content">{{item.content}}</text>
 
-      <view class="post-images {{item.images.length === 1 ? 'single' : (item.images.length <= 4 ? 'grid-2' : 'grid-3')}}" wx:if="{{item.images.length > 0}}">
+      <!-- 约球卡片（如果有关联的约球） -->
+      <view class="match-box" wx:if="{{item.invitation}}" catchtap="onTapInvitation" data-id="{{item.invitation.id}}">
+        <view class="match-title">🏓 发起约球</view>
+        <view class="match-detail">
+          <text wx:if="{{item.invitation.location}}">📍 {{item.invitation.location}}</text>
+          <text wx:if="{{item.invitation.scheduled_time}}"> · 🕐 {{item.invitation.time_label}}</text>
+        </view>
+        <button class="match-join" catchtap="onJoinInvitation" data-id="{{item.invitation.id}}">我要参加</button>
+      </view>
+
+      <!-- 图片网格 -->
+      <view class="post-images {{item.images.length === 1 ? 'single' : (item.images.length <= 4 ? 'grid-2' : 'grid-3')}}" wx:if="{{item.images && item.images.length > 0}}">
         <image
           wx:for="{{item.images}}"
           wx:for-item="img"
@@ -55,16 +68,46 @@
       </view>
 
       <view class="post-actions">
-        <view class="action-item" catchtap="onTapLike" data-id="{{item.id}}" data-index="{{index}}">
-          <text class="action-icon {{item.is_liked ? 'liked' : ''}}">{{item.is_liked ? '❤️' : '🤍'}}</text>
+        <view class="action-item {{item.is_liked ? 'liked' : ''}}" catchtap="onTapLike" data-id="{{item.id}}" data-index="{{index}}">
+          <text class="action-icon">{{item.is_liked ? '❤️' : '🤍'}}</text>
           <text class="action-count">{{item.like_count || 0}}</text>
         </view>
         <view class="action-item">
           <text class="action-icon">💬</text>
           <text class="action-count">{{item.comment_count || 0}}</text>
         </view>
+        <view class="action-item" catchtap="onTapShare" data-id="{{item.id}}">
+          <text class="action-icon">↗</text>
+          <text class="action-text">分享</text>
+        </view>
       </view>
     </view>
+
+    <!-- 约球卡片列表（如果没有帖子关联的约球，单独显示） -->
+    <block wx:for="{{standaloneInvitations}}" wx:key="id">
+      <view class="post-item invitation-card" bindtap="onTapInvitation" data-id="{{item.id}}">
+        <view class="post-header">
+          <image class="author-avatar" src="{{item.creator_avatar || '/images/default-avatar.png'}}" mode="aspectFill" />
+          <view class="author-info">
+            <text class="author-name">{{item.creator_name}}</text>
+            <text class="post-meta">{{item.time_label}} · {{item.school_name || ''}}</text>
+          </view>
+        </view>
+
+        <view class="match-box standalone">
+          <view class="match-title">🏓 {{item.title || '约球'}}</view>
+          <view class="match-detail">
+            <text wx:if="{{item.location}}">📍 {{item.location}}</text>
+            <text wx:if="{{item.scheduled_time}}"> · 🕐 {{item.scheduled_time_label}}</text>
+          </view>
+          <view class="match-progress">
+            <text class="progress-text">{{item.participant_count || 1}}/{{item.max_participants}}人参与</text>
+          </view>
+          <button class="match-join" wx:if="{{item.status === 'open'}}" catchtap="onJoinInvitation" data-id="{{item.id}}">我要参加</button>
+          <view class="match-status" wx:else>{{item.status === 'full' ? '已满员' : (item.status === 'ongoing' ? '进行中' : '已结束')}}</view>
+        </view>
+      </view>
+    </block>
 
     <view class="load-more" wx:if="{{isLoading}}">
       <text>加载中...</text>
@@ -72,57 +115,9 @@
     <view class="no-more" wx:if="{{noMore && posts.length > 0}}">
       <text>没有更多了</text>
     </view>
-    <view class="empty" wx:if="{{!isLoading && posts.length === 0}}">
+    <view class="empty" wx:if="{{!isLoading && posts.length === 0 && standaloneInvitations.length === 0}}">
       <text class="empty-icon">📝</text>
       <text class="empty-text">还没有动态，快来发第一条吧</text>
     </view>
   </scroll-view>
-
-  <!-- 约球列表 -->
-  <scroll-view
-    wx:if="{{currentTab === 'invitations'}}"
-    class="invitation-list"
-    scroll-y
-    bindscrolltolower="onLoadMoreInvitations"
-    refresher-enabled
-    bindrefresherrefresh="onRefreshInvitations"
-    refresher-triggered="{{isRefreshingInvitations}}"
-  >
-    <view class="invitation-item" wx:for="{{invitations}}" wx:key="id" bindtap="onTapInvitation" data-id="{{item.id}}">
-      <view class="invitation-header">
-        <image class="creator-avatar" src="{{item.creator_avatar || '/images/default-avatar.png'}}" mode="aspectFill" />
-        <view class="creator-info">
-          <text class="creator-name">{{item.creator_name}}</text>
-          <text class="invitation-school">{{item.school_name}}</text>
-        </view>
-        <view class="invitation-status status-{{item.status}}">
-          {{item.status === 'open' ? '招募中' : (item.status === 'full' ? '已满员' : (item.status === 'ongoing' ? '进行中' : '已结束'))}}
-        </view>
-      </view>
-
-      <view class="invitation-body">
-        <text class="invitation-title">{{item.title || '约球'}}</text>
-        <view class="invitation-meta">
-          <text wx:if="{{item.location}}">📍 {{item.location}}</text>
-          <text wx:if="{{item.scheduled_time}}">🕐 {{item.time_label}}</text>
-        </view>
-        <view class="invitation-progress">
-          <text class="progress-text">{{item.participant_count}}/{{item.max_participants}}人</text>
-          <view class="progress-bar">
-            <view class="progress-fill" style="width: {{item.participant_count / item.max_participants * 100}}%"></view>
-          </view>
-        </view>
-      </view>
-    </view>
-
-    <view class="empty" wx:if="{{!isLoadingInvitations && invitations.length === 0}}">
-      <text class="empty-icon">🏓</text>
-      <text class="empty-text">还没有约球，快来发起一场吧</text>
-    </view>
-  </scroll-view>
-
-  <!-- 发布按钮 -->
-  <view class="fab-button" bindtap="onTapPublish">
-    <text class="fab-icon">+</text>
-  </view>
 </view>
