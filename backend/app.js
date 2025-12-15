@@ -8,6 +8,7 @@ const commonRoutes = require('./routes/common');
 const userRoutes = require('./routes/user');
 const authRoutes = require('./routes/auth');
 const eventsRouter = require('./routes/events');
+const announcementsRouter = require('./routes/announcements');
 
 const app = express();
 const PORT = process.env.PORT || 80;
@@ -22,6 +23,7 @@ app.use('/api/common', commonRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/events', eventsRouter);
+app.use('/api/announcements', announcementsRouter);
 
 // 启动服务器
 async function startServer() {
