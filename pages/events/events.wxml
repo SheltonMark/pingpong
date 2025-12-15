@@ -1,3 +1,66 @@
-<view class="container">
-  <text>赛事页面 - 开发中</text>
+<!-- pages/events/events.wxml -->
+<view class="events-page">
+  <!-- 筛选标签 -->
+  <view class="filter-tabs">
+    <view
+      wx:for="{{tabs}}"
+      wx:key="key"
+      class="tab-item {{currentTab === item.key ? 'active' : ''}}"
+      data-key="{{item.key}}"
+      bindtap="onTabChange"
+    >
+      {{item.label}}
+    </view>
+  </view>
+
+  <!-- 赛事列表 -->
+  <view class="event-list">
+    <view
+      wx:for="{{events}}"
+      wx:key="id"
+      class="event-card"
+      data-id="{{item.id}}"
+      bindtap="onTapEvent"
+    >
+      <view class="event-header">
+        <view class="event-type-tag {{item.event_type}}">
+          {{item.event_type === 'singles' ? '单打' : item.event_type === 'doubles' ? '双打' : '团体'}}
+        </view>
+        <view class="event-status {{item.status}}">
+          {{item.status === 'registration' ? '报名中' : item.status === 'ongoing' ? '进行中' : '已结束'}}
+        </view>
+      </view>
+
+      <view class="event-title">{{item.title}}</view>
+
+      <view class="event-info">
+        <view class="info-item">
+          <text class="info-icon">📅</text>
+          <text>{{item.event_start}}</text>
+        </view>
+        <view class="info-item">
+          <text class="info-icon">📍</text>
+          <text>{{item.location}}</text>
+        </view>
+      </view>
+
+      <view class="event-footer">
+        <view class="participant-info">
+          <text class="participant-count">{{item.participant_count}}</text>
+          <text class="participant-total">/{{item.max_participants}}人</text>
+        </view>
+        <view class="action-btn" wx:if="{{item.status === 'registration'}}">立即报名</view>
+        <view class="action-btn secondary" wx:elif="{{item.status === 'ongoing'}}">查看对阵</view>
+        <view class="action-btn secondary" wx:else>查看详情</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 加载状态 -->
+  <view class="loading-tip" wx:if="{{loading}}">
+    <text>加载中...</text>
+  </view>
+  <view class="empty-tip" wx:if="{{!loading && events.length === 0}}">
+    <text>暂无赛事</text>
+  </view>
 </view>

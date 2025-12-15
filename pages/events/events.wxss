@@ -1,8 +1,164 @@
-.container {
-  padding: 40rpx;
+/* pages/events/events.wxss */
+.events-page {
+  min-height: 100vh;
+  background: var(--gray-50);
+  padding-bottom: 140rpx;
+}
+
+/* 筛选标签 */
+.filter-tabs {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
+  background: var(--white);
+  padding: 24rpx 32rpx;
+  gap: 24rpx;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.tab-item {
+  padding: 16rpx 32rpx;
+  font-size: 28rpx;
   color: var(--gray-600);
+  background: var(--gray-100);
+  border-radius: 32rpx;
+  transition: all 0.2s;
+}
+
+.tab-item.active {
+  color: var(--white);
+  background: var(--orange);
+  font-weight: 500;
+}
+
+/* 赛事列表 */
+.event-list {
+  padding: 24rpx 32rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.event-card {
+  background: var(--white);
+  border-radius: 24rpx;
+  padding: 32rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+}
+
+.event-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.event-type-tag {
+  font-size: 24rpx;
+  padding: 8rpx 20rpx;
+  border-radius: 20rpx;
+  font-weight: 500;
+}
+
+.event-type-tag.singles {
+  background: var(--orange-light);
+  color: var(--orange);
+}
+
+.event-type-tag.doubles {
+  background: #E0F2FE;
+  color: #0284C7;
+}
+
+.event-type-tag.team {
+  background: #FEF3C7;
+  color: #D97706;
+}
+
+.event-status {
+  font-size: 24rpx;
+  font-weight: 500;
+}
+
+.event-status.registration {
+  color: var(--green);
+}
+
+.event-status.ongoing {
+  color: var(--orange);
+}
+
+.event-status.finished {
+  color: var(--gray-400);
+}
+
+.event-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: var(--gray-900);
+  margin-bottom: 20rpx;
+}
+
+.event-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+  margin-bottom: 24rpx;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  font-size: 26rpx;
+  color: var(--gray-500);
+}
+
+.info-icon {
+  font-size: 28rpx;
+}
+
+.event-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 24rpx;
+  border-top: 1rpx solid var(--gray-100);
+}
+
+.participant-info {
+  font-size: 26rpx;
+}
+
+.participant-count {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: var(--orange);
+}
+
+.participant-total {
+  color: var(--gray-400);
+}
+
+.action-btn {
+  padding: 16rpx 40rpx;
+  font-size: 28rpx;
+  font-weight: 500;
+  color: var(--white);
+  background: linear-gradient(135deg, var(--orange), var(--orange-dark));
+  border-radius: 32rpx;
+}
+
+.action-btn.secondary {
+  background: var(--gray-100);
+  color: var(--gray-600);
+}
+
+/* 加载和空状态 */
+.loading-tip,
+.empty-tip {
+  text-align: center;
+  padding: 60rpx;
+  color: var(--gray-400);
+  font-size: 28rpx;
 }
