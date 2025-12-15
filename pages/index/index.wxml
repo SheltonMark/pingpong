@@ -1,7 +1,7 @@
 <view class="home-page">
   <!-- 未登录状态 -->
   <block wx:if="{{!isLoggedIn}}">
-    <view class="welcome-section">
+    <view class="welcome-section full-height">
       <view class="welcome-bg"></view>
       <view class="welcome-content">
         <text class="welcome-icon">🏓</text>
@@ -9,34 +9,6 @@
         <text class="welcome-subtitle">校园乒乓球爱好者社区</text>
         <text class="welcome-desc">约球、赛事、排行、签到，一站搞定</text>
         <button class="login-btn" bindtap="onTapLogin">微信登录</button>
-      </view>
-    </view>
-
-    <!-- 功能预览 -->
-    <view class="preview-section">
-      <view class="section-title">功能亮点</view>
-      <view class="feature-list">
-        <view class="feature-item">
-          <text class="feature-icon">🎯</text>
-          <view class="feature-info">
-            <text class="feature-name">智能约球</text>
-            <text class="feature-desc">发布约球信息，匹配合适球友</text>
-          </view>
-        </view>
-        <view class="feature-item">
-          <text class="feature-icon">🏆</text>
-          <view class="feature-info">
-            <text class="feature-name">赛事管理</text>
-            <text class="feature-desc">报名参赛，自动记录成绩</text>
-          </view>
-        </view>
-        <view class="feature-item">
-          <text class="feature-icon">📊</text>
-          <view class="feature-info">
-            <text class="feature-name">积分排行</text>
-            <text class="feature-desc">校内/学院排名，记录交手战绩</text>
-          </view>
-        </view>
       </view>
     </view>
   </block>

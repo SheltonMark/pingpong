@@ -14,6 +14,10 @@
   overflow: hidden;
 }
 
+.welcome-section.full-height {
+  min-height: calc(100vh - 140rpx);
+}
+
 .welcome-bg {
   position: absolute;
   top: 0;
