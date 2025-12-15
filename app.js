@@ -11,7 +11,36 @@ App({
     userInfo: null,
     isLoggedIn: false,
     isRegistered: false,
-    hasAgreedPrivacy: false
+    hasAgreedPrivacy: false,
+
+    // ============================================================
+    // 【开发模式配置】
+    // TODO: 上线前务必设置为 false，启用真实后端登录
+    // ============================================================
+    useMockLogin: true
+  },
+
+  // ============================================================
+  // 【Mock 用户数据】
+  // 用于开发测试，模拟一个已注册的用户
+  // TODO: 上线前删除或禁用此数据
+  // ============================================================
+  mockUser: {
+    openid: 'mock_openid_12345',
+    user_id: 1,
+    name: '测试用户',
+    gender: 'male',
+    phone: '13800138000',
+    user_type: 'student',
+    school_id: 1,
+    school_name: '浙江工业大学',
+    college_id: 1,
+    college_name: '计算机科学与技术学院',
+    class_name: '计科2101',
+    enrollment_year: 2021,
+    avatar_url: '',
+    is_registered: true,
+    privacy_agreed: true
   },
 
   // 检查登录状态
@@ -39,6 +68,34 @@ App({
 
   // 微信登录
   async wxLogin() {
+    // ============================================================
+    // 【Mock 模式】直接使用模拟数据，不调用后端
+    // ============================================================
+    if (this.globalData.useMockLogin) {
+      console.log('⚠️ 使用 Mock 登录模式');
+
+      // 模拟登录成功
+      this.globalData.openid = this.mockUser.openid;
+      this.globalData.isLoggedIn = true;
+      this.globalData.userInfo = this.mockUser;
+      this.globalData.isRegistered = true;
+
+      // 保存到本地存储
+      wx.setStorageSync('openid', this.mockUser.openid);
+      wx.setStorageSync('userInfo', this.mockUser);
+
+      return {
+        success: true,
+        data: {
+          openid: this.mockUser.openid,
+          user: this.mockUser
+        }
+      };
+    }
+
+    // ============================================================
+    // 【正式模式】调用真实后端接口
+    // ============================================================
     return new Promise((resolve, reject) => {
       wx.login({
         success: async (res) => {
@@ -97,6 +154,12 @@ App({
   async agreePrivacy() {
     this.globalData.hasAgreedPrivacy = true;
     wx.setStorageSync('hasAgreedPrivacy', true);
+
+    // Mock 模式下不调用后端
+    if (this.globalData.useMockLogin) {
+      console.log('⚠️ Mock 模式：跳过隐私政策后端调用');
+      return;
+    }
 
     if (this.globalData.openid) {
       try {
