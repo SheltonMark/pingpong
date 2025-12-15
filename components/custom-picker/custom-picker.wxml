@@ -1,38 +1,13 @@
 <view class="custom-picker">
-  <!-- 标签 -->
-  <view class="picker-label" wx:if="{{label}}">
-    {{label}}
-    <text class="required" wx:if="{{required}}">*</text>
+  <view class="picker-trigger {{isOpen ? 'open' : ''}} {{disabled ? 'disabled' : ''}}" bindtap="onTapTrigger">
+    <text class="picker-value {{selectedLabel ? '' : 'placeholder'}}">{{selectedLabel || placeholder}}</text>
+    <text class="picker-arrow">{{isOpen ? '▲' : '▼'}}</text>
   </view>
-
-  <!-- 触发器 -->
-  <view
-    class="picker-trigger {{isOpen ? 'active' : ''}} {{disabled ? 'disabled' : ''}}"
-    bindtap="toggleDropdown"
-  >
-    <text class="{{selectedItem ? '' : 'placeholder'}}">
-      {{selectedItem ? selectedItem.name : placeholder}}
-    </text>
-    <view class="arrow {{isOpen ? 'up' : ''}}">
-      <text class="arrow-icon">▾</text>
+  <view class="picker-dropdown" wx:if="{{isOpen}}">
+    <view class="picker-option {{item.value === value ? 'selected' : ''}}" wx:for="{{options}}" wx:key="value" data-value="{{item.value}}" bindtap="onSelectOption">
+      <text>{{item.label}}</text>
+      <text class="check-mark" wx:if="{{item.value === value}}">✓</text>
     </view>
   </view>
-
-  <!-- 下拉选项 -->
-  <view class="dropdown" wx:if="{{isOpen}}">
-    <view
-      wx:for="{{options}}"
-      wx:key="id"
-      class="option {{selectedItem && selectedItem.id === item.id ? 'selected' : ''}}"
-      data-id="{{item.id}}"
-      data-name="{{item.name}}"
-      bindtap="selectOption"
-    >
-      <text>{{item.name}}</text>
-      <text class="check" wx:if="{{selectedItem && selectedItem.id === item.id}}">✓</text>
-    </view>
-  </view>
-
-  <!-- 遮罩层 -->
-  <view class="mask" wx:if="{{isOpen}}" bindtap="closeDropdown"></view>
+  <view class="picker-mask" wx:if="{{isOpen}}" bindtap="onClose"></view>
 </view>
