@@ -1,0 +1,45 @@
+<view class="match-history-page">
+  <!-- 胜率统计 -->
+  <view class="stats-card">
+    <view class="stat-item">
+      <text class="stat-num win">{{stats.wins}}</text>
+      <text class="stat-label">胜</text>
+    </view>
+    <view class="stat-item">
+      <text class="stat-num lose">{{stats.losses}}</text>
+      <text class="stat-label">负</text>
+    </view>
+    <view class="stat-item">
+      <text class="stat-num rate">{{stats.win_rate}}%</text>
+      <text class="stat-label">胜率</text>
+    </view>
+  </view>
+
+  <!-- 记录列表 -->
+  <view class="records-card">
+    <view class="card-header">
+      <text class="card-title">最近记录</text>
+    </view>
+
+    <scroll-view class="record-list" scroll-y bindscrolltolower="onLoadMore">
+      <view class="record-item" wx:for="{{matches}}" wx:key="id">
+        <view class="record-left">
+          <view class="opponent-avatar">🧑</view>
+          <view class="opponent-info">
+            <text class="opponent-name">vs {{item.opponent.name}}</text>
+            <text class="match-meta">{{item.event_name || '约球'}} · {{item.date_label}}</text>
+          </view>
+        </view>
+        <view class="record-right">
+          <text class="result {{item.is_win ? 'win' : 'lose'}}">{{item.is_win ? '胜' : '负'}} {{item.score}}</text>
+        </view>
+      </view>
+
+      <view class="loading" wx:if="{{isLoading}}">加载中...</view>
+      <view class="no-more" wx:if="{{noMore && matches.length > 0}}">没有更多了</view>
+      <view class="empty" wx:if="{{!isLoading && matches.length === 0}}">
+        <text>暂无交手记录</text>
+      </view>
+    </scroll-view>
+  </view>
+</view>

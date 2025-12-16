@@ -1,0 +1,42 @@
+<view class="user-profile-page" wx:if="{{user}}">
+  <!-- 用户信息 -->
+  <view class="profile-card">
+    <view class="user-avatar">🧑</view>
+    <text class="user-name">{{user.name}}</text>
+    <text class="user-info">{{user.school_name}} · {{user.college_name}}</text>
+
+    <view class="user-stats">
+      <view class="stat-item">
+        <text class="stat-num orange">{{user.points}}</text>
+        <text class="stat-label">积分</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-num">#{{user.rank}}</text>
+        <text class="stat-label">排名</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 最近交手记录 -->
+  <view class="records-card">
+    <view class="card-header">
+      <text class="card-title">最近交手记录</text>
+    </view>
+
+    <view class="record-list">
+      <view class="record-item" wx:for="{{recentMatches}}" wx:key="id">
+        <view class="record-info">
+          <text class="opponent-name">vs {{item.opponent}}</text>
+          <text class="match-meta">{{item.event_name || '约球'}} · {{item.date_label}}</text>
+        </view>
+        <text class="result {{item.is_win ? 'win' : 'lose'}}">{{item.is_win ? '胜' : '负'}} {{item.score}}</text>
+      </view>
+
+      <view class="empty" wx:if="{{recentMatches.length === 0}}">
+        <text>暂无交手记录</text>
+      </view>
+    </view>
+  </view>
+</view>
+
+<view class="loading" wx:if="{{isLoading}}">加载中...</view>

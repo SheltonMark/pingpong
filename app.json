@@ -14,7 +14,12 @@
     "pages/post-detail/post-detail",
     "pages/invitation-detail/invitation-detail",
     "pages/check-in/check-in",
-    "pages/learning/learning"
+    "pages/learning/learning",
+    "pages/match-history/match-history",
+    "pages/my-events/my-events",
+    "pages/invitations/invitations",
+    "pages/user-profile/user-profile",
+    "pages/agreement/agreement"
   ],
   "window": {
     "navigationBarTitleText": "校乒网",

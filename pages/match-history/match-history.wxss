@@ -1,0 +1,143 @@
+.match-history-page {
+  min-height: 100vh;
+  background: #F5F5F5;
+  padding: 24rpx;
+}
+
+.stats-card {
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 40rpx;
+  display: flex;
+  justify-content: space-around;
+  text-align: center;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.05);
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-num {
+  font-size: 56rpx;
+  font-weight: 700;
+}
+
+.stat-num.win {
+  color: #10B981;
+}
+
+.stat-num.lose {
+  color: #EF4444;
+}
+
+.stat-num.rate {
+  color: #FF6B00;
+}
+
+.stat-label {
+  font-size: 24rpx;
+  color: #9CA3AF;
+  margin-top: 8rpx;
+}
+
+.records-card {
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.05);
+}
+
+.card-header {
+  padding: 36rpx;
+  border-bottom: 1rpx solid #F0F0F0;
+}
+
+.card-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1A1A1A;
+}
+
+.record-list {
+  height: calc(100vh - 400rpx);
+  padding: 0 36rpx 36rpx;
+}
+
+.record-item {
+  background: #F9FAFB;
+  border-radius: 24rpx;
+  padding: 28rpx;
+  margin-top: 20rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.record-left {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.opponent-avatar {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 20rpx;
+  background: #E5E7EB;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+}
+
+.opponent-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.opponent-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1A1A1A;
+}
+
+.match-meta {
+  font-size: 22rpx;
+  color: #9CA3AF;
+  margin-top: 6rpx;
+}
+
+.record-right {
+  text-align: right;
+}
+
+.result {
+  font-size: 32rpx;
+  font-weight: 700;
+}
+
+.result.win {
+  color: #10B981;
+}
+
+.result.lose {
+  color: #EF4444;
+}
+
+.loading, .no-more {
+  text-align: center;
+  padding: 32rpx;
+  font-size: 26rpx;
+  color: #9CA3AF;
+}
+
+.empty {
+  text-align: center;
+  padding: 60rpx;
+  color: #9CA3AF;
+  font-size: 28rpx;
+}

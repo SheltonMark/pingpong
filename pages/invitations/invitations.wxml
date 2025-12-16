@@ -1,0 +1,42 @@
+<view class="invitations-page">
+  <!-- 待处理 -->
+  <view class="section" wx:if="{{pendingInvitations.length > 0}}">
+    <text class="section-label">待处理</text>
+
+    <view class="invitation-card" wx:for="{{pendingInvitations}}" wx:key="id">
+      <view class="invitation-info">
+        <view class="inviter-avatar">{{item.type === 'team' ? '👨' : '🧑'}}</view>
+        <view class="invitation-content">
+          <text class="invitation-title">{{item.inviter_name}} {{item.type === 'team' ? '邀请你加入队伍' : '邀请你组队双打'}}</text>
+          <text class="invitation-meta">{{item.event_name}} · {{item.type === 'team' ? '团体赛' : '双打'}}</text>
+        </view>
+      </view>
+      <view class="invitation-actions">
+        <button class="action-btn reject" catchtap="onReject" data-id="{{item.id}}">拒绝</button>
+        <button class="action-btn accept" catchtap="onAccept" data-id="{{item.id}}">同意</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 已处理 -->
+  <view class="section" wx:if="{{processedInvitations.length > 0}}">
+    <text class="section-label">已处理</text>
+
+    <view class="invitation-card processed" wx:for="{{processedInvitations}}" wx:key="id">
+      <view class="invitation-info">
+        <view class="inviter-avatar">👩</view>
+        <view class="invitation-content">
+          <text class="invitation-title">{{item.inviter_name}} {{item.type === 'team' ? '邀请你加入队伍' : '邀请你组队双打'}}</text>
+          <text class="invitation-meta">{{item.event_name}}</text>
+        </view>
+        <text class="invitation-status {{item.status}}">{{item.status === 'accepted' ? '已同意' : '已拒绝'}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="loading" wx:if="{{isLoading}}">加载中...</view>
+  <view class="empty" wx:if="{{!isLoading && pendingInvitations.length === 0 && processedInvitations.length === 0}}">
+    <text class="empty-icon">📨</text>
+    <text class="empty-text">暂无邀请</text>
+  </view>
+</view>

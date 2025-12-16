@@ -1,0 +1,29 @@
+<view class="agreement-page">
+  <text class="update-date">更新日期：{{updateDate}}</text>
+
+  <view class="section">
+    <text class="section-title">一、服务说明</text>
+    <text class="section-content">本小程序为校园乒乓球爱好者提供赛事管理、约球、签到等服务。使用本服务即表示您同意本协议。</text>
+  </view>
+
+  <view class="section">
+    <text class="section-title">二、用户行为规范</text>
+    <view class="section-list">
+      <text class="list-item">• 请使用真实身份信息注册</text>
+      <text class="list-item">• 报名赛事后请准时参加</text>
+      <text class="list-item">• 如实录入比赛成绩</text>
+      <text class="list-item">• 尊重其他用户，文明交流</text>
+      <text class="list-item">• 不得发布违法违规内容</text>
+    </view>
+  </view>
+
+  <view class="section">
+    <text class="section-title">三、免责声明</text>
+    <text class="section-content">用户在使用本小程序过程中发生的人身伤害、财产损失等，本平台不承担责任。请在运动前做好热身准备。</text>
+  </view>
+
+  <view class="section">
+    <text class="section-title">四、协议修改</text>
+    <text class="section-content">我们保留随时修改本协议的权利，修改后的协议将在小程序内公布。</text>
+  </view>
+</view>

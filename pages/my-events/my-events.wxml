@@ -1,0 +1,44 @@
+<view class="my-events-page">
+  <!-- Tab栏 -->
+  <view class="tabs">
+    <view
+      wx:for="{{tabs}}"
+      wx:key="key"
+      class="tab {{currentTab === item.key ? 'active' : ''}}"
+      bindtap="onSwitchTab"
+      data-tab="{{item.key}}"
+    >{{item.label}}</view>
+  </view>
+
+  <!-- 赛事列表 -->
+  <view class="event-list">
+    <view
+      class="event-card"
+      wx:for="{{events}}"
+      wx:key="id"
+      bindtap="onTapEvent"
+      data-id="{{item.id}}"
+    >
+      <view class="event-top">
+        <text class="event-status {{item.status}}">{{item.status === 'ongoing' ? '进行中' : (item.status === 'registering' ? '报名中' : '已结束')}}</text>
+        <text class="event-type">{{item.type_label}} · {{item.format}}</text>
+      </view>
+      <text class="event-name">{{item.name}}</text>
+
+      <view class="event-stats" wx:if="{{item.my_wins !== undefined}}">
+        <text class="stats-label">我的战绩</text>
+        <text class="stats-value">{{item.my_wins}}胜 {{item.my_losses}}负</text>
+      </view>
+
+      <view class="event-bottom">
+        <text class="event-date">{{item.date_label}}</text>
+      </view>
+    </view>
+
+    <view class="loading" wx:if="{{isLoading}}">加载中...</view>
+    <view class="empty" wx:if="{{!isLoading && events.length === 0}}">
+      <text class="empty-icon">🏆</text>
+      <text class="empty-text">暂无{{currentTab === 'ongoing' ? '进行中的' : '已结束的'}}赛事</text>
+    </view>
+  </view>
+</view>
