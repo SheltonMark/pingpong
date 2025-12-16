@@ -1,0 +1,149 @@
+.learning-page {
+  min-height: 100vh;
+  background: #F5F5F5;
+}
+
+.tabs {
+  display: flex;
+  background: #FFFFFF;
+  padding: 0 40rpx 24rpx;
+  gap: 16rpx;
+}
+
+.tab {
+  padding: 16rpx 32rpx;
+  font-size: 26rpx;
+  color: #9CA3AF;
+  background: #F5F5F5;
+  border-radius: 40rpx;
+  font-weight: 500;
+}
+
+.tab.active {
+  background: #1A1A1A;
+  color: #FFFFFF;
+}
+
+.material-list {
+  height: calc(100vh - 120rpx);
+  padding: 24rpx;
+}
+
+.video-card {
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  overflow: hidden;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+}
+
+.video-cover {
+  height: 320rpx;
+  background: linear-gradient(135deg, #1a1a1a, #333);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.play-btn {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40rpx;
+}
+
+.video-duration {
+  position: absolute;
+  bottom: 20rpx;
+  right: 20rpx;
+  background: rgba(0,0,0,0.7);
+  color: #FFFFFF;
+  font-size: 22rpx;
+  padding: 8rpx 16rpx;
+  border-radius: 8rpx;
+}
+
+.video-info {
+  padding: 28rpx;
+}
+
+.video-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1A1A1A;
+  display: block;
+}
+
+.video-meta {
+  font-size: 24rpx;
+  color: #9CA3AF;
+  margin-top: 12rpx;
+  display: block;
+}
+
+.doc-card {
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 28rpx;
+  margin-bottom: 20rpx;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+}
+
+.doc-icon {
+  font-size: 48rpx;
+  margin-right: 24rpx;
+}
+
+.doc-info {
+  flex: 1;
+}
+
+.doc-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1A1A1A;
+  display: block;
+}
+
+.doc-meta {
+  font-size: 24rpx;
+  color: #9CA3AF;
+  margin-top: 8rpx;
+  display: block;
+}
+
+.doc-arrow {
+  font-size: 36rpx;
+  color: #D1D5DB;
+}
+
+.loading, .no-more {
+  text-align: center;
+  padding: 32rpx;
+  font-size: 26rpx;
+  color: #9CA3AF;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 120rpx 0;
+}
+
+.empty-icon {
+  font-size: 80rpx;
+  margin-bottom: 24rpx;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: #9CA3AF;
+}

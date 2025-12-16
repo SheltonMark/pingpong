@@ -1,0 +1,52 @@
+<view class="check-in-page">
+  <!-- 签到状态卡片 -->
+  <view class="status-card">
+    <view class="status-icon {{canCheckIn ? 'active' : ''}}">📍</view>
+
+    <block wx:if="{{isLoading}}">
+      <text class="status-title">定位中...</text>
+    </block>
+    <block wx:elif="{{nearestPoint}}">
+      <text class="status-title">{{nearestPoint.name}}</text>
+      <text class="status-desc">当前位置距离签到点 {{distance}}m</text>
+
+      <button
+        class="check-in-btn {{canCheckIn ? 'active' : 'disabled'}}"
+        bindtap="onCheckIn"
+        disabled="{{!canCheckIn || isCheckingIn}}"
+      >
+        {{isCheckingIn ? '签到中...' : (canCheckIn ? '立即签到' : '距离过远')}}
+      </button>
+    </block>
+    <block wx:else>
+      <text class="status-title">未找到签到点</text>
+      <text class="status-desc">附近没有可用的签到点</text>
+    </block>
+
+    <view class="refresh-btn" bindtap="onRefreshLocation">
+      <text>🔄 刷新位置</text>
+    </view>
+  </view>
+
+  <!-- 签到记录 -->
+  <view class="records-card">
+    <view class="card-header">
+      <text class="card-title">本月签到记录</text>
+      <text class="card-count">{{monthlyCount}}次</text>
+    </view>
+
+    <view class="record-list">
+      <view class="record-item" wx:for="{{records}}" wx:key="id">
+        <view class="record-info">
+          <text class="record-date">{{item.date_label}}</text>
+          <text class="record-point">{{item.point_name}}</text>
+        </view>
+        <text class="record-time">{{item.time_label}} 已签到</text>
+      </view>
+
+      <view class="empty" wx:if="{{records.length === 0}}">
+        <text>暂无签到记录</text>
+      </view>
+    </view>
+  </view>
+</view>
