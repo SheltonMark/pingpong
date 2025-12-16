@@ -24,7 +24,8 @@
     "pages/announcement-detail/announcement-detail",
     "pages/singles-register/singles-register",
     "pages/doubles-register/doubles-register",
-    "pages/team-register/team-register"
+    "pages/team-register/team-register",
+    "pages/admin/admin"
   ],
   "window": {
     "navigationBarTitleText": "校乒网",

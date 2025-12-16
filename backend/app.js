@@ -14,6 +14,7 @@ const invitationsRouter = require('./routes/invitations');
 const checkinRouter = require('./routes/checkin');
 const learningRouter = require('./routes/learning');
 const rankingsRouter = require('./routes/rankings');
+const adminRouter = require('./routes/admin');
 
 const app = express();
 const PORT = process.env.PORT || 80;
@@ -34,6 +35,7 @@ app.use('/api/invitations', invitationsRouter);
 app.use('/api/checkin', checkinRouter);
 app.use('/api/learning', learningRouter);
 app.use('/api/rankings', rankingsRouter);
+app.use('/api/admin', adminRouter);
 
 // 启动服务器
 async function startServer() {

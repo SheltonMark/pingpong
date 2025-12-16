@@ -1,0 +1,54 @@
+<view class="admin-page" wx:if="{{isAdmin}}">
+  <!-- 头部 -->
+  <view class="header">
+    <text class="header-title">管理后台</text>
+    <view class="role-tags">
+      <text class="role-tag" wx:for="{{roles}}" wx:key="code">{{item.name}}</text>
+    </view>
+  </view>
+
+  <!-- 统计卡片 -->
+  <view class="stats-section" wx:if="{{stats}}">
+    <view class="stats-grid">
+      <view class="stat-card">
+        <text class="stat-num">{{stats.totalUsers}}</text>
+        <text class="stat-label">总用户</text>
+      </view>
+      <view class="stat-card">
+        <text class="stat-num">{{stats.weekNewUsers}}</text>
+        <text class="stat-label">本周新增</text>
+      </view>
+      <view class="stat-card">
+        <text class="stat-num">{{stats.totalEvents}}</text>
+        <text class="stat-label">总赛事</text>
+      </view>
+      <view class="stat-card">
+        <text class="stat-num">{{stats.ongoingEvents}}</text>
+        <text class="stat-label">进行中</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 功能菜单 -->
+  <view class="menu-section">
+    <text class="section-title">管理功能</text>
+    <view class="menu-grid">
+      <view
+        class="menu-item"
+        wx:for="{{menuItems}}"
+        wx:key="id"
+        bindtap="onTapMenu"
+        data-url="{{item.url}}"
+      >
+        <view class="menu-icon">{{item.icon}}</view>
+        <text class="menu-label">{{item.label}}</text>
+      </view>
+    </view>
+  </view>
+</view>
+
+<view class="loading" wx:if="{{isLoading}}">加载中...</view>
+<view class="no-permission" wx:if="{{!isAdmin && !isLoading}}">
+  <text class="no-permission-icon">🔒</text>
+  <text class="no-permission-text">无管理权限</text>
+</view>
