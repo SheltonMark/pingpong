@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
+const { calculateInitialRating } = require('../utils/ratingCalculator');
 
 // 检查用户是否存在
 router.get('/check', async (req, res) => {
@@ -427,6 +428,157 @@ router.get('/:id/profile', async (req, res) => {
     });
   } catch (error) {
     console.error('获取用户主页失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
+// ==================== 积分相关 API ====================
+
+// 获取用户积分历史
+router.get('/:userId/rating-history', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+    const offset = (page - 1) * limit;
+
+    const [history] = await pool.query(`
+      SELECT rh.*,
+        u.name as opponent_name,
+        e.title as event_title,
+        m.player1_games, m.player2_games
+      FROM rating_history rh
+      LEFT JOIN users u ON rh.opponent_id = u.id
+      LEFT JOIN events e ON rh.event_id = e.id
+      LEFT JOIN matches m ON rh.match_id = m.id
+      WHERE rh.user_id = ?
+      ORDER BY rh.created_at DESC
+      LIMIT ? OFFSET ?
+    `, [userId, parseInt(limit), parseInt(offset)]);
+
+    // 获取总数
+    const [countResult] = await pool.query(
+      'SELECT COUNT(*) as total FROM rating_history WHERE user_id = ?',
+      [userId]
+    );
+
+    res.json({
+      success: true,
+      data: {
+        list: history,
+        total: countResult[0].total,
+        page: parseInt(page),
+        limit: parseInt(limit)
+      }
+    });
+  } catch (error) {
+    console.error('获取积分历史失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
+// 设置用户初始积分（首次参赛）
+router.post('/:userId/initial-rating', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { base_tier, group_rank, wide_range = false, event_id } = req.body;
+
+    if (!base_tier || !group_rank) {
+      return res.status(400).json({
+        success: false,
+        message: '缺少必要参数：base_tier（报名积分段）和 group_rank（小组名次）'
+      });
+    }
+
+    // 检查用户是否已有积分
+    const [users] = await pool.query('SELECT points FROM users WHERE id = ?', [userId]);
+    if (users.length === 0) {
+      return res.status(404).json({ success: false, message: '用户不存在' });
+    }
+
+    if (users[0].points > 0) {
+      return res.status(400).json({
+        success: false,
+        message: '用户已有积分，不能设置初始积分'
+      });
+    }
+
+    // 计算初始积分
+    const initialPoints = calculateInitialRating(base_tier, group_rank, wide_range);
+
+    // 更新用户积分
+    await pool.execute('UPDATE users SET points = ? WHERE id = ?', [initialPoints, userId]);
+
+    // 记录积分历史
+    await pool.execute(
+      `INSERT INTO rating_history
+        (user_id, points_before, points_after, points_change, source_type, event_id, remark)
+       VALUES (?, 0, ?, ?, 'initial', ?, ?)`,
+      [
+        userId, initialPoints, initialPoints, event_id || null,
+        `首次参赛初始积分：报名${base_tier}分段，小组第${group_rank}名`
+      ]
+    );
+
+    res.json({
+      success: true,
+      data: {
+        initial_points: initialPoints,
+        base_tier,
+        group_rank,
+        wide_range
+      },
+      message: `初始积分已设置为 ${initialPoints}`
+    });
+  } catch (error) {
+    console.error('设置初始积分失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
+// 管理员调整积分
+router.post('/:userId/adjust-rating', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { adjustment, reason, admin_id } = req.body;
+
+    if (adjustment === undefined || !reason) {
+      return res.status(400).json({
+        success: false,
+        message: '缺少必要参数：adjustment（调整值）和 reason（原因）'
+      });
+    }
+
+    // 获取当前积分
+    const [users] = await pool.query('SELECT points FROM users WHERE id = ?', [userId]);
+    if (users.length === 0) {
+      return res.status(404).json({ success: false, message: '用户不存在' });
+    }
+
+    const currentPoints = users[0].points || 0;
+    const newPoints = Math.max(0, currentPoints + adjustment);
+
+    // 更新积分
+    await pool.execute('UPDATE users SET points = ? WHERE id = ?', [newPoints, userId]);
+
+    // 记录历史
+    await pool.execute(
+      `INSERT INTO rating_history
+        (user_id, points_before, points_after, points_change, source_type, remark)
+       VALUES (?, ?, ?, ?, 'admin_adjust', ?)`,
+      [userId, currentPoints, newPoints, adjustment, `管理员调整：${reason}`]
+    );
+
+    res.json({
+      success: true,
+      data: {
+        points_before: currentPoints,
+        points_after: newPoints,
+        adjustment
+      },
+      message: '积分已调整'
+    });
+  } catch (error) {
+    console.error('调整积分失败:', error);
     res.status(500).json({ success: false, message: '服务器错误' });
   }
 });
