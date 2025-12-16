@@ -35,4 +35,5 @@ CREATE TABLE IF NOT EXISTS rating_history (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='积分变动历史表';
 
 -- 添加用户表的赛前积分字段（用于记录赛事开始时的积分）
-ALTER TABLE users ADD COLUMN IF NOT EXISTS rating_before_event INT DEFAULT NULL COMMENT '赛前积分（临时）';
+-- 注意：MySQL 不支持 IF NOT EXISTS，忽略重复列错误即可
+ALTER TABLE users ADD COLUMN rating_before_event INT DEFAULT NULL COMMENT '赛前积分（临时）';
