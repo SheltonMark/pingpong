@@ -1,0 +1,142 @@
+.admin-events-page {
+  min-height: 100vh;
+  background: #F5F5F5;
+  padding: 24rpx;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24rpx;
+}
+
+.filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 16rpx 24rpx;
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  color: #374151;
+}
+
+.arrow {
+  font-size: 20rpx;
+  color: #9CA3AF;
+}
+
+.create-btn {
+  background: linear-gradient(135deg, #FF6B00, #E55D00);
+  color: #FFFFFF;
+  font-size: 28rpx;
+  font-weight: 600;
+  padding: 16rpx 32rpx;
+  border-radius: 16rpx;
+  border: none;
+}
+
+.pending-scores {
+  display: flex;
+  align-items: center;
+  background: #FFF5EB;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 24rpx;
+}
+
+.pending-icon {
+  font-size: 36rpx;
+  margin-right: 16rpx;
+}
+
+.pending-text {
+  flex: 1;
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #FF6B00;
+}
+
+.pending-arrow {
+  font-size: 32rpx;
+  color: #FF6B00;
+}
+
+.event-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.event-item {
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 28rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.05);
+}
+
+.event-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.event-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1A1A1A;
+}
+
+.event-status {
+  font-size: 22rpx;
+  font-weight: 600;
+  padding: 6rpx 16rpx;
+  border-radius: 8rpx;
+}
+
+.status-draft {
+  background: #F5F5F5;
+  color: #9CA3AF;
+}
+
+.status-registration {
+  background: #FEF3C7;
+  color: #D97706;
+}
+
+.status-ongoing {
+  background: #D1FAE5;
+  color: #059669;
+}
+
+.status-finished {
+  background: #E5E7EB;
+  color: #6B7280;
+}
+
+.event-info {
+  display: flex;
+  gap: 24rpx;
+  margin-bottom: 12rpx;
+}
+
+.info-item {
+  font-size: 26rpx;
+  color: #6B7280;
+}
+
+.event-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 24rpx;
+  color: #9CA3AF;
+}
+
+.loading, .empty {
+  text-align: center;
+  padding: 60rpx;
+  font-size: 28rpx;
+  color: #9CA3AF;
+}
