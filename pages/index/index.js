@@ -258,12 +258,12 @@ Page({
 
   // 查看排行榜详情
   onTapRankingMore() {
-    wx.showToast({ title: '排行榜页面开发中', icon: 'none' });
+    wx.navigateTo({ url: '/pages/rankings/rankings' });
   },
 
   // 点击排行榜用户
   onTapRankingUser(e) {
     const { id } = e.currentTarget.dataset;
-    wx.showToast({ title: `用户详情 ${id}`, icon: 'none' });
+    wx.navigateTo({ url: `/pages/user-profile/user-profile?id=${id}` });
   }
 });
