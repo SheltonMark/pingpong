@@ -6,7 +6,7 @@
 .tabs {
   display: flex;
   background: #FFFFFF;
-  padding: 0 40rpx 24rpx;
+  padding: 24rpx 40rpx;
   gap: 16rpx;
 }
 

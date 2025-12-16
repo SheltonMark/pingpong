@@ -232,6 +232,77 @@ async function insertMockData() {
       }
     }
 
+    // Mock rankings data
+    console.log('\n📊 Adding rankings data...');
+    const rankingsData = [
+      { name: '张明远', points: 2850, wins: 28, losses: 5 },
+      { name: '李思源', points: 2720, wins: 24, losses: 8 },
+      { name: '王老师', points: 2650, wins: 22, losses: 10 },
+      { name: '陈雨婷', points: 2580, wins: 20, losses: 12 },
+      { name: '刘大伟', points: 2490, wins: 18, losses: 14 },
+    ];
+
+    // Update users with points
+    for (let i = 0; i < users.length && i < rankingsData.length; i++) {
+      const userData = rankingsData[i];
+      await connection.query(
+        'UPDATE users SET points = ?, wins = ?, losses = ? WHERE id = ?',
+        [userData.points, userData.wins, userData.losses, users[i].id]
+      );
+      console.log(`  ✅ Updated ${users[i].name}: ${userData.points}分`);
+    }
+
+    // Mock matches (比赛记录)
+    console.log('\n🏓 Adding match history...');
+
+    // First create a mock event for practice matches
+    let eventId;
+    const [existingEvent] = await connection.query(
+      "SELECT id FROM events WHERE title = '练习赛记录'"
+    );
+    if (existingEvent.length > 0) {
+      eventId = existingEvent[0].id;
+    } else {
+      await connection.query(
+        `INSERT INTO events (title, description, event_type, event_format, scope, school_id, status, created_by, created_at)
+         VALUES ('练习赛记录', '日常练习赛', 'singles', 'round_robin', 'school', ?, 'finished', ?, NOW())`,
+        [schoolId, users[0].id]
+      );
+      const [newEvent] = await connection.query('SELECT LAST_INSERT_ID() as id');
+      eventId = newEvent[0].id;
+      console.log('  ✅ Created practice event');
+    }
+
+    const matchesData = [];
+    for (let i = 0; i < users.length; i++) {
+      for (let j = i + 1; j < users.length; j++) {
+        // 随机生成几场比赛
+        const numMatches = Math.floor(Math.random() * 3) + 1;
+        for (let k = 0; k < numMatches; k++) {
+          const winner = Math.random() > 0.5 ? i : j;
+          const loser = winner === i ? j : i;
+          const winnerGames = 3;
+          const loserGames = Math.floor(Math.random() * 3);
+          matchesData.push({
+            player1_id: users[winner].id,
+            player2_id: users[loser].id,
+            player1_games: winnerGames,
+            player2_games: loserGames,
+            winner_id: users[winner].id
+          });
+        }
+      }
+    }
+
+    for (const match of matchesData) {
+      await connection.query(
+        `INSERT INTO matches (event_id, player1_id, player2_id, player1_games, player2_games, winner_id, status, finished_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'finished', DATE_SUB(NOW(), INTERVAL FLOOR(RAND() * 60) DAY), NOW())`,
+        [eventId, match.player1_id, match.player2_id, match.player1_games, match.player2_games, match.winner_id]
+      );
+    }
+    console.log(`  ✅ Added ${matchesData.length} matches`);
+
     console.log('\n🎉 Mock data inserted successfully!');
 
   } catch (error) {
