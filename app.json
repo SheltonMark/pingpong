@@ -24,7 +24,15 @@
     "pages/announcement-detail/announcement-detail",
     "pages/singles-register/singles-register",
     "pages/doubles-register/doubles-register",
-    "pages/team-register/team-register"
+    "pages/team-register/team-register",
+    "pages/admin/admin",
+    "pages/admin-events/admin-events",
+    "pages/admin-event-edit/admin-event-edit",
+    "pages/admin-scores/admin-scores",
+    "pages/admin-users/admin-users",
+    "pages/admin-content/admin-content",
+    "pages/admin-announcements/admin-announcements",
+    "pages/admin-stats/admin-stats"
   ],
   "window": {
     "navigationBarTitleText": "校乒网",

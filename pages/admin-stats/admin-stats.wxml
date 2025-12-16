@@ -1,0 +1,123 @@
+<view class="stats-page">
+  <!-- Tab 切换 -->
+  <view class="tab-bar">
+    <view
+      class="tab-item {{activeTab === item.key ? 'active' : ''}}"
+      wx:for="{{tabs}}"
+      wx:key="key"
+      bindtap="onTabChange"
+      data-key="{{item.key}}"
+    >
+      {{item.label}}
+    </view>
+  </view>
+
+  <view class="loading" wx:if="{{isLoading}}">加载中...</view>
+
+  <!-- 用户统计 -->
+  <view class="stats-content" wx:if="{{activeTab === 'users' && userStats && !isLoading}}">
+    <view class="section">
+      <text class="section-title">用户类型分布</text>
+      <view class="stat-grid">
+        <view class="stat-item" wx:for="{{userStats.byType}}" wx:key="user_type">
+          <text class="stat-num">{{item.count}}</text>
+          <text class="stat-label">{{item.user_type === 'student' ? '学生' : (item.user_type === 'teacher' ? '教师' : (item.user_type === 'alumni' ? '校友' : '其他'))}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="section">
+      <text class="section-title">各校用户数 TOP 10</text>
+      <view class="rank-list">
+        <view class="rank-item" wx:for="{{userStats.bySchool}}" wx:key="school_name">
+          <text class="rank-index">{{index + 1}}</text>
+          <text class="rank-name">{{item.school_name}}</text>
+          <text class="rank-count">{{item.count}}人</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="section">
+      <text class="section-title">近30天注册趋势</text>
+      <view class="trend-list">
+        <view class="trend-item" wx:for="{{userStats.trend}}" wx:key="date">
+          <text class="trend-date">{{item.date}}</text>
+          <view class="trend-bar-wrapper">
+            <view class="trend-bar" style="width: {{item.count * 20}}rpx;"></view>
+          </view>
+          <text class="trend-count">{{item.count}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 赛事统计 -->
+  <view class="stats-content" wx:if="{{activeTab === 'events' && eventStats && !isLoading}}">
+    <view class="section">
+      <text class="section-title">赛事状态分布</text>
+      <view class="stat-grid">
+        <view class="stat-item" wx:for="{{eventStats.byStatus}}" wx:key="status">
+          <text class="stat-num">{{item.count}}</text>
+          <text class="stat-label">{{item.status === 'draft' ? '草稿' : (item.status === 'registration' ? '报名中' : (item.status === 'ongoing' ? '进行中' : '已结束'))}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="section">
+      <text class="section-title">赛事类型分布</text>
+      <view class="stat-grid">
+        <view class="stat-item" wx:for="{{eventStats.byType}}" wx:key="event_type">
+          <text class="stat-num">{{item.count}}</text>
+          <text class="stat-label">{{item.event_type === 'singles' ? '单打' : (item.event_type === 'doubles' ? '双打' : '团体')}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="section">
+      <text class="section-title">近期赛事</text>
+      <view class="event-list">
+        <view class="event-item" wx:for="{{eventStats.recent}}" wx:key="id">
+          <view class="event-main">
+            <text class="event-title">{{item.title}}</text>
+            <text class="event-status">{{item.status === 'draft' ? '草稿' : (item.status === 'registration' ? '报名中' : (item.status === 'ongoing' ? '进行中' : '已结束'))}}</text>
+          </view>
+          <text class="event-registrations">{{item.registrations}}人报名</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 活跃度统计 -->
+  <view class="stats-content" wx:if="{{activeTab === 'activity' && activityStats && !isLoading}}">
+    <view class="section">
+      <text class="section-title">今日活跃</text>
+      <view class="stat-grid">
+        <view class="stat-item">
+          <text class="stat-num">{{activityStats.today.posts}}</text>
+          <text class="stat-label">发帖数</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-num">{{activityStats.today.checkins}}</text>
+          <text class="stat-label">签到数</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-num">{{activityStats.today.matches}}</text>
+          <text class="stat-label">比赛数</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="section">
+      <text class="section-title">近7天发帖趋势</text>
+      <view class="trend-list">
+        <view class="trend-item" wx:for="{{activityStats.postTrend}}" wx:key="date">
+          <text class="trend-date">{{item.date}}</text>
+          <view class="trend-bar-wrapper">
+            <view class="trend-bar" style="width: {{item.count * 10}}rpx;"></view>
+          </view>
+          <text class="trend-count">{{item.count}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

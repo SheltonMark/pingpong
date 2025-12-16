@@ -1,0 +1,29 @@
+<view class="role-picker-overlay" wx:if="{{show}}" bindtap="onClose">
+  <view class="role-picker-modal" catchtap="onPreventBubble">
+    <view class="modal-header">
+      <text class="modal-title">分配角色</text>
+      <text class="modal-close" bindtap="onClose">×</text>
+    </view>
+
+    <view class="user-preview" wx:if="{{user}}">
+      <text class="preview-name">{{user.name || '未命名'}}</text>
+      <text class="preview-school">{{user.school_name || '未设置学校'}}</text>
+    </view>
+
+    <view class="role-list">
+      <view
+        class="role-item"
+        wx:for="{{roles}}"
+        wx:key="code"
+        bindtap="onSelectRole"
+        data-code="{{item.code}}"
+      >
+        <view class="role-info">
+          <text class="role-name">{{item.name}}</text>
+          <text class="role-desc">{{item.desc || ''}}</text>
+        </view>
+        <text class="role-arrow">›</text>
+      </view>
+    </view>
+  </view>
+</view>

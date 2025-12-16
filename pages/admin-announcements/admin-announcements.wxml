@@ -1,0 +1,57 @@
+<view class="announcements-page">
+  <!-- 顶部操作栏 -->
+  <view class="toolbar">
+    <text class="toolbar-title">公告列表</text>
+    <button class="create-btn" bindtap="onShowCreate">新建公告</button>
+  </view>
+
+  <!-- 公告列表 -->
+  <view class="announcement-list">
+    <view class="announcement-item" wx:for="{{announcements}}" wx:key="id">
+      <view class="announcement-main">
+        <text class="announcement-title">{{item.title}}</text>
+        <text class="announcement-status status-{{item.status}}">{{item.status_label}}</text>
+      </view>
+      <view class="announcement-content">{{item.content}}</view>
+      <view class="announcement-actions">
+        <button class="edit-btn" bindtap="onShowEdit" data-item="{{item}}">编辑</button>
+        <button class="delete-btn" bindtap="onDelete" data-id="{{item.id}}">删除</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="loading" wx:if="{{isLoading}}">加载中...</view>
+  <view class="empty" wx:if="{{!isLoading && announcements.length === 0}}">暂无公告</view>
+</view>
+
+<!-- 编辑弹窗 -->
+<view class="editor-overlay" wx:if="{{showEditor}}" bindtap="onCloseEditor">
+  <view class="editor-modal" catchtap="">
+    <view class="editor-header">
+      <text class="editor-title">{{editForm.id ? '编辑公告' : '新建公告'}}</text>
+      <text class="editor-close" bindtap="onCloseEditor">×</text>
+    </view>
+
+    <view class="form-item">
+      <text class="form-label">标题</text>
+      <input class="form-input" placeholder="请输入标题" value="{{editForm.title}}" data-field="title" bindinput="onInputChange" />
+    </view>
+
+    <view class="form-item">
+      <text class="form-label">内容</text>
+      <textarea class="form-textarea" placeholder="请输入内容" value="{{editForm.content}}" data-field="content" bindinput="onInputChange" />
+    </view>
+
+    <view class="form-item">
+      <text class="form-label">状态</text>
+      <picker mode="selector" range="{{statusOptions}}" range-key="label" value="{{statusIndex}}" bindchange="onStatusChange">
+        <view class="form-picker">
+          <text>{{statusOptions[statusIndex].label}}</text>
+          <text class="picker-arrow">▼</text>
+        </view>
+      </picker>
+    </view>
+
+    <button class="submit-btn" bindtap="onSubmit">保存</button>
+  </view>
+</view>
