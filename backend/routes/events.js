@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
+const { calculateMatchRating } = require('../utils/ratingCalculator');
 
 // 获取赛事列表
 router.get('/', async (req, res) => {
@@ -291,12 +292,29 @@ router.post('/matches/:matchId/confirm', async (req, res) => {
     const m = updated[0];
 
     if ((m.player1_confirmed && m.player2_confirmed) || m.admin_confirmed) {
-      // 确定胜者
+      // 确定胜者和败者
       const winnerId = m.player1_games > m.player2_games ? m.player1_id : m.player2_id;
+      const loserId = winnerId === m.player1_id ? m.player2_id : m.player1_id;
+
+      // 更新比赛状态
       await pool.execute(
         `UPDATE matches SET status = 'finished', winner_id = ?, finished_at = NOW() WHERE id = ?`,
         [winnerId, matchId]
       );
+
+      // 计算积分变化（仅单打赛事且计入排名时）
+      const [events] = await pool.query(
+        'SELECT * FROM events WHERE id = ?',
+        [m.event_id]
+      );
+
+      if (events.length > 0) {
+        const event = events[0];
+        // 只有单打赛事且 counts_for_ranking = 1 时才计算积分
+        if (event.event_type === 'singles' && event.counts_for_ranking) {
+          await updatePlayerRatings(m.event_id, matchId, winnerId, loserId);
+        }
+      }
     }
 
     res.json({ success: true, message: '已确认' });
@@ -305,5 +323,89 @@ router.post('/matches/:matchId/confirm', async (req, res) => {
     res.status(500).json({ success: false, message: '服务器错误' });
   }
 });
+
+/**
+ * 更新选手积分
+ * @param {number} eventId - 赛事ID
+ * @param {number} matchId - 比赛ID
+ * @param {number} winnerId - 胜者ID
+ * @param {number} loserId - 败者ID
+ */
+async function updatePlayerRatings(eventId, matchId, winnerId, loserId) {
+  try {
+    // 获取双方当前积分
+    const [players] = await pool.query(
+      'SELECT id, points FROM users WHERE id IN (?, ?)',
+      [winnerId, loserId]
+    );
+
+    if (players.length !== 2) {
+      console.error('无法找到比赛双方选手');
+      return;
+    }
+
+    const winnerData = players.find(p => p.id === winnerId);
+    const loserData = players.find(p => p.id === loserId);
+
+    const winnerPoints = winnerData.points || 0;
+    const loserPoints = loserData.points || 0;
+
+    // 计算积分变化
+    const result = calculateMatchRating(winnerPoints, loserPoints);
+
+    // 开启事务
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    try {
+      // 更新胜者积分
+      await connection.execute(
+        'UPDATE users SET points = ?, wins = wins + 1 WHERE id = ?',
+        [result.newWinnerPoints, winnerId]
+      );
+
+      // 更新败者积分
+      await connection.execute(
+        'UPDATE users SET points = ?, losses = losses + 1 WHERE id = ?',
+        [result.newLoserPoints, loserId]
+      );
+
+      // 记录胜者积分历史
+      await connection.execute(
+        `INSERT INTO rating_history
+          (user_id, points_before, points_after, points_change, source_type, match_id, event_id, opponent_id, opponent_points, is_winner, remark)
+         VALUES (?, ?, ?, ?, 'match', ?, ?, ?, ?, 1, ?)`,
+        [
+          winnerId, winnerPoints, result.newWinnerPoints, result.winnerChange,
+          matchId, eventId, loserId, loserPoints,
+          result.isUpset ? '爆冷获胜' : '正常获胜'
+        ]
+      );
+
+      // 记录败者积分历史
+      await connection.execute(
+        `INSERT INTO rating_history
+          (user_id, points_before, points_after, points_change, source_type, match_id, event_id, opponent_id, opponent_points, is_winner, remark)
+         VALUES (?, ?, ?, ?, 'match', ?, ?, ?, ?, 0, ?)`,
+        [
+          loserId, loserPoints, result.newLoserPoints, result.loserChange,
+          matchId, eventId, winnerId, winnerPoints,
+          result.isUpset ? '爆冷失利' : '正常失利'
+        ]
+      );
+
+      await connection.commit();
+      console.log(`积分已更新: 胜者${winnerId}(${winnerPoints}→${result.newWinnerPoints}), 败者${loserId}(${loserPoints}→${result.newLoserPoints})`);
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('更新积分失败:', error);
+    // 积分更新失败不影响比赛确认结果
+  }
+}
 
 module.exports = router;
