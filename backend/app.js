@@ -11,6 +11,9 @@ const eventsRouter = require('./routes/events');
 const announcementsRouter = require('./routes/announcements');
 const postsRouter = require('./routes/posts');
 const invitationsRouter = require('./routes/invitations');
+const checkinRouter = require('./routes/checkin');
+const learningRouter = require('./routes/learning');
+const rankingsRouter = require('./routes/rankings');
 
 const app = express();
 const PORT = process.env.PORT || 80;
@@ -28,6 +31,9 @@ app.use('/api/events', eventsRouter);
 app.use('/api/announcements', announcementsRouter);
 app.use('/api/posts', postsRouter);
 app.use('/api/invitations', invitationsRouter);
+app.use('/api/checkin', checkinRouter);
+app.use('/api/learning', learningRouter);
+app.use('/api/rankings', rankingsRouter);
 
 // 启动服务器
 async function startServer() {

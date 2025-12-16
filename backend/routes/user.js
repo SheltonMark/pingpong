@@ -225,4 +225,210 @@ router.get('/profile', async (req, res) => {
   }
 });
 
+// 获取交手记录
+router.get('/:id/match-history', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+    const offset = (page - 1) * limit;
+
+    // 获取比赛记录
+    const [matches] = await pool.query(`
+      SELECT
+        m.id, m.event_id, m.status, m.created_at,
+        m.player1_id, m.player2_id, m.player1_games, m.player2_games,
+        u1.name as player1_name, u1.avatar_url as player1_avatar,
+        u2.name as player2_name, u2.avatar_url as player2_avatar,
+        e.name as event_name, e.type as event_type
+      FROM matches m
+      LEFT JOIN users u1 ON m.player1_id = u1.id
+      LEFT JOIN users u2 ON m.player2_id = u2.id
+      LEFT JOIN events e ON m.event_id = e.id
+      WHERE (m.player1_id = ? OR m.player2_id = ?) AND m.status = 'confirmed'
+      ORDER BY m.created_at DESC
+      LIMIT ? OFFSET ?
+    `, [id, id, parseInt(limit), offset]);
+
+    // 统计胜负
+    const [stats] = await pool.query(`
+      SELECT
+        SUM(CASE WHEN (player1_id = ? AND player1_games > player2_games) OR (player2_id = ? AND player2_games > player1_games) THEN 1 ELSE 0 END) as wins,
+        SUM(CASE WHEN (player1_id = ? AND player1_games < player2_games) OR (player2_id = ? AND player2_games < player1_games) THEN 1 ELSE 0 END) as losses
+      FROM matches
+      WHERE (player1_id = ? OR player2_id = ?) AND status = 'confirmed'
+    `, [id, id, id, id, id, id]);
+
+    const wins = stats[0].wins || 0;
+    const losses = stats[0].losses || 0;
+    const total = wins + losses;
+    const winRate = total > 0 ? Math.round(wins / total * 100) : 0;
+
+    res.json({
+      success: true,
+      data: {
+        matches,
+        stats: { wins, losses, win_rate: winRate }
+      }
+    });
+  } catch (error) {
+    console.error('获取交手记录失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
+// 获取我的赛事
+router.get('/:id/events', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.query;
+
+    let sql = `
+      SELECT e.*, r.status as reg_status,
+        (SELECT COUNT(*) FROM matches m WHERE (m.player1_id = ? OR m.player2_id = ?) AND m.event_id = e.id AND m.status = 'confirmed' AND ((m.player1_id = ? AND m.player1_games > m.player2_games) OR (m.player2_id = ? AND m.player2_games > m.player1_games))) as my_wins,
+        (SELECT COUNT(*) FROM matches m WHERE (m.player1_id = ? OR m.player2_id = ?) AND m.event_id = e.id AND m.status = 'confirmed' AND ((m.player1_id = ? AND m.player1_games < m.player2_games) OR (m.player2_id = ? AND m.player2_games < m.player1_games))) as my_losses
+      FROM events e
+      INNER JOIN event_registrations r ON e.id = r.event_id
+      WHERE r.user_id = ?
+    `;
+    const params = [id, id, id, id, id, id, id, id, id];
+
+    if (status === 'ongoing') {
+      sql += " AND e.status IN ('registering', 'ongoing')";
+    } else if (status === 'finished') {
+      sql += " AND e.status = 'finished'";
+    }
+
+    sql += ' ORDER BY e.start_date DESC';
+
+    const [events] = await pool.query(sql, params);
+    res.json({ success: true, data: events });
+  } catch (error) {
+    console.error('获取我的赛事失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
+// 获取邀请列表
+router.get('/:id/invitations', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.query;
+
+    let sql = `
+      SELECT i.*,
+        e.name as event_name, e.type as event_type,
+        u.name as inviter_name, u.avatar_url as inviter_avatar
+      FROM team_invitations i
+      LEFT JOIN events e ON i.event_id = e.id
+      LEFT JOIN users u ON i.inviter_id = u.id
+      WHERE i.invitee_id = ?
+    `;
+    const params = [id];
+
+    if (status === 'pending') {
+      sql += " AND i.status = 'pending'";
+    } else if (status === 'processed') {
+      sql += " AND i.status IN ('accepted', 'rejected')";
+    }
+
+    sql += ' ORDER BY i.created_at DESC';
+
+    const [invitations] = await pool.query(sql, params);
+    res.json({ success: true, data: invitations });
+  } catch (error) {
+    console.error('获取邀请列表失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
+// 响应邀请
+router.post('/invitations/:invitationId/respond', async (req, res) => {
+  try {
+    const { invitationId } = req.params;
+    const { user_id, action } = req.body;
+
+    if (!['accept', 'reject'].includes(action)) {
+      return res.status(400).json({ success: false, message: '无效操作' });
+    }
+
+    // 验证邀请存在且属于该用户
+    const [invitations] = await pool.query(
+      'SELECT * FROM team_invitations WHERE id = ? AND invitee_id = ? AND status = "pending"',
+      [invitationId, user_id]
+    );
+
+    if (invitations.length === 0) {
+      return res.status(404).json({ success: false, message: '邀请不存在或已处理' });
+    }
+
+    const newStatus = action === 'accept' ? 'accepted' : 'rejected';
+
+    await pool.query(
+      'UPDATE team_invitations SET status = ?, responded_at = NOW() WHERE id = ?',
+      [newStatus, invitationId]
+    );
+
+    res.json({ success: true, message: action === 'accept' ? '已同意' : '已拒绝' });
+  } catch (error) {
+    console.error('响应邀请失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
+// 获取用户主页信息（他人主页）
+router.get('/:id/profile', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 用户基本信息
+    const [users] = await pool.query(`
+      SELECT u.id, u.name, u.avatar_url, u.points, u.wins, u.losses,
+        s.name as school_name, c.name as college_name
+      FROM users u
+      LEFT JOIN schools s ON u.school_id = s.id
+      LEFT JOIN colleges c ON u.college_id = c.id
+      WHERE u.id = ?
+    `, [id]);
+
+    if (users.length === 0) {
+      return res.status(404).json({ success: false, message: '用户不存在' });
+    }
+
+    const user = users[0];
+
+    // 计算排名
+    const [ranking] = await pool.query(
+      'SELECT COUNT(*) + 1 as rank FROM users WHERE points > ? AND school_id = (SELECT school_id FROM users WHERE id = ?)',
+      [user.points, id]
+    );
+
+    // 最近3场比赛
+    const [recentMatches] = await pool.query(`
+      SELECT
+        m.id, m.player1_id, m.player2_id, m.player1_games, m.player2_games, m.created_at,
+        u1.name as player1_name, u2.name as player2_name,
+        e.name as event_name
+      FROM matches m
+      LEFT JOIN users u1 ON m.player1_id = u1.id
+      LEFT JOIN users u2 ON m.player2_id = u2.id
+      LEFT JOIN events e ON m.event_id = e.id
+      WHERE (m.player1_id = ? OR m.player2_id = ?) AND m.status = 'confirmed'
+      ORDER BY m.created_at DESC
+      LIMIT 3
+    `, [id, id]);
+
+    res.json({
+      success: true,
+      data: {
+        ...user,
+        rank: ranking[0].rank,
+        recent_matches: recentMatches
+      }
+    });
+  } catch (error) {
+    console.error('获取用户主页失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
 module.exports = router;

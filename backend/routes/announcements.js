@@ -34,4 +34,27 @@ router.get('/', async (req, res) => {
   }
 });
 
+// 获取公告详情
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [announcements] = await pool.query(`
+      SELECT a.*, e.title as event_title, e.id as event_id
+      FROM announcements a
+      LEFT JOIN events e ON a.link_event_id = e.id
+      WHERE a.id = ?
+    `, [id]);
+
+    if (announcements.length === 0) {
+      return res.status(404).json({ success: false, message: '公告不存在' });
+    }
+
+    res.json({ success: true, data: announcements[0] });
+  } catch (error) {
+    console.error('获取公告详情失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
 module.exports = router;
