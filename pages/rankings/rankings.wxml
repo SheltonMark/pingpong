@@ -1,0 +1,42 @@
+<view class="rankings-page">
+  <!-- Tab栏 -->
+  <view class="tabs">
+    <view
+      wx:for="{{tabs}}"
+      wx:key="key"
+      class="tab {{currentTab === item.key ? 'active' : ''}}"
+      bindtap="onSwitchTab"
+      data-tab="{{item.key}}"
+    >{{item.label}}</view>
+  </view>
+
+  <!-- 排名列表 -->
+  <scroll-view class="rank-list-scroll" scroll-y bindscrolltolower="onLoadMore">
+    <view class="rank-card">
+      <view
+        class="rank-item"
+        wx:for="{{rankings}}"
+        wx:key="id"
+        bindtap="onTapUser"
+        data-id="{{item.id}}"
+      >
+        <view class="rank-badge {{item.badge_class}}">{{item.rank}}</view>
+        <view class="rank-avatar">🧑</view>
+        <view class="rank-info">
+          <text class="rank-name">{{item.name}}</text>
+          <text class="rank-dept">{{item.school_short_name || item.school_name}} · {{item.college_name}}</text>
+        </view>
+        <view class="rank-score">
+          <text class="rank-score-num">{{item.points}}</text>
+          <text class="rank-score-label">积分</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="loading" wx:if="{{isLoading}}">加载中...</view>
+    <view class="no-more" wx:if="{{noMore && rankings.length > 0}}">没有更多了</view>
+    <view class="empty" wx:if="{{!isLoading && rankings.length === 0}}">
+      <text>暂无排名数据</text>
+    </view>
+  </scroll-view>
+</view>

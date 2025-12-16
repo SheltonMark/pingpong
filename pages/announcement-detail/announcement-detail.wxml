@@ -1,0 +1,18 @@
+<view class="announcement-page" wx:if="{{announcement}}">
+  <view class="announcement-card">
+    <view class="announcement-tag">公告</view>
+    <text class="announcement-title">{{announcement.title}}</text>
+    <text class="announcement-date">发布于 {{announcement.date_label}}</text>
+
+    <view class="announcement-content">
+      <rich-text nodes="{{announcement.content}}"></rich-text>
+    </view>
+
+    <view class="event-link" wx:if="{{announcement.link_event_id}}" bindtap="onTapEvent">
+      <text class="event-link-text">查看关联赛事：{{announcement.event_title}}</text>
+      <text class="event-link-arrow">›</text>
+    </view>
+  </view>
+</view>
+
+<view class="loading" wx:if="{{isLoading}}">加载中...</view>

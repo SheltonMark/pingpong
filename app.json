@@ -19,7 +19,12 @@
     "pages/my-events/my-events",
     "pages/invitations/invitations",
     "pages/user-profile/user-profile",
-    "pages/agreement/agreement"
+    "pages/agreement/agreement",
+    "pages/rankings/rankings",
+    "pages/announcement-detail/announcement-detail",
+    "pages/singles-register/singles-register",
+    "pages/doubles-register/doubles-register",
+    "pages/team-register/team-register"
   ],
   "window": {
     "navigationBarTitleText": "校乒网",

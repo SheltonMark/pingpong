@@ -1,0 +1,140 @@
+.rankings-page {
+  min-height: 100vh;
+  background: #F5F5F5;
+}
+
+.tabs {
+  display: flex;
+  background: #FFFFFF;
+  padding: 0 40rpx 24rpx;
+  gap: 16rpx;
+}
+
+.tab {
+  padding: 16rpx 32rpx;
+  font-size: 26rpx;
+  color: #9CA3AF;
+  background: #F5F5F5;
+  border-radius: 40rpx;
+  font-weight: 500;
+}
+
+.tab.active {
+  background: #1A1A1A;
+  color: #FFFFFF;
+}
+
+.rank-list-scroll {
+  height: calc(100vh - 120rpx);
+  padding: 24rpx;
+}
+
+.rank-card {
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+}
+
+.rank-item {
+  display: flex;
+  align-items: center;
+  padding: 28rpx 36rpx;
+  border-bottom: 1rpx solid #F5F5F5;
+}
+
+.rank-item:last-child {
+  border-bottom: none;
+}
+
+.rank-badge {
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.rank-badge.gold {
+  background: linear-gradient(135deg, #FCD34D, #F59E0B);
+}
+
+.rank-badge.silver {
+  background: linear-gradient(135deg, #9CA3AF, #6B7280);
+}
+
+.rank-badge.bronze {
+  background: linear-gradient(135deg, #FBBF24, #B45309);
+}
+
+.rank-badge.normal {
+  background: #F5F5F5;
+  color: #9CA3AF;
+}
+
+.rank-avatar {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 28rpx;
+  background: #F5F5F5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40rpx;
+  margin-left: 24rpx;
+}
+
+.rank-info {
+  flex: 1;
+  margin-left: 28rpx;
+}
+
+.rank-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1A1A1A;
+  display: block;
+}
+
+.rank-dept {
+  font-size: 24rpx;
+  color: #9CA3AF;
+  margin-top: 6rpx;
+  display: block;
+}
+
+.rank-score {
+  text-align: right;
+}
+
+.rank-score-num {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #FF6B00;
+  display: block;
+}
+
+.rank-score-label {
+  font-size: 20rpx;
+  color: #9CA3AF;
+  margin-top: 4rpx;
+  display: block;
+}
+
+.loading, .no-more {
+  text-align: center;
+  padding: 32rpx;
+  font-size: 26rpx;
+  color: #9CA3AF;
+}
+
+.empty {
+  text-align: center;
+  padding: 60rpx;
+  color: #9CA3AF;
+  font-size: 28rpx;
+}

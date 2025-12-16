@@ -1,0 +1,80 @@
+<view class="register-page" wx:if="{{event}}">
+  <!-- 赛事信息 -->
+  <view class="event-card">
+    <view class="event-tags">
+      <text class="event-status">{{event.status === 'registering' ? '报名中' : event.status}}</text>
+      <text class="event-type">单打 · {{event.format}}</text>
+    </view>
+    <text class="event-name">{{event.name}}</text>
+
+    <view class="event-details">
+      <view class="detail-item">
+        <text class="detail-icon">📅</text>
+        <text class="detail-text">{{event.date_label}} 开始</text>
+      </view>
+      <view class="detail-item">
+        <text class="detail-icon">📍</text>
+        <text class="detail-text">{{event.location}}</text>
+      </view>
+      <view class="detail-item">
+        <text class="detail-icon">🏓</text>
+        <text class="detail-text">{{event.format}}</text>
+      </view>
+      <view class="detail-item" wx:if="{{event.is_ranked}}">
+        <text class="detail-icon">⭐</text>
+        <text class="detail-text highlight">计入积分</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 报名信息确认 -->
+  <view class="info-card" wx:if="{{user}}">
+    <view class="card-header">
+      <text class="card-title">报名信息确认</text>
+    </view>
+    <view class="user-info">
+      <view class="user-avatar">😎</view>
+      <view class="user-details">
+        <text class="user-name">{{user.name}}</text>
+        <text class="user-dept">{{user.college_name}} · {{user.user_type === 'student' ? '在校生' : user.user_type}}</text>
+      </view>
+      <view class="user-points">
+        <text class="points-num">{{user.points || 0}}</text>
+        <text class="points-label">当前积分</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 已报名选手 -->
+  <view class="info-card">
+    <view class="card-header">
+      <text class="card-title">已报名选手</text>
+      <text class="card-count">{{registeredUsers.length}}人</text>
+    </view>
+    <view class="registered-list">
+      <view class="registered-user" wx:for="{{registeredUsers}}" wx:key="id" wx:if="{{index < 3}}">
+        <view class="small-avatar">🧑</view>
+        <text class="small-name">{{item.name}}</text>
+      </view>
+      <view class="registered-more" wx:if="{{registeredUsers.length > 3}}">
+        <text>+{{registeredUsers.length - 3}}人</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 报名须知 -->
+  <view class="notice-box">
+    <text class="notice-title">报名须知</text>
+    <view class="notice-list">
+      <text class="notice-item">• 报名后请准时参赛，无故弃赛将影响信誉</text>
+      <text class="notice-item">• 比赛期间请自备球拍，场馆提供比赛用球</text>
+      <text class="notice-item">• 本赛事成绩将计入个人积分排行</text>
+    </view>
+  </view>
+
+  <button class="submit-btn" bindtap="onSubmit" disabled="{{isSubmitting}}">
+    {{isSubmitting ? '提交中...' : '确认报名'}}
+  </button>
+</view>
+
+<view class="loading" wx:if="{{isLoading}}">加载中...</view>

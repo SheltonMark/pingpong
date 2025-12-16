@@ -1,0 +1,80 @@
+<view class="register-page" wx:if="{{event}}">
+  <!-- 赛事信息 -->
+  <view class="event-card">
+    <text class="event-name">{{event.name}}</text>
+    <text class="event-info">{{event.date_label}} · {{event.location}}</text>
+  </view>
+
+  <!-- 选择搭档方式 -->
+  <view class="mode-card">
+    <text class="card-title">选择搭档方式</text>
+    <view class="mode-list">
+      <view
+        class="mode-item {{partnerMode === 'select' ? 'active' : ''}}"
+        bindtap="onModeChange"
+        data-mode="select"
+      >
+        <view class="mode-radio {{partnerMode === 'select' ? 'checked' : ''}}">
+          <text wx:if="{{partnerMode === 'select'}}">✓</text>
+        </view>
+        <view class="mode-content">
+          <text class="mode-title">指定搭档</text>
+          <text class="mode-desc">从已报名用户中选择或邀请好友</text>
+        </view>
+      </view>
+      <view
+        class="mode-item {{partnerMode === 'wait' ? 'active' : ''}}"
+        bindtap="onModeChange"
+        data-mode="wait"
+      >
+        <view class="mode-radio {{partnerMode === 'wait' ? 'checked' : ''}}">
+          <text wx:if="{{partnerMode === 'wait'}}">✓</text>
+        </view>
+        <view class="mode-content">
+          <text class="mode-title">等待配对</text>
+          <text class="mode-desc">先报名，在找队友列表中等待匹配</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 选择搭档 -->
+  <view class="partner-card" wx:if="{{partnerMode === 'select'}}">
+    <view class="card-header">
+      <text class="card-title">选择搭档</text>
+      <text class="card-count">已报名 {{availablePartners.length}}人</text>
+    </view>
+    <view class="partner-list">
+      <view
+        class="partner-item {{selectedPartner && selectedPartner.id === item.id ? 'selected' : ''}}"
+        wx:for="{{availablePartners}}"
+        wx:key="id"
+        bindtap="onSelectPartner"
+        data-partner="{{item}}"
+      >
+        <view class="partner-avatar">🧑</view>
+        <view class="partner-info">
+          <text class="partner-name">{{item.name}}</text>
+          <text class="partner-college">{{item.college_name}}</text>
+        </view>
+        <view class="partner-check" wx:if="{{selectedPartner && selectedPartner.id === item.id}}">✓</view>
+      </view>
+      <view class="empty-tip" wx:if="{{availablePartners.length === 0}}">
+        <text>暂无可选搭档</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 等待配对提示 -->
+  <view class="wait-tip" wx:if="{{partnerMode === 'wait'}}">
+    <view class="tip-icon">🔍</view>
+    <text class="tip-title">等待配对模式</text>
+    <text class="tip-desc">报名后您将出现在"找队友"列表中，其他选手可以邀请您组队</text>
+  </view>
+
+  <button class="submit-btn" bindtap="onSubmit" disabled="{{isSubmitting || (partnerMode === 'select' && !selectedPartner)}}">
+    {{isSubmitting ? '提交中...' : '确认报名'}}
+  </button>
+</view>
+
+<view class="loading" wx:if="{{isLoading}}">加载中...</view>
