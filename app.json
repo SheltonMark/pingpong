@@ -31,7 +31,8 @@
     "pages/admin-scores/admin-scores",
     "pages/admin-users/admin-users",
     "pages/admin-content/admin-content",
-    "pages/admin-announcements/admin-announcements"
+    "pages/admin-announcements/admin-announcements",
+    "pages/admin-stats/admin-stats"
   ],
   "window": {
     "navigationBarTitleText": "校乒网",
