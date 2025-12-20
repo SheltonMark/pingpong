@@ -26,7 +26,44 @@
   "compileType": "miniprogram",
   "simulatorPluginLibVersion": {},
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      {
+        "type": "folder",
+        "value": "backend"
+      },
+      {
+        "type": "folder",
+        "value": "docs"
+      },
+      {
+        "type": "folder",
+        "value": "image"
+      },
+      {
+        "type": "folder",
+        "value": "node_modules"
+      },
+      {
+        "type": "file",
+        "value": "package.json"
+      },
+      {
+        "type": "file",
+        "value": "package-lock.json"
+      },
+      {
+        "type": "file",
+        "value": "Dockerfile"
+      },
+      {
+        "type": "file",
+        "value": "README.md"
+      },
+      {
+        "type": "suffix",
+        "value": ".txt"
+      }
+    ],
     "include": []
   },
   "appid": "wxd1cc9147c5b1c858",

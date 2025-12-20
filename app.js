@@ -26,8 +26,8 @@ App({
   // TODO: 上线前删除或禁用此数据
   // ============================================================
   mockUser: {
-    openid: 'mock_openid_12345',
-    user_id: 1,
+    openid: 'mock_openid_004',
+    user_id: 4,
     name: '张明远',
     gender: 'male',
     phone: '13800138000',

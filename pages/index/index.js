@@ -71,6 +71,10 @@ Page({
 
   onShow() {
     this.updateLoginStatus();
+    // 更新自定义 tabBar 选中状态
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
+      this.getTabBar().setData({ selected: 0 });
+    }
   },
 
   // 更新登录状态
