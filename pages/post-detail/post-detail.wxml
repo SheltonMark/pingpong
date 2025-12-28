@@ -46,7 +46,7 @@
   </view>
 
   <view class="comment-input-bar">
-    <input class="comment-input" placeholder="写评论..." bindinput="onCommentInput" value="{{commentText}}" />
-    <button class="send-btn" bindtap="onSendComment" disabled="{{!commentText.trim()}}">发送</button>
+    <input class="comment-input" placeholder="写评论..." bindinput="onCommentInput" value="{{commentText}}" confirm-type="send" bindconfirm="onSendComment" />
+    <button class="send-btn" bindtap="onSendComment" disabled="{{!commentText}}">发送</button>
   </view>
 </view>
