@@ -253,6 +253,7 @@ function getPermissions(roles) {
         permissions.add('learning');
         permissions.add('checkin');
         permissions.add('admins');
+        permissions.add('schools');
         permissions.add('stats');
         break;
       case 'school_admin':

@@ -51,6 +51,10 @@
             <el-icon><Setting /></el-icon>
             <span>管理员管理</span>
           </el-menu-item>
+          <el-menu-item v-if="hasPermission('schools')" index="/schools">
+            <el-icon><OfficeBuilding /></el-icon>
+            <span>学校管理</span>
+          </el-menu-item>
         </el-menu>
       </el-aside>
 
