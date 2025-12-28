@@ -1,6 +1,0 @@
-{
-  "navigationBarTitleText": "用户管理",
-  "usingComponents": {
-    "role-picker": "/components/role-picker/role-picker"
-  }
-}

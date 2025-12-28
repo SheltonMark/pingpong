@@ -29,6 +29,14 @@
     "ignore": [
       {
         "type": "folder",
+        "value": ".worktrees"
+      },
+      {
+        "type": "folder",
+        "value": "admin-web"
+      },
+      {
+        "type": "folder",
         "value": "backend"
       },
       {

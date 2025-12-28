@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 require('dotenv').config();
 
 const { testConnection } = require('./config/database');
@@ -22,6 +23,9 @@ const PORT = process.env.PORT || 80;
 // 中间件
 app.use(cors());
 app.use(express.json());
+
+// 静态文件服务 - Web 管理后台
+app.use('/admin', express.static(path.join(__dirname, 'public/admin')));
 
 // 路由
 app.use('/api', indexRoutes);

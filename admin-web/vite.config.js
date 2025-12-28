@@ -3,6 +3,11 @@ import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
   plugins: [vue()],
+  base: '/admin/',
+  build: {
+    outDir: '../backend/public/admin',
+    emptyOutDir: true
+  },
   server: {
     port: 3000,
     proxy: {
