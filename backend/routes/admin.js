@@ -184,6 +184,92 @@ router.get('/matches/pending', requireAdmin, async (req, res) => {
   }
 });
 
+// 获取比赛列表（按状态筛选）
+router.get('/matches', requireAdmin, async (req, res) => {
+  try {
+    const { status = 'pending' } = req.query;
+
+    let whereClause = '';
+    if (status === 'pending') {
+      whereClause = "WHERE m.status = 'pending_confirm'";
+    } else if (status === 'confirmed') {
+      whereClause = "WHERE m.status = 'finished'";
+    } else if (status === 'disputed') {
+      whereClause = "WHERE m.status = 'disputed'";
+    }
+
+    const [matches] = await pool.execute(`
+      SELECT m.*,
+             e.title as event_title,
+             p1.name as player1_name, p2.name as player2_name,
+             w.name as winner_name
+      FROM matches m
+      LEFT JOIN events e ON m.event_id = e.id
+      LEFT JOIN users p1 ON m.player1_id = p1.id
+      LEFT JOIN users p2 ON m.player2_id = p2.id
+      LEFT JOIN users w ON m.winner_id = w.id
+      ${whereClause}
+      ORDER BY m.updated_at DESC, m.id DESC
+      LIMIT 100
+    `);
+
+    res.json({ success: true, data: matches });
+  } catch (error) {
+    console.error('Get matches error:', error);
+    res.json({ success: false, message: '获取比赛列表失败' });
+  }
+});
+
+// 确认比赛成绩
+router.post('/matches/:id/confirm', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    await pool.execute(`
+      UPDATE matches SET status = 'finished', admin_confirmed = 1, updated_at = NOW() WHERE id = ?
+    `, [id]);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Confirm match error:', error);
+    res.json({ success: false, message: '确认失败' });
+  }
+});
+
+// 标记比赛有争议
+router.post('/matches/:id/dispute', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    await pool.execute(`
+      UPDATE matches SET status = 'disputed', dispute_reason = ?, updated_at = NOW() WHERE id = ?
+    `, [reason || '', id]);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Dispute match error:', error);
+    res.json({ success: false, message: '标记失败' });
+  }
+});
+
+// 更新比赛比分
+router.put('/matches/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { score, winner_id } = req.body;
+
+    await pool.execute(`
+      UPDATE matches SET score = ?, winner_id = ?, updated_at = NOW() WHERE id = ?
+    `, [score, winner_id, id]);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Update match error:', error);
+    res.json({ success: false, message: '更新失败' });
+  }
+});
+
 // 审核比分
 router.post('/matches/:id/approve', requireAdmin, async (req, res) => {
   try {
