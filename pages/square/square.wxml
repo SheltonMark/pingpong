@@ -69,11 +69,11 @@
 
       <view class="post-actions">
         <view class="action-item {{item.is_liked ? 'liked' : ''}}" catchtap="onTapLike" data-id="{{item.id}}" data-index="{{index}}">
-          <text class="icon-heart">{{item.is_liked ? '♥' : '♡'}}</text>
+          <text class="icon-heart">{{item.is_liked ? '❤️' : '🤍'}}</text>
           <text class="action-count">{{item.like_count || 0}}</text>
         </view>
         <view class="action-item">
-          <view class="icon-comment-box"></view>
+          <text class="icon-comment">💬</text>
           <text class="action-count">{{item.comment_count || 0}}</text>
         </view>
       </view>

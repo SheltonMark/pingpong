@@ -63,10 +63,20 @@
           </el-select>
         </el-form-item>
         <el-form-item label="角色" prop="role_code">
-          <el-select v-model="addForm.role_code" placeholder="选择角色" style="width: 100%">
+          <el-select v-model="addForm.role_code" placeholder="选择角色" style="width: 100%" @change="onRoleChange">
             <el-option label="超级管理员" value="super_admin" />
             <el-option label="学校管理员" value="school_admin" />
             <el-option label="赛事管理员" value="event_manager" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="所属学校" prop="school_id" v-if="addForm.role_code === 'school_admin'">
+          <el-select v-model="addForm.school_id" placeholder="选择学校" style="width: 100%" filterable>
+            <el-option
+              v-for="school in schools"
+              :key="school.id"
+              :label="school.name"
+              :value="school.id"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="初始密码" prop="initial_password">
@@ -100,6 +110,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 
 const loading = ref(false)
 const admins = ref([])
+const schools = ref([])
 const showAddDialog = ref(false)
 const showResetDialog = ref(false)
 const addLoading = ref(false)
@@ -113,6 +124,7 @@ const selectedAdmin = ref(null)
 const addForm = reactive({
   user_id: '',
   role_code: '',
+  school_id: '',
   initial_password: ''
 })
 
@@ -123,6 +135,7 @@ const resetForm = reactive({
 const addRules = {
   user_id: [{ required: true, message: '请选择用户', trigger: 'change' }],
   role_code: [{ required: true, message: '请选择角色', trigger: 'change' }],
+  school_id: [{ required: true, message: '请选择学校', trigger: 'change' }],
   initial_password: [
     { required: true, message: '请设置初始密码', trigger: 'blur' },
     { min: 6, message: '密码至少6位', trigger: 'blur' }
@@ -140,6 +153,24 @@ const resetRules = {
 const getUserId = () => {
   const user = JSON.parse(localStorage.getItem('adminUser') || '{}')
   return user.id
+}
+
+// 加载学校列表
+const loadSchools = async () => {
+  try {
+    const response = await fetch(`/api/admin/schools?user_id=${getUserId()}`)
+    const result = await response.json()
+    if (result.success) {
+      schools.value = result.data
+    }
+  } catch (error) {
+    console.error('Load schools error:', error)
+  }
+}
+
+// 角色变更时清空学校选择
+const onRoleChange = () => {
+  addForm.school_id = ''
 }
 
 // 加载管理员列表
@@ -199,6 +230,7 @@ const handleAddAdmin = async () => {
       showAddDialog.value = false
       addForm.user_id = ''
       addForm.role_code = ''
+      addForm.school_id = ''
       addForm.initial_password = ''
       loadAdmins()
     } else {
@@ -281,6 +313,7 @@ const handleRemoveRole = async (admin) => {
 
 onMounted(() => {
   loadAdmins()
+  loadSchools()
 })
 </script>
 

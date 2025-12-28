@@ -237,27 +237,10 @@
   color: #FF4757;
 }
 
-/* 评论图标 - 简约方框气泡 */
-.icon-comment-box {
-  width: 36rpx;
-  height: 32rpx;
-  border: 3rpx solid #AAAAAA;
-  border-radius: 6rpx;
-  position: relative;
-  box-sizing: border-box;
-}
-
-.icon-comment-box::after {
-  content: '';
-  position: absolute;
-  bottom: -10rpx;
-  left: 8rpx;
-  width: 12rpx;
-  height: 12rpx;
-  border-left: 3rpx solid #AAAAAA;
-  border-bottom: 3rpx solid #AAAAAA;
-  background: #fff;
-  transform: rotate(-45deg);
+/* 评论图标 */
+.icon-comment {
+  font-size: 34rpx;
+  line-height: 1;
 }
 
 .action-count {
