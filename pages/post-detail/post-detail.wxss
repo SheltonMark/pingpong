@@ -89,7 +89,7 @@
 
 .comment-item {
   display: flex;
-  padding: 20rpx 0;
+  padding: 32rpx 0;
   border-bottom: 1rpx solid #F0F0F0;
 }
 
@@ -105,7 +105,7 @@
 .comment-header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 8rpx;
+  margin-bottom: 12rpx;
 }
 
 .comment-author {
@@ -122,7 +122,8 @@
 .comment-content {
   font-size: 28rpx;
   color: #666;
-  line-height: 1.5;
+  line-height: 1.6;
+  margin-top: 4rpx;
 }
 
 .empty-comments {

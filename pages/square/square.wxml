@@ -76,10 +76,6 @@
           <text class="action-icon">💬</text>
           <text class="action-count">{{item.comment_count || 0}}</text>
         </view>
-        <view class="action-item" catchtap="onTapShare" data-id="{{item.id}}">
-          <text class="action-icon">↗</text>
-          <text class="action-text">分享</text>
-        </view>
       </view>
     </view>
 
