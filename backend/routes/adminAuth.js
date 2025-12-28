@@ -111,6 +111,81 @@ router.post('/change-password', async (req, res) => {
   }
 });
 
+// 初始化超级管理员（仅用于首次设置，生产环境应删除此接口）
+router.get('/init-super-admin', async (req, res) => {
+  try {
+    const { phone, secret } = req.query;
+
+    // 简单的安全验证
+    if (secret !== 'pingpong2024init') {
+      return res.json({ success: false, message: '无权访问' });
+    }
+
+    if (!phone) {
+      return res.json({ success: false, message: '请提供手机号' });
+    }
+
+    // 查找用户
+    const [[user]] = await pool.execute(
+      'SELECT id, name, admin_password FROM users WHERE phone = ?',
+      [phone]
+    );
+
+    if (!user) {
+      return res.json({ success: false, message: '用户不存在' });
+    }
+
+    // 查找 super_admin 角色
+    let [[role]] = await pool.execute(
+      "SELECT id FROM roles WHERE code = 'super_admin'"
+    );
+
+    if (!role) {
+      // 如果角色不存在，创建它
+      const [result] = await pool.execute(
+        "INSERT INTO roles (code, name, description, created_at) VALUES ('super_admin', '超级管理员', '系统最高权限', NOW())"
+      );
+      role = { id: result.insertId };
+    }
+
+    // 检查是否已有该角色
+    const [existing] = await pool.execute(
+      'SELECT id FROM user_roles WHERE user_id = ? AND role_id = ?',
+      [user.id, role.id]
+    );
+
+    if (existing.length === 0) {
+      // 分配角色
+      await pool.execute(
+        'INSERT INTO user_roles (user_id, role_id, granted_at) VALUES (?, ?, NOW())',
+        [user.id, role.id]
+      );
+    }
+
+    // 如果没有管理密码，设置默认密码 123456
+    if (!user.admin_password) {
+      const hashedPassword = await bcrypt.hash('123456', 10);
+      await pool.execute(
+        'UPDATE users SET admin_password = ?, password_changed = 0 WHERE id = ?',
+        [hashedPassword, user.id]
+      );
+    }
+
+    res.json({
+      success: true,
+      message: `已将 ${user.name}(${phone}) 设置为超级管理员`,
+      data: {
+        user_id: user.id,
+        name: user.name,
+        default_password: user.admin_password ? '(已有密码)' : '123456'
+      }
+    });
+  } catch (error) {
+    console.error('Init super admin error:', error);
+    res.json({ success: false, message: '设置失败: ' + error.message });
+  }
+});
+
 // 检查登录状态
 router.get('/check', async (req, res) => {
   try {
