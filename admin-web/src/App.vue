@@ -29,6 +29,14 @@
             <el-icon><Bell /></el-icon>
             <span>公告管理</span>
           </el-menu-item>
+          <el-menu-item index="/learning">
+            <el-icon><Reading /></el-icon>
+            <span>学习资料</span>
+          </el-menu-item>
+          <el-menu-item index="/checkin">
+            <el-icon><Location /></el-icon>
+            <span>签到点管理</span>
+          </el-menu-item>
         </el-menu>
       </el-aside>
 
