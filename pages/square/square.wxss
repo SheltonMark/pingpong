@@ -217,18 +217,72 @@
 .action-item {
   display: flex;
   align-items: center;
-  gap: 8rpx;
+  gap: 10rpx;
 }
 
 .action-item.liked .action-count {
   color: #EF4444;
 }
 
-.action-icon {
-  font-size: 32rpx;
+/* 爱心图标 */
+.icon-heart {
+  width: 36rpx;
+  height: 32rpx;
+  position: relative;
 }
 
-.action-count, .action-text {
+.icon-heart::before,
+.icon-heart::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 18rpx;
+  height: 28rpx;
+  border-radius: 18rpx 18rpx 0 0;
+  border: 3rpx solid #9CA3AF;
+  border-bottom: none;
+}
+
+.icon-heart::before {
+  left: 0;
+  transform: rotate(-45deg);
+  transform-origin: bottom right;
+}
+
+.icon-heart::after {
+  right: 0;
+  transform: rotate(45deg);
+  transform-origin: bottom left;
+}
+
+.action-item.liked .icon-heart::before,
+.action-item.liked .icon-heart::after {
+  border-color: #EF4444;
+  background: #EF4444;
+}
+
+/* 评论图标 */
+.icon-comment {
+  width: 36rpx;
+  height: 32rpx;
+  border: 3rpx solid #9CA3AF;
+  border-radius: 8rpx;
+  position: relative;
+}
+
+.icon-comment::after {
+  content: '';
+  position: absolute;
+  bottom: -10rpx;
+  left: 8rpx;
+  width: 0;
+  height: 0;
+  border-left: 8rpx solid transparent;
+  border-right: 8rpx solid transparent;
+  border-top: 10rpx solid #9CA3AF;
+}
+
+.action-count {
   font-size: 26rpx;
   color: #9CA3AF;
 }
