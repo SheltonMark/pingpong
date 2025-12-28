@@ -15,7 +15,13 @@ const routes = [
   },
   {
     path: '/',
-    redirect: '/events'
+    redirect: '/dashboard'
+  },
+  {
+    path: '/dashboard',
+    name: 'Dashboard',
+    component: () => import('../views/Dashboard.vue'),
+    meta: { requiresAuth: true }
   },
   {
     path: '/events',

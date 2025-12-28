@@ -400,6 +400,72 @@ router.delete('/users/:id/role/:roleId', requireSuperAdmin, async (req, res) => 
   }
 });
 
+// 更新用户角色（简化版，用于前端单选角色）
+router.put('/users/:id/role', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    // 先删除用户现有的管理角色
+    const adminRoleCodes = ['super_admin', 'school_admin', 'event_manager'];
+    await pool.execute(`
+      DELETE ur FROM user_roles ur
+      JOIN roles r ON ur.role_id = r.id
+      WHERE ur.user_id = ? AND r.code IN (?, ?, ?)
+    `, [id, ...adminRoleCodes]);
+
+    // 如果新角色不是普通用户，添加新角色
+    if (role && role !== 'user') {
+      const [[roleRecord]] = await pool.execute('SELECT id FROM roles WHERE code = ?', [role]);
+      if (roleRecord) {
+        await pool.execute(
+          'INSERT INTO user_roles (user_id, role_id, granted_at) VALUES (?, ?, NOW())',
+          [id, roleRecord.id]
+        );
+      }
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Update role error:', error);
+    res.json({ success: false, message: '更新角色失败' });
+  }
+});
+
+// 调整用户积分
+router.post('/users/:id/adjust-rating', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { adjustment, remark } = req.body;
+
+    if (!adjustment || adjustment === 0) {
+      return res.json({ success: false, message: '调整值不能为0' });
+    }
+
+    // 更新用户积分
+    await pool.execute(
+      'UPDATE users SET rating = rating + ? WHERE id = ?',
+      [adjustment, id]
+    );
+
+    // 记录积分变动日志（如果有rating_logs表）
+    try {
+      await pool.execute(`
+        INSERT INTO rating_logs (user_id, change_amount, reason, created_at)
+        VALUES (?, ?, ?, NOW())
+      `, [id, adjustment, remark || '管理员调整']);
+    } catch (e) {
+      // 如果没有日志表，忽略错误
+      console.log('Rating log table may not exist:', e.message);
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Adjust rating error:', error);
+    res.json({ success: false, message: '调整积分失败' });
+  }
+});
+
 // ============ 内容管理 ============
 
 // 获取公告列表

@@ -19,6 +19,10 @@
           text-color="#bfcbd9"
           active-text-color="#409eff"
         >
+          <el-menu-item index="/dashboard">
+            <el-icon><DataAnalysis /></el-icon>
+            <span>数据概览</span>
+          </el-menu-item>
           <el-menu-item v-if="hasPermission('events')" index="/events">
             <el-icon><Trophy /></el-icon>
             <span>赛事管理</span>
