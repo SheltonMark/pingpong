@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const bcrypt = require('bcryptjs');
 const { pool } = require('../config/database');
 const { requireAdmin, requireSuperAdmin, getUserRoles, isSchoolAdmin } = require('../middleware/adminAuth');
 
@@ -496,6 +497,24 @@ router.post('/learning', requireAdmin, async (req, res) => {
   }
 });
 
+// 更新学习资料
+router.put('/learning/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, type, url, description, status } = req.body;
+
+    await pool.execute(`
+      UPDATE learning_materials SET title = ?, type = ?, url = ?, description = ?, status = ?
+      WHERE id = ?
+    `, [title, type, url, description || null, status || 'active', id]);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Update learning material error:', error);
+    res.json({ success: false, message: '更新学习资料失败' });
+  }
+});
+
 // 删除学习资料
 router.delete('/learning/:id', requireAdmin, async (req, res) => {
   try {
@@ -539,6 +558,24 @@ router.post('/checkin-points', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Create checkin point error:', error);
     res.json({ success: false, message: '创建签到点失败' });
+  }
+});
+
+// 更新签到点
+router.put('/checkin-points/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, latitude, longitude, radius, school_id, status } = req.body;
+
+    await pool.execute(`
+      UPDATE check_in_points SET name = ?, latitude = ?, longitude = ?, radius = ?, school_id = ?, status = ?
+      WHERE id = ?
+    `, [name, latitude, longitude, radius || 100, school_id || null, status || 'active', id]);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Update checkin point error:', error);
+    res.json({ success: false, message: '更新签到点失败' });
   }
 });
 
@@ -658,6 +695,152 @@ router.get('/stats/activity', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Activity stats error:', error);
     res.json({ success: false, message: '获取活跃度统计失败' });
+  }
+});
+
+// ============ 管理员管理 ============
+
+// 获取管理员列表
+router.get('/admins', requireSuperAdmin, async (req, res) => {
+  try {
+    const [admins] = await pool.execute(`
+      SELECT u.id, u.name, u.phone, u.school_id, u.password_changed,
+             s.name as school_name,
+             GROUP_CONCAT(DISTINCT r.code) as role_codes,
+             GROUP_CONCAT(DISTINCT r.name) as role_names
+      FROM users u
+      JOIN user_roles ur ON u.id = ur.user_id
+      JOIN roles r ON ur.role_id = r.id
+      LEFT JOIN schools s ON u.school_id = s.id
+      WHERE r.code IN ('super_admin', 'school_admin', 'event_manager')
+      AND u.admin_password IS NOT NULL
+      GROUP BY u.id
+      ORDER BY u.id
+    `);
+
+    res.json({ success: true, data: admins });
+  } catch (error) {
+    console.error('Get admins error:', error);
+    res.json({ success: false, message: '获取管理员列表失败' });
+  }
+});
+
+// 创建管理员（设置初始密码）
+router.post('/admins', requireSuperAdmin, async (req, res) => {
+  try {
+    const { user_id, role_code, school_id, event_id, initial_password, granted_by } = req.body;
+
+    if (!user_id || !role_code || !initial_password) {
+      return res.json({ success: false, message: '参数不完整' });
+    }
+
+    // 检查用户是否存在
+    const [[user]] = await pool.execute('SELECT id, admin_password FROM users WHERE id = ?', [user_id]);
+    if (!user) {
+      return res.json({ success: false, message: '用户不存在' });
+    }
+
+    // 获取角色ID
+    const [[role]] = await pool.execute('SELECT id FROM roles WHERE code = ?', [role_code]);
+    if (!role) {
+      return res.json({ success: false, message: '角色不存在' });
+    }
+
+    // 检查是否已有该角色
+    const [existing] = await pool.execute(
+      'SELECT id FROM user_roles WHERE user_id = ? AND role_id = ?',
+      [user_id, role.id]
+    );
+    if (existing.length > 0) {
+      return res.json({ success: false, message: '用户已有该角色' });
+    }
+
+    // 加密密码
+    const hashedPassword = await bcrypt.hash(initial_password, 10);
+
+    // 如果用户还没有管理密码，设置初始密码
+    if (!user.admin_password) {
+      await pool.execute(
+        'UPDATE users SET admin_password = ?, password_changed = 0 WHERE id = ?',
+        [hashedPassword, user_id]
+      );
+    }
+
+    // 分配角色
+    await pool.execute(`
+      INSERT INTO user_roles (user_id, role_id, school_id, event_id, granted_by, granted_at)
+      VALUES (?, ?, ?, ?, ?, NOW())
+    `, [user_id, role.id, school_id || null, event_id || null, granted_by]);
+
+    res.json({ success: true, message: '管理员创建成功' });
+  } catch (error) {
+    console.error('Create admin error:', error);
+    res.json({ success: false, message: '创建管理员失败' });
+  }
+});
+
+// 移除管理员角色
+router.delete('/admins/:userId/role/:roleCode', requireSuperAdmin, async (req, res) => {
+  try {
+    const { userId, roleCode } = req.params;
+
+    // 获取角色ID
+    const [[role]] = await pool.execute('SELECT id FROM roles WHERE code = ?', [roleCode]);
+    if (!role) {
+      return res.json({ success: false, message: '角色不存在' });
+    }
+
+    // 删除角色
+    await pool.execute(
+      'DELETE FROM user_roles WHERE user_id = ? AND role_id = ?',
+      [userId, role.id]
+    );
+
+    // 检查用户是否还有其他管理角色
+    const [remainingRoles] = await pool.execute(`
+      SELECT r.code FROM user_roles ur
+      JOIN roles r ON ur.role_id = r.id
+      WHERE ur.user_id = ? AND r.code IN ('super_admin', 'school_admin', 'event_manager')
+    `, [userId]);
+
+    // 如果没有其他管理角色，清除管理密码
+    if (remainingRoles.length === 0) {
+      await pool.execute(
+        'UPDATE users SET admin_password = NULL, password_changed = 0 WHERE id = ?',
+        [userId]
+      );
+    }
+
+    res.json({ success: true, message: '角色已移除' });
+  } catch (error) {
+    console.error('Remove admin role error:', error);
+    res.json({ success: false, message: '移除角色失败' });
+  }
+});
+
+// 重置管理员密码
+router.post('/admins/:userId/reset-password', requireSuperAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { new_password } = req.body;
+
+    if (!new_password) {
+      return res.json({ success: false, message: '请提供新密码' });
+    }
+
+    // 加密新密码
+    const hashedPassword = await bcrypt.hash(new_password, 10);
+
+    // 更新密码，标记为未修改（强制下次登录修改）
+    await pool.execute(
+      'UPDATE users SET admin_password = ?, password_changed = 0 WHERE id = ?',
+      [hashedPassword, userId]
+    );
+
+    res.json({ success: true, message: '密码已重置' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.json({ success: false, message: '重置密码失败' });
   }
 });
 
