@@ -223,16 +223,11 @@
 
 /* 爱心图标 */
 .icon-heart {
-  font-size: 40rpx;
-  color: #AAAAAA;
+  font-size: 34rpx;
   line-height: 1;
 }
 
-/* 点赞后变红色 */
-.action-item.liked .icon-heart {
-  color: #FF4757;
-}
-
+/* 点赞后数字变红 */
 .action-item.liked .action-count {
   color: #FF4757;
 }
