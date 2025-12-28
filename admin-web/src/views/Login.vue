@@ -1,79 +1,39 @@
 <template>
   <div class="login-container">
-    <!-- 乒乓球桌线条装饰 -->
-    <div class="table-lines">
-      <div class="center-line"></div>
-      <div class="side-line left"></div>
-      <div class="side-line right"></div>
-      <div class="net"></div>
-    </div>
-
-    <!-- 动态乒乓球 -->
-    <div class="ball ball-1"></div>
-    <div class="ball ball-2"></div>
-    <div class="ball-trail"></div>
-
-    <!-- 登录卡片 -->
-    <div class="login-card">
-      <div class="card-header">
-        <div class="logo-icon">
-          <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="20" cy="20" r="18" stroke="currentColor" stroke-width="2"/>
-            <path d="M8 20 Q20 8, 32 20" stroke="currentColor" stroke-width="1.5" fill="none" stroke-dasharray="3 2"/>
-          </svg>
-        </div>
-        <h1 class="title">校乒网</h1>
-        <p class="subtitle">管理后台</p>
-      </div>
-
-      <el-form :model="form" :rules="rules" ref="formRef" @submit.prevent="handleLogin" class="login-form">
+    <div class="login-box">
+      <h2 class="title">校乒网管理后台</h2>
+      <el-form :model="form" :rules="rules" ref="formRef" @submit.prevent="handleLogin">
         <el-form-item prop="phone">
           <el-input
             v-model="form.phone"
             placeholder="手机号"
+            prefix-icon="User"
             size="large"
-            class="custom-input"
-          >
-            <template #prefix>
-              <span class="input-icon">📱</span>
-            </template>
-          </el-input>
+          />
         </el-form-item>
         <el-form-item prop="password">
           <el-input
             v-model="form.password"
             type="password"
             placeholder="密码"
+            prefix-icon="Lock"
             size="large"
             show-password
-            class="custom-input"
             @keyup.enter="handleLogin"
-          >
-            <template #prefix>
-              <span class="input-icon">🔐</span>
-            </template>
-          </el-input>
+          />
         </el-form-item>
         <el-form-item>
-          <button
-            type="button"
-            class="login-btn"
-            :class="{ loading }"
-            :disabled="loading"
+          <el-button
+            type="primary"
+            size="large"
+            :loading="loading"
             @click="handleLogin"
+            class="login-btn"
           >
-            <span class="btn-text">{{ loading ? '登录中...' : '进入系统' }}</span>
-            <span class="btn-arrow">→</span>
-          </button>
+            登录
+          </el-button>
         </el-form-item>
       </el-form>
-    </div>
-
-    <!-- 底部装饰 -->
-    <div class="footer-decoration">
-      <span class="dot"></span>
-      <span class="line"></span>
-      <span class="dot"></span>
     </div>
   </div>
 </template>
@@ -117,14 +77,12 @@ const handleLogin = async () => {
     const result = await response.json()
 
     if (result.success) {
-      // 保存登录信息
       localStorage.setItem('adminUser', JSON.stringify(result.data.user))
       localStorage.setItem('adminRoles', JSON.stringify(result.data.roles))
       localStorage.setItem('adminPermissions', JSON.stringify(result.data.permissions))
 
       ElMessage.success('登录成功')
 
-      // 检查是否需要修改密码
       if (result.data.needChangePassword) {
         router.push('/change-password?first=1')
       } else {
@@ -143,339 +101,80 @@ const handleLogin = async () => {
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap');
-
 .login-container {
-  --table-green: #0D5132;
-  --table-dark: #083322;
-  --line-white: rgba(255, 255, 255, 0.9);
-  --ball-orange: #FF6D00;
-  --ball-glow: rgba(255, 109, 0, 0.4);
-
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--table-green);
-  font-family: 'Noto Sans SC', -apple-system, sans-serif;
-  position: relative;
-  overflow: hidden;
+  background: linear-gradient(160deg, #e8e4df 0%, #d4cdc4 50%, #c9c1b6 100%);
 }
 
-/* 乒乓球桌线条 */
-.table-lines {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.center-line {
-  position: absolute;
-  left: 50%;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: repeating-linear-gradient(
-    to bottom,
-    var(--line-white) 0,
-    var(--line-white) 20px,
-    transparent 20px,
-    transparent 30px
-  );
-  opacity: 0.3;
-}
-
-.side-line {
-  position: absolute;
-  top: 10%;
-  bottom: 10%;
-  width: 2px;
-  background: var(--line-white);
-  opacity: 0.15;
-}
-
-.side-line.left { left: 8%; }
-.side-line.right { right: 8%; }
-
-.net {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    var(--line-white) 20%,
-    var(--line-white) 80%,
-    transparent 100%
-  );
-  opacity: 0.2;
-}
-
-.net::before {
-  content: '';
-  position: absolute;
-  left: 20%;
-  right: 20%;
-  top: -3px;
-  height: 7px;
-  background: repeating-linear-gradient(
-    90deg,
-    transparent 0,
-    transparent 8px,
-    rgba(255,255,255,0.1) 8px,
-    rgba(255,255,255,0.1) 10px
-  );
-}
-
-/* 乒乓球动画 */
-.ball {
-  position: absolute;
-  width: 16px;
-  height: 16px;
-  background: radial-gradient(circle at 30% 30%, #FFA040, var(--ball-orange));
-  border-radius: 50%;
-  box-shadow:
-    0 0 20px var(--ball-glow),
-    inset -2px -2px 4px rgba(0,0,0,0.2);
-}
-
-.ball-1 {
-  top: 20%;
-  left: 15%;
-  animation: float1 8s ease-in-out infinite;
-}
-
-.ball-2 {
-  bottom: 25%;
-  right: 20%;
-  width: 12px;
-  height: 12px;
-  animation: float2 10s ease-in-out infinite;
-  opacity: 0.7;
-}
-
-.ball-trail {
-  position: absolute;
-  top: 30%;
-  left: 10%;
-  width: 200px;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--ball-glow), transparent);
-  transform: rotate(-15deg);
-  opacity: 0.3;
-  animation: trail 6s ease-in-out infinite;
-}
-
-@keyframes float1 {
-  0%, 100% { transform: translate(0, 0); }
-  25% { transform: translate(30px, -20px); }
-  50% { transform: translate(50px, 10px); }
-  75% { transform: translate(20px, 30px); }
-}
-
-@keyframes float2 {
-  0%, 100% { transform: translate(0, 0); }
-  33% { transform: translate(-40px, 20px); }
-  66% { transform: translate(-20px, -30px); }
-}
-
-@keyframes trail {
-  0%, 100% { opacity: 0.3; transform: rotate(-15deg) translateX(0); }
-  50% { opacity: 0.1; transform: rotate(-10deg) translateX(50px); }
-}
-
-/* 登录卡片 */
-.login-card {
-  position: relative;
+.login-box {
   width: 380px;
   padding: 48px 40px;
-  background: rgba(255, 255, 255, 0.97);
-  border-radius: 4px;
+  background: #fff;
+  border-radius: 12px;
   box-shadow:
-    0 25px 60px rgba(0, 0, 0, 0.3),
-    0 0 0 1px rgba(255, 255, 255, 0.1);
-  z-index: 10;
-}
-
-.login-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 40px;
-  right: 40px;
-  height: 3px;
-  background: var(--ball-orange);
-}
-
-.card-header {
-  text-align: center;
-  margin-bottom: 36px;
-}
-
-.logo-icon {
-  width: 48px;
-  height: 48px;
-  margin: 0 auto 16px;
-  color: var(--table-green);
-}
-
-.logo-icon svg {
-  width: 100%;
-  height: 100%;
+    0 4px 24px rgba(0, 0, 0, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .title {
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--table-dark);
-  letter-spacing: 2px;
-  margin: 0 0 4px;
+  text-align: center;
+  margin-bottom: 36px;
+  color: #1a1a1a;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 1px;
 }
 
-.subtitle {
-  font-size: 13px;
-  color: #888;
-  letter-spacing: 4px;
-  text-transform: uppercase;
-  margin: 0;
+:deep(.el-form-item) {
+  margin-bottom: 22px;
 }
 
-/* 表单样式 */
-.login-form {
-  margin-top: 24px;
-}
-
-.login-form :deep(.el-form-item) {
-  margin-bottom: 20px;
-}
-
-.login-form :deep(.el-input__wrapper) {
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 4px;
-  box-shadow: none;
+:deep(.el-input__wrapper) {
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px #e5e5e5;
   padding: 4px 12px;
-  transition: all 0.2s ease;
 }
 
-.login-form :deep(.el-input__wrapper:hover) {
-  border-color: #dee2e6;
+:deep(.el-input__wrapper:hover) {
+  box-shadow: 0 0 0 1px #c0c0c0;
 }
 
-.login-form :deep(.el-input__wrapper.is-focus) {
-  border-color: var(--table-green);
-  background: #fff;
-  box-shadow: 0 0 0 3px rgba(13, 81, 50, 0.1);
+:deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 2px #1a1a1a;
 }
 
-.login-form :deep(.el-input__inner) {
+:deep(.el-input__inner) {
   font-size: 15px;
   color: #333;
 }
 
-.login-form :deep(.el-input__inner::placeholder) {
-  color: #adb5bd;
+:deep(.el-input__inner::placeholder) {
+  color: #999;
 }
 
-.input-icon {
-  font-size: 16px;
-  margin-right: 4px;
-}
-
-/* 登录按钮 */
 .login-btn {
   width: 100%;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  background: var(--table-green);
-  color: #fff;
-  border: none;
-  border-radius: 4px;
+  height: 44px;
+  border-radius: 8px;
   font-size: 15px;
   font-weight: 500;
-  letter-spacing: 1px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-.login-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-  transition: left 0.5s ease;
+  background: #1a1a1a;
+  border-color: #1a1a1a;
 }
 
 .login-btn:hover {
-  background: var(--table-dark);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  background: #333;
+  border-color: #333;
 }
 
-.login-btn:hover::before {
-  left: 100%;
-}
-
-.login-btn:active {
-  transform: translateY(0);
-}
-
-.login-btn.loading {
-  pointer-events: none;
-  opacity: 0.8;
-}
-
-.btn-arrow {
-  transition: transform 0.2s ease;
-}
-
-.login-btn:hover .btn-arrow {
-  transform: translateX(4px);
-}
-
-/* 底部装饰 */
-.footer-decoration {
-  position: absolute;
-  bottom: 40px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.footer-decoration .dot {
-  width: 6px;
-  height: 6px;
-  background: var(--ball-orange);
-  border-radius: 50%;
-  opacity: 0.6;
-}
-
-.footer-decoration .line {
-  width: 60px;
-  height: 1px;
-  background: rgba(255, 255, 255, 0.2);
-}
-
-/* 响应式 */
 @media (max-width: 480px) {
-  .login-card {
+  .login-box {
     width: calc(100% - 40px);
     margin: 20px;
     padding: 36px 28px;
   }
-
-  .side-line { display: none; }
 }
 </style>
