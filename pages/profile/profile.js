@@ -27,9 +27,9 @@ Page({
 
     // 菜单列表（匹配设计稿）
     menuItems: [
-      { icon: '📊', label: '交手记录', url: '' },
-      { icon: '🏆', label: '我的赛事', url: '' },
-      { icon: '✉️', label: '邀请管理', url: '', badge: 2 },
+      { icon: '📊', label: '交手记录', url: '/pages/match-history/match-history' },
+      { icon: '🏆', label: '我的赛事', url: '/pages/my-events/my-events' },
+      { icon: '✉️', label: '邀请管理', url: '/pages/invitations/invitations', badge: 2 },
       { icon: '⚙️', label: '设置', url: '/pages/settings/settings' }
     ]
   },

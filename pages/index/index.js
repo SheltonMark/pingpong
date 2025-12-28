@@ -17,8 +17,8 @@ Page({
     quickActions: [
       { icon: '🏆', label: '赛事', bgColor: 'bg-yellow', url: '/pages/events/events' },
       { icon: '🏓', label: '约球', bgColor: 'bg-pink', url: '/pages/square/square' },
-      { icon: '📍', label: '签到', bgColor: 'bg-green', url: '' },
-      { icon: '📚', label: '学习', bgColor: 'bg-blue', url: '' }
+      { icon: '📍', label: '签到', bgColor: 'bg-green', url: '/pages/check-in/check-in' },
+      { icon: '📚', label: '学习', bgColor: 'bg-blue', url: '/pages/learning/learning' }
     ],
 
     // ============================================================
