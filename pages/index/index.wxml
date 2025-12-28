@@ -21,7 +21,7 @@
       <view class="header-content">
         <!-- 学校选择器 -->
         <view class="school-selector" bindtap="onTapSchoolSelector">
-          <text class="school-name">{{userInfo.school_name || '选择学校'}}</text>
+          <text class="school-name">{{currentSchoolName || userInfo.school_name || '选择学校'}}</text>
           <text class="selector-arrow">▼</text>
         </view>
 

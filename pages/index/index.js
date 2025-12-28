@@ -9,6 +9,11 @@ Page({
     showPrivacyModal: false,
     greeting: '你好',
 
+    // 学校列表
+    schools: [],
+    currentSchoolId: null,
+    currentSchoolName: '',
+
     // 轮播公告
     announcements: [],
     currentSwiperIndex: 0,
@@ -66,6 +71,7 @@ Page({
   onLoad() {
     this.updateLoginStatus();
     this.updateGreeting();
+    this.loadSchools();
     this.loadAnnouncements();
   },
 
@@ -83,7 +89,9 @@ Page({
     this.setData({
       isLoggedIn,
       isRegistered,
-      userInfo
+      userInfo,
+      currentSchoolId: userInfo?.school_id || null,
+      currentSchoolName: userInfo?.school_name || ''
     });
   },
 
@@ -151,7 +159,61 @@ Page({
 
   // 点击学校选择器
   onTapSchoolSelector() {
-    wx.showToast({ title: '学校切换功能开发中', icon: 'none' });
+    const { schools, currentSchoolId } = this.data;
+
+    if (schools.length === 0) {
+      wx.showToast({ title: '暂无学校数据', icon: 'none' });
+      return;
+    }
+
+    // 构建选项列表
+    const itemList = schools.map(s => s.short_name || s.name);
+
+    wx.showActionSheet({
+      itemList,
+      success: (res) => {
+        const selected = schools[res.tapIndex];
+        if (selected && selected.id !== currentSchoolId) {
+          this.switchSchool(selected);
+        }
+      }
+    });
+  },
+
+  // 切换学校
+  switchSchool(school) {
+    this.setData({
+      currentSchoolId: school.id,
+      currentSchoolName: school.short_name || school.name
+    });
+
+    // 刷新公告和排行榜
+    this.loadAnnouncements();
+    // TODO: 刷新排行榜数据
+
+    wx.showToast({
+      title: `已切换到${school.short_name || school.name}`,
+      icon: 'success'
+    });
+  },
+
+  // 加载学校列表
+  async loadSchools() {
+    try {
+      const res = await new Promise((resolve, reject) => {
+        wx.request({
+          url: `${app.globalData.baseUrl}/api/common/schools`,
+          success: (res) => resolve(res.data),
+          fail: reject
+        });
+      });
+
+      if (res.success && res.data) {
+        this.setData({ schools: res.data });
+      }
+    } catch (error) {
+      console.error('加载学校列表失败:', error);
+    }
   },
 
   // 点击公告
