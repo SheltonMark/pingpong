@@ -972,4 +972,131 @@ router.post('/admins/:userId/reset-password', requireSuperAdmin, async (req, res
   }
 });
 
+// ============ 学校管理 ============
+
+// 获取学校列表
+router.get('/schools', requireAdmin, async (req, res) => {
+  try {
+    const { keyword, include_inactive } = req.query;
+
+    let sql = `
+      SELECT s.*,
+        (SELECT COUNT(*) FROM users WHERE school_id = s.id) as user_count,
+        (SELECT COUNT(*) FROM user_roles ur
+         JOIN roles r ON ur.role_id = r.id
+         WHERE ur.school_id = s.id AND r.code = 'school_admin') as admin_count
+      FROM schools s
+    `;
+    const params = [];
+
+    const conditions = [];
+    if (!include_inactive) {
+      conditions.push('s.is_active = 1');
+    }
+    if (keyword) {
+      conditions.push('(s.name LIKE ? OR s.short_name LIKE ?)');
+      params.push(`%${keyword}%`, `%${keyword}%`);
+    }
+
+    if (conditions.length > 0) {
+      sql += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    sql += ' ORDER BY s.id';
+
+    const [schools] = await pool.execute(sql, params);
+    res.json({ success: true, data: schools });
+  } catch (error) {
+    console.error('Get schools error:', error);
+    res.json({ success: false, message: '获取学校列表失败' });
+  }
+});
+
+// 创建学校
+router.post('/schools', requireSuperAdmin, async (req, res) => {
+  try {
+    const { name, short_name, province, city } = req.body;
+
+    if (!name) {
+      return res.json({ success: false, message: '学校名称不能为空' });
+    }
+
+    // 检查是否已存在
+    const [existing] = await pool.execute(
+      'SELECT id FROM schools WHERE name = ?',
+      [name]
+    );
+    if (existing.length > 0) {
+      return res.json({ success: false, message: '学校已存在' });
+    }
+
+    const [result] = await pool.execute(`
+      INSERT INTO schools (name, short_name, province, city, is_active, created_at)
+      VALUES (?, ?, ?, ?, 1, NOW())
+    `, [name, short_name || null, province || null, city || null]);
+
+    res.json({ success: true, data: { id: result.insertId } });
+  } catch (error) {
+    console.error('Create school error:', error);
+    res.json({ success: false, message: '创建学校失败' });
+  }
+});
+
+// 更新学校
+router.put('/schools/:id', requireSuperAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, short_name, province, city, is_active } = req.body;
+
+    if (!name) {
+      return res.json({ success: false, message: '学校名称不能为空' });
+    }
+
+    // 检查是否与其他学校重名
+    const [existing] = await pool.execute(
+      'SELECT id FROM schools WHERE name = ? AND id != ?',
+      [name, id]
+    );
+    if (existing.length > 0) {
+      return res.json({ success: false, message: '学校名称已被使用' });
+    }
+
+    await pool.execute(`
+      UPDATE schools SET name = ?, short_name = ?, province = ?, city = ?, is_active = ?
+      WHERE id = ?
+    `, [name, short_name || null, province || null, city || null, is_active ? 1 : 0, id]);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Update school error:', error);
+    res.json({ success: false, message: '更新学校失败' });
+  }
+});
+
+// 删除学校（软删除）
+router.delete('/schools/:id', requireSuperAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 检查是否有关联用户
+    const [[userCount]] = await pool.execute(
+      'SELECT COUNT(*) as count FROM users WHERE school_id = ?',
+      [id]
+    );
+
+    if (userCount.count > 0) {
+      // 有用户，只能禁用不能删除
+      await pool.execute('UPDATE schools SET is_active = 0 WHERE id = ?', [id]);
+      res.json({ success: true, message: '学校已禁用（有关联用户无法删除）' });
+    } else {
+      // 无用户，可以删除
+      await pool.execute('DELETE FROM schools WHERE id = ?', [id]);
+      res.json({ success: true, message: '学校已删除' });
+    }
+  } catch (error) {
+    console.error('Delete school error:', error);
+    res.json({ success: false, message: '删除学校失败' });
+  }
+});
+
 module.exports = router;

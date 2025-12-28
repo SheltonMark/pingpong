@@ -211,7 +211,7 @@
 .post-actions {
   display: flex;
   gap: 48rpx;
-  padding-top: 16rpx;
+  padding-top: 20rpx;
   border-top: 1rpx solid #F0F0F0;
 }
 
@@ -221,11 +221,7 @@
   gap: 10rpx;
 }
 
-.action-item.liked .action-count {
-  color: #EF4444;
-}
-
-/* 爱心图标 */
+/* 爱心图标 - 简约线条风格 */
 .icon-heart {
   width: 36rpx;
   height: 32rpx;
@@ -240,8 +236,9 @@
   width: 18rpx;
   height: 28rpx;
   border-radius: 18rpx 18rpx 0 0;
-  border: 3rpx solid #9CA3AF;
+  border: 3rpx solid #BFBFBF;
   border-bottom: none;
+  box-sizing: border-box;
 }
 
 .icon-heart::before {
@@ -256,36 +253,30 @@
   transform-origin: bottom left;
 }
 
+/* 点赞后变红色实心 */
 .action-item.liked .icon-heart::before,
 .action-item.liked .icon-heart::after {
-  border-color: #EF4444;
-  background: #EF4444;
+  background: #FF4757;
+  border-color: #FF4757;
 }
 
-/* 评论图标 */
+.action-item.liked .action-count {
+  color: #FF4757;
+}
+
+/* 评论图标 - 简约气泡风格 */
 .icon-comment {
-  width: 36rpx;
-  height: 32rpx;
-  border: 3rpx solid #9CA3AF;
-  border-radius: 8rpx;
+  width: 34rpx;
+  height: 30rpx;
+  border: 3rpx solid #BFBFBF;
+  border-radius: 8rpx 8rpx 8rpx 2rpx;
   position: relative;
-}
-
-.icon-comment::after {
-  content: '';
-  position: absolute;
-  bottom: -10rpx;
-  left: 8rpx;
-  width: 0;
-  height: 0;
-  border-left: 8rpx solid transparent;
-  border-right: 8rpx solid transparent;
-  border-top: 10rpx solid #9CA3AF;
+  box-sizing: border-box;
 }
 
 .action-count {
   font-size: 26rpx;
-  color: #9CA3AF;
+  color: #BFBFBF;
 }
 
 /* 空状态 */

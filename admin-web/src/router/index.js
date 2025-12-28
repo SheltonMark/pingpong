@@ -64,6 +64,12 @@ const routes = [
     name: 'Admins',
     component: () => import('../views/Admins.vue'),
     meta: { requiresAuth: true, permission: 'admins' }
+  },
+  {
+    path: '/schools',
+    name: 'Schools',
+    component: () => import('../views/Schools.vue'),
+    meta: { requiresAuth: true, permission: 'schools' }
   }
 ]
 
