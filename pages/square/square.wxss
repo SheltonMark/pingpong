@@ -70,6 +70,7 @@
 .post-list {
   height: calc(100vh - 180rpx);
   padding-top: 16rpx;
+  padding-bottom: 120rpx;
 }
 
 .post-item {
