@@ -17,6 +17,7 @@ const learningRouter = require('./routes/learning');
 const rankingsRouter = require('./routes/rankings');
 const adminRouter = require('./routes/admin');
 const adminAuthRouter = require('./routes/adminAuth');
+const uploadRouter = require('./routes/upload');
 
 const app = express();
 const PORT = process.env.PORT || 80;
@@ -27,6 +28,9 @@ app.use(express.json());
 
 // 静态文件服务 - Web 管理后台
 app.use('/admin', express.static(path.join(__dirname, 'public/admin')));
+
+// 静态文件服务 - 上传文件
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
 // 路由
 app.use('/api', indexRoutes);
@@ -42,6 +46,7 @@ app.use('/api/learning', learningRouter);
 app.use('/api/rankings', rankingsRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/admin/auth', adminAuthRouter);
+app.use('/api/upload', uploadRouter);
 
 // 启动服务器
 async function startServer() {

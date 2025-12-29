@@ -23,9 +23,11 @@
             <el-tag :type="typeColors[row.type]">{{ typeLabels[row.type] }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="url" label="链接" min-width="200">
+        <el-table-column label="文件" min-width="200">
           <template #default="{ row }">
-            <el-link :href="row.url" target="_blank" type="primary">{{ row.url }}</el-link>
+            <el-link :href="getFullUrl(row.url)" target="_blank" type="primary">
+              {{ row.original_name || '查看文件' }}
+            </el-link>
           </template>
         </el-table-column>
         <el-table-column prop="view_count" label="浏览量" width="80" />
@@ -59,8 +61,29 @@
             <el-option label="文档" value="document" />
           </el-select>
         </el-form-item>
-        <el-form-item label="链接" required>
-          <el-input v-model="form.url" placeholder="请输入资料链接（视频/文件URL）" />
+        <el-form-item label="上传文件" required>
+          <el-upload
+            ref="uploadRef"
+            class="upload-demo"
+            :action="uploadUrl"
+            :limit="1"
+            :on-success="onUploadSuccess"
+            :on-error="onUploadError"
+            :before-upload="beforeUpload"
+            :file-list="fileList"
+            :auto-upload="true"
+            name="file"
+          >
+            <el-button type="primary">选择文件</el-button>
+            <template #tip>
+              <div class="el-upload__tip">
+                支持视频、PPT、PDF、Word文档，最大100MB
+              </div>
+            </template>
+          </el-upload>
+          <div v-if="form.url && !fileList.length" class="current-file">
+            当前文件：<el-link :href="getFullUrl(form.url)" target="_blank" type="primary">{{ form.original_name || '查看' }}</el-link>
+          </div>
         </el-form-item>
         <el-form-item label="描述">
           <el-input v-model="form.description" type="textarea" :rows="3" placeholder="请输入资料描述" />
@@ -75,7 +98,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
@@ -87,16 +110,50 @@ const activeTab = ref('video')
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const submitting = ref(false)
+const uploadRef = ref(null)
+const fileList = ref([])
 
 const form = ref({
   title: '',
   type: 'video',
   url: '',
+  original_name: '',
   description: ''
 })
 
 const typeLabels = { video: '视频', ppt: 'PPT', document: '文档' }
 const typeColors = { video: 'danger', ppt: 'warning', document: '' }
+
+const uploadUrl = computed(() => `${API_BASE}/api/upload/file`)
+
+const getFullUrl = (url) => {
+  if (!url) return ''
+  if (url.startsWith('http')) return url
+  return `${API_BASE}${url}`
+}
+
+const beforeUpload = (file) => {
+  const isLt100M = file.size / 1024 / 1024 < 100
+  if (!isLt100M) {
+    ElMessage.error('文件大小不能超过 100MB')
+    return false
+  }
+  return true
+}
+
+const onUploadSuccess = (response) => {
+  if (response.success) {
+    form.value.url = response.data.url
+    form.value.original_name = response.data.originalName
+    ElMessage.success('文件上传成功')
+  } else {
+    ElMessage.error(response.message || '上传失败')
+  }
+}
+
+const onUploadError = () => {
+  ElMessage.error('文件上传失败')
+}
 
 const loadMaterials = async () => {
   loading.value = true
@@ -116,19 +173,25 @@ const loadMaterials = async () => {
 
 const showCreateDialog = () => {
   isEdit.value = false
-  form.value = { title: '', type: activeTab.value, url: '', description: '' }
+  form.value = { title: '', type: activeTab.value, url: '', original_name: '', description: '' }
+  fileList.value = []
   dialogVisible.value = true
 }
 
 const editMaterial = (row) => {
   isEdit.value = true
   form.value = { ...row }
+  fileList.value = []
   dialogVisible.value = true
 }
 
 const submitForm = async () => {
-  if (!form.value.title || !form.value.url) {
-    ElMessage.warning('请填写标题和链接')
+  if (!form.value.title) {
+    ElMessage.warning('请填写标题')
+    return
+  }
+  if (!form.value.url) {
+    ElMessage.warning('请上传文件')
     return
   }
 
@@ -183,4 +246,6 @@ onMounted(() => {
 .page { padding: 20px; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .page-header h2 { margin: 0; }
+.current-file { margin-top: 10px; color: #666; }
+.upload-demo { width: 100%; }
 </style>
