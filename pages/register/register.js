@@ -2,6 +2,9 @@ const app = getApp();
 
 Page({
   data: {
+    // 编辑模式
+    isEditMode: false,
+
     // 用户类型：student(在校生), graduate(毕业生), teacher(老师), staff(教职工)
     userTypes: [
       { key: 'student', label: '在校生' },
@@ -38,9 +41,50 @@ Page({
     submitting: false
   },
 
-  onLoad() {
+  onLoad(options) {
+    const isEditMode = options.mode === 'edit';
+    this.setData({ isEditMode });
+
+    if (isEditMode) {
+      wx.setNavigationBarTitle({ title: '编辑资料' });
+    }
+
     this.generateYearOptions();
-    this.loadSchools();
+    this.loadSchools().then(() => {
+      if (isEditMode) {
+        this.loadUserData();
+      }
+    });
+  },
+
+  // 加载用户现有数据
+  async loadUserData() {
+    const userInfo = app.globalData.userInfo;
+    if (!userInfo) return;
+
+    // 预填表单数据
+    this.setData({
+      selectedType: userInfo.user_type || 'student',
+      'form.name': userInfo.name || '',
+      'form.gender': userInfo.gender || null,
+      'form.phone': userInfo.phone || '',
+      'form.schoolId': userInfo.school_id || null,
+      'form.className': userInfo.class_name || '',
+      'form.enrollmentYear': userInfo.enrollment_year || null
+    });
+
+    // 加载学院/单位
+    if (userInfo.school_id) {
+      await this.loadColleges(userInfo.school_id);
+      if (userInfo.user_type === 'staff') {
+        await this.loadDepartments(userInfo.school_id);
+      }
+
+      this.setData({
+        'form.collegeId': userInfo.college_id || null,
+        'form.departmentId': userInfo.department_id || null
+      });
+    }
   },
 
   // 生成年份选项（最近10年）
@@ -71,6 +115,7 @@ Page({
           loading: false
         });
       }
+      return res;
     } catch (error) {
       console.error('加载学校失败:', error);
       this.setData({ loading: false });
@@ -226,13 +271,18 @@ Page({
     this.setData({ submitting: true });
 
     try {
-      const { form, selectedType } = this.data;
+      const { form, selectedType, isEditMode } = this.data;
+      const url = isEditMode
+        ? `${app.globalData.baseUrl}/api/user/update`
+        : `${app.globalData.baseUrl}/api/user/register`;
+
       const res = await new Promise((resolve, reject) => {
         wx.request({
-          url: `${app.globalData.baseUrl}/api/user/register`,
+          url,
           method: 'POST',
           data: {
             openid: app.globalData.openid,
+            user_id: app.globalData.userInfo?.id,
             user_type: selectedType,
             name: form.name.trim(),
             gender: form.gender,
@@ -250,7 +300,7 @@ Page({
 
       if (res.data && res.data.success) {
         wx.showToast({
-          title: '注册成功',
+          title: isEditMode ? '保存成功' : '注册成功',
           icon: 'success'
         });
 
@@ -259,15 +309,19 @@ Page({
         app.globalData.isRegistered = true;
 
         setTimeout(() => {
-          wx.switchTab({ url: '/pages/index/index' });
+          if (isEditMode) {
+            wx.navigateBack();
+          } else {
+            wx.switchTab({ url: '/pages/index/index' });
+          }
         }, 1500);
       } else {
-        throw new Error(res.data?.message || '注册失败');
+        throw new Error(res.data?.message || (isEditMode ? '保存失败' : '注册失败'));
       }
     } catch (error) {
-      console.error('注册失败:', error);
+      console.error('提交失败:', error);
       wx.showToast({
-        title: error.message || '注册失败，请重试',
+        title: error.message || '操作失败，请重试',
         icon: 'none'
       });
     } finally {

@@ -1,5 +1,5 @@
 Page({
   data: {
-    updateDate: '2024年12月1日'
+    updateDate: '2025年12月31日'
   }
 });

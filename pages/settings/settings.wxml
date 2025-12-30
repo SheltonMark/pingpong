@@ -19,10 +19,6 @@
       <text class="item-label">用户协议</text>
       <text class="item-arrow">›</text>
     </view>
-    <view class="settings-item" bindtap="onTapAbout">
-      <text class="item-label">关于我们</text>
-      <text class="item-arrow">›</text>
-    </view>
   </view>
 
   <!-- 退出登录 -->

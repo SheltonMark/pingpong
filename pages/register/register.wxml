@@ -4,8 +4,8 @@
     <view class="header-bg"></view>
     <view class="header-content">
       <text class="header-icon">🏓</text>
-      <text class="header-title">完善个人信息</text>
-      <text class="header-desc">请填写真实信息以便参与赛事</text>
+      <text class="header-title">{{isEditMode ? '编辑资料' : '完善个人信息'}}</text>
+      <text class="header-desc">{{isEditMode ? '修改你的个人信息' : '请填写真实信息以便参与赛事'}}</text>
     </view>
   </view>
 
@@ -160,7 +160,7 @@
 
     <!-- 提交按钮 -->
     <button class="submit-btn" bindtap="onSubmit" disabled="{{submitting}}">
-      {{submitting ? '提交中...' : '提交'}}
+      {{submitting ? '提交中...' : (isEditMode ? '保存' : '提交')}}
     </button>
   </view>
 </view>

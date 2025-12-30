@@ -15,7 +15,7 @@ Page({
 
   // 编辑资料
   onTapEditProfile() {
-    wx.showToast({ title: '功能开发中', icon: 'none' });
+    wx.navigateTo({ url: '/pages/register/register?mode=edit' });
   },
 
   // 切换通知
@@ -37,11 +37,6 @@ Page({
   // 用户协议
   onTapAgreement() {
     wx.navigateTo({ url: '/pages/privacy/privacy?type=user-agreement' });
-  },
-
-  // 关于我们
-  onTapAbout() {
-    wx.showToast({ title: '功能开发中', icon: 'none' });
   },
 
   // 退出登录

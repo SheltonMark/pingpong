@@ -186,6 +186,102 @@ router.post('/register', async (req, res) => {
   }
 });
 
+// 更新用户信息
+router.post('/update', async (req, res) => {
+  try {
+    const {
+      user_id,
+      openid,
+      name,
+      gender,
+      phone,
+      user_type,
+      school_id,
+      college_id,
+      department_id,
+      class_name,
+      enrollment_year
+    } = req.body;
+
+    // 验证必填字段
+    if (!user_id || !name || !gender || !phone || !user_type || !school_id) {
+      return res.status(400).json({
+        success: false,
+        message: '缺少必填字段'
+      });
+    }
+
+    // 验证用户类型
+    const validTypes = ['student', 'graduate', 'teacher', 'staff'];
+    if (!validTypes.includes(user_type)) {
+      return res.status(400).json({
+        success: false,
+        message: '无效的用户类型'
+      });
+    }
+
+    // 检查用户是否存在
+    const [existing] = await pool.query('SELECT id FROM users WHERE id = ?', [user_id]);
+
+    if (existing.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: '用户不存在'
+      });
+    }
+
+    // 更新用户信息
+    await pool.execute(`
+      UPDATE users SET
+        name = ?,
+        gender = ?,
+        phone = ?,
+        user_type = ?,
+        school_id = ?,
+        college_id = ?,
+        department_id = ?,
+        class_name = ?,
+        enrollment_year = ?,
+        updated_at = NOW()
+      WHERE id = ?
+    `, [
+      name,
+      gender,
+      phone,
+      user_type,
+      school_id,
+      college_id || null,
+      department_id || null,
+      class_name || null,
+      enrollment_year || null,
+      user_id
+    ]);
+
+    // 获取更新后的用户信息
+    const [users] = await pool.query(`
+      SELECT
+        u.id, u.name, u.gender, u.phone, u.avatar_url,
+        u.user_type, u.school_id, u.college_id, u.department_id,
+        u.class_name, u.enrollment_year,
+        u.points, u.wins, u.losses,
+        u.is_registered, u.privacy_agreed,
+        s.name as school_name,
+        c.name as college_name,
+        d.name as department_name
+      FROM users u
+      LEFT JOIN schools s ON u.school_id = s.id
+      LEFT JOIN colleges c ON u.college_id = c.id
+      LEFT JOIN departments d ON u.department_id = d.id
+      WHERE u.id = ?
+    `, [user_id]);
+
+    res.json({ success: true, message: '更新成功', data: users[0] });
+  } catch (error) {
+    console.error('更新用户信息失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
 // 获取用户信息
 router.get('/profile', async (req, res) => {
   try {

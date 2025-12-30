@@ -2,7 +2,7 @@ Page({
   data: {
     type: 'privacy-policy', // 'privacy-policy' | 'user-agreement'
     title: '隐私政策',
-    updateDate: '2024年12月1日'
+    updateDate: '2025年12月31日'
   },
 
   onLoad(options) {
