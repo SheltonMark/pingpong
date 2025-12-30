@@ -96,7 +96,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
@@ -106,6 +106,11 @@ const router = useRouter()
 
 // 用于触发权限重新读取的响应式变量
 const authVersion = ref(0)
+
+// 强制刷新权限
+const refreshAuth = () => {
+  authVersion.value++
+}
 
 // 侧边栏状态
 const sidebarOpen = ref(false)
@@ -119,13 +124,26 @@ const checkMobile = () => {
   }
 }
 
+// 监听 storage 事件（跨标签页同步）
+const handleStorageChange = (e) => {
+  if (e.key === 'adminPermissions' || e.key === 'adminUser' || e.key === 'adminRoles') {
+    refreshAuth()
+  }
+}
+
 onMounted(() => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
+  window.addEventListener('storage', handleStorageChange)
+  // 组件挂载后强制刷新一次权限
+  nextTick(() => {
+    refreshAuth()
+  })
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', checkMobile)
+  window.removeEventListener('storage', handleStorageChange)
 })
 
 // 侧边栏宽度

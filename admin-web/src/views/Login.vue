@@ -39,7 +39,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 
@@ -77,16 +77,21 @@ const handleLogin = async () => {
     const result = await response.json()
 
     if (result.success) {
+      // 先保存到 localStorage
       localStorage.setItem('adminUser', JSON.stringify(result.data.user))
       localStorage.setItem('adminRoles', JSON.stringify(result.data.roles))
       localStorage.setItem('adminPermissions', JSON.stringify(result.data.permissions))
 
       ElMessage.success('登录成功')
 
+      // 等待下一个 tick 确保 localStorage 完全写入
+      await nextTick()
+
+      // 使用 replace 而不是 push，避免返回到登录页
       if (result.data.needChangePassword) {
-        router.push('/change-password?first=1')
+        router.replace('/change-password?first=1')
       } else {
-        router.push('/events')
+        router.replace('/dashboard')
       }
     } else {
       ElMessage.error(result.message || '登录失败')
