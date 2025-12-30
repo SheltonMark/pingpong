@@ -256,4 +256,23 @@ onMounted(() => {
   margin-top: 20px;
   justify-content: center;
 }
+
+@media screen and (max-width: 768px) {
+  .page {
+    padding: 12px;
+  }
+  .page-header h2 {
+    font-size: 18px;
+  }
+  .search-bar :deep(.el-input) {
+    width: 100% !important;
+  }
+  :deep(.el-table) {
+    font-size: 12px;
+  }
+  :deep(.el-button--small) {
+    padding: 5px 8px;
+    font-size: 12px;
+  }
+}
 </style>

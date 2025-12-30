@@ -218,4 +218,25 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
 }
+
+@media screen and (max-width: 768px) {
+  .schools-page {
+    padding: 12px;
+  }
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .card-header span {
+    font-size: 16px;
+  }
+  :deep(.el-table) {
+    font-size: 12px;
+  }
+  :deep(.el-button--small) {
+    padding: 5px 8px;
+    font-size: 12px;
+  }
+}
 </style>

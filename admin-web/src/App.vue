@@ -7,8 +7,11 @@
 
     <!-- 主布局 -->
     <el-container v-else class="app-container">
+      <!-- 移动端遮罩 -->
+      <div v-if="sidebarOpen" class="sidebar-overlay" @click="sidebarOpen = false"></div>
+
       <!-- 侧边栏 -->
-      <el-aside width="200px" class="aside">
+      <el-aside :width="sidebarWidth" class="aside" :class="{ 'aside-open': sidebarOpen }">
         <div class="logo">
           <span>校乒网管理后台</span>
         </div>
@@ -18,6 +21,7 @@
           background-color="#304156"
           text-color="#bfcbd9"
           active-text-color="#409eff"
+          @select="handleMenuSelect"
         >
           <el-menu-item index="/dashboard">
             <el-icon><DataAnalysis /></el-icon>
@@ -59,22 +63,27 @@
       </el-aside>
 
       <!-- 主区域 -->
-      <el-container>
+      <el-container class="main-container">
         <el-header class="header">
-          <div class="user-info">
-            <span class="user-name">{{ userName }}</span>
-            <el-tag v-for="role in roleNames" :key="role" size="small" class="role-tag">
-              {{ role }}
-            </el-tag>
+          <div class="header-left">
+            <el-button class="menu-btn" text @click="sidebarOpen = !sidebarOpen">
+              <el-icon :size="20"><Fold v-if="sidebarOpen" /><Expand v-else /></el-icon>
+            </el-button>
+            <div class="user-info">
+              <span class="user-name">{{ userName }}</span>
+              <el-tag v-for="role in roleNames" :key="role" size="small" class="role-tag">
+                {{ role }}
+              </el-tag>
+            </div>
           </div>
           <div class="header-actions">
-            <el-button text @click="handleChangePassword">
+            <el-button text @click="handleChangePassword" class="action-btn">
               <el-icon><Lock /></el-icon>
-              修改密码
+              <span class="action-text">修改密码</span>
             </el-button>
-            <el-button text type="danger" @click="handleLogout">
+            <el-button text type="danger" @click="handleLogout" class="action-btn">
               <el-icon><SwitchButton /></el-icon>
-              退出登录
+              <span class="action-text">退出</span>
             </el-button>
           </div>
         </el-header>
@@ -87,7 +96,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
@@ -97,6 +106,42 @@ const router = useRouter()
 
 // 用于触发权限重新读取的响应式变量
 const authVersion = ref(0)
+
+// 侧边栏状态
+const sidebarOpen = ref(false)
+const isMobile = ref(false)
+
+// 检测屏幕尺寸
+const checkMobile = () => {
+  isMobile.value = window.innerWidth < 768
+  if (!isMobile.value) {
+    sidebarOpen.value = false
+  }
+}
+
+onMounted(() => {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile)
+})
+
+// 侧边栏宽度
+const sidebarWidth = computed(() => {
+  if (isMobile.value) {
+    return '200px'
+  }
+  return '200px'
+})
+
+// 菜单选择后关闭侧边栏（移动端）
+const handleMenuSelect = () => {
+  if (isMobile.value) {
+    sidebarOpen.value = false
+  }
+}
 
 // 判断是否是登录/修改密码页面
 const isAuthPage = computed(() => {
@@ -179,6 +224,9 @@ html, body, #app {
 
 .aside {
   background-color: #304156;
+  transition: transform 0.3s ease;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .logo {
@@ -190,6 +238,7 @@ html, body, #app {
   font-size: 16px;
   font-weight: bold;
   border-bottom: 1px solid #3d4a5a;
+  white-space: nowrap;
 }
 
 .header {
@@ -199,30 +248,184 @@ html, body, #app {
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
+  height: 60px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.menu-btn {
+  display: none;
+  padding: 8px;
 }
 
 .user-info {
   display: flex;
   align-items: center;
   gap: 10px;
+  overflow: hidden;
 }
 
 .user-name {
   font-weight: 500;
   color: #333;
+  white-space: nowrap;
 }
 
 .role-tag {
   margin-left: 5px;
+  flex-shrink: 0;
 }
 
 .header-actions {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-shrink: 0;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .main {
   background-color: #f0f2f5;
+  overflow-y: auto;
+}
+
+.main-container {
+  flex: 1;
+  overflow: hidden;
+}
+
+.sidebar-overlay {
+  display: none;
+}
+
+/* 移动端样式 */
+@media screen and (max-width: 768px) {
+  .aside {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 1000;
+    transform: translateX(-100%);
+  }
+
+  .aside-open {
+    transform: translateX(0);
+  }
+
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+  }
+
+  .menu-btn {
+    display: flex !important;
+  }
+
+  .header {
+    padding: 0 12px;
+  }
+
+  .user-info {
+    gap: 6px;
+  }
+
+  .user-name {
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .role-tag {
+    display: none;
+  }
+
+  .header-actions {
+    gap: 4px;
+  }
+
+  .action-text {
+    display: none;
+  }
+
+  .action-btn {
+    padding: 8px;
+  }
+
+  .main {
+    padding: 12px !important;
+  }
+
+  /* 表格响应式 */
+  :deep(.el-table) {
+    font-size: 12px;
+  }
+
+  :deep(.el-table .cell) {
+    padding: 8px 4px;
+  }
+
+  :deep(.el-card) {
+    margin-bottom: 12px;
+  }
+
+  :deep(.el-card__body) {
+    padding: 12px;
+  }
+
+  :deep(.el-dialog) {
+    width: 90% !important;
+    max-width: 90% !important;
+    margin: 5vh auto !important;
+  }
+
+  :deep(.el-form-item) {
+    margin-bottom: 12px;
+  }
+
+  :deep(.el-form-item__label) {
+    padding-bottom: 4px;
+  }
+
+  :deep(.page-header) {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 12px;
+  }
+
+  :deep(.page-header h2) {
+    font-size: 18px;
+  }
+}
+
+/* 平板样式 */
+@media screen and (min-width: 769px) and (max-width: 1024px) {
+  .aside {
+    width: 180px !important;
+  }
+
+  .logo {
+    font-size: 14px;
+  }
+
+  :deep(.el-menu-item) {
+    font-size: 13px;
+  }
 }
 </style>

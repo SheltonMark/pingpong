@@ -6,7 +6,7 @@
 
     <!-- 统计卡片 -->
     <el-row :gutter="20" class="stats-row">
-      <el-col :span="6">
+      <el-col :xs="12" :sm="12" :md="6">
         <el-card class="stat-card" shadow="hover">
           <div class="stat-icon" style="background: #409eff">
             <el-icon size="28"><User /></el-icon>
@@ -20,7 +20,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="12" :sm="12" :md="6">
         <el-card class="stat-card" shadow="hover">
           <div class="stat-icon" style="background: #67c23a">
             <el-icon size="28"><Trophy /></el-icon>
@@ -34,7 +34,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="12" :sm="12" :md="6">
         <el-card class="stat-card" shadow="hover">
           <div class="stat-icon" style="background: #e6a23c">
             <el-icon size="28"><Connection /></el-icon>
@@ -48,7 +48,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="12" :sm="12" :md="6">
         <el-card class="stat-card" shadow="hover">
           <div class="stat-icon" style="background: #f56c6c">
             <el-icon size="28"><ChatDotSquare /></el-icon>
@@ -66,7 +66,7 @@
 
     <el-row :gutter="20" style="margin-top: 20px">
       <!-- 用户类型分布 -->
-      <el-col :span="12">
+      <el-col :xs="24" :sm="24" :md="12">
         <el-card>
           <template #header>
             <span>用户类型分布</span>
@@ -84,7 +84,7 @@
       </el-col>
 
       <!-- 学校用户排名 -->
-      <el-col :span="12">
+      <el-col :xs="24" :sm="24" :md="12">
         <el-card>
           <template #header>
             <span>学校用户排名 TOP 10</span>
@@ -102,7 +102,7 @@
 
     <el-row :gutter="20" style="margin-top: 20px">
       <!-- 赛事状态分布 -->
-      <el-col :span="12">
+      <el-col :xs="24" :sm="24" :md="12">
         <el-card>
           <template #header>
             <span>赛事状态</span>
@@ -119,7 +119,7 @@
       </el-col>
 
       <!-- 今日活跃 -->
-      <el-col :span="12">
+      <el-col :xs="24" :sm="24" :md="12">
         <el-card>
           <template #header>
             <span>今日活跃</span>
@@ -425,5 +425,57 @@ onMounted(async () => {
 .activity-label {
   font-size: 14px;
   color: #909399;
+}
+
+/* 移动端适配 */
+@media screen and (max-width: 768px) {
+  .page {
+    padding: 12px;
+  }
+  .page-header h2 {
+    font-size: 18px;
+  }
+  .stats-row {
+    margin-bottom: 0;
+  }
+  .stats-row .el-col {
+    margin-bottom: 12px;
+  }
+  .stat-card {
+    padding: 12px;
+  }
+  .stat-icon {
+    width: 44px;
+    height: 44px;
+  }
+  .stat-icon .el-icon {
+    font-size: 20px !important;
+  }
+  .stat-info {
+    margin-left: 12px;
+  }
+  .stat-value {
+    font-size: 20px;
+  }
+  .stat-label {
+    font-size: 12px;
+  }
+  .stat-footer {
+    font-size: 11px;
+    margin-top: 10px;
+    padding-top: 8px;
+  }
+  .chart-container {
+    min-height: 150px;
+  }
+  .activity-grid {
+    padding: 16px 0;
+  }
+  .activity-value {
+    font-size: 24px;
+  }
+  .activity-label {
+    font-size: 12px;
+  }
 }
 </style>
