@@ -87,7 +87,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
@@ -95,25 +95,36 @@ import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 const route = useRoute()
 const router = useRouter()
 
+// 用于触发权限重新读取的响应式变量
+const authVersion = ref(0)
+
 // 判断是否是登录/修改密码页面
 const isAuthPage = computed(() => {
   return route.path === '/login' || route.path === '/change-password'
 })
 
+// 监听路由变化，刷新权限
+watch(() => route.path, () => {
+  authVersion.value++
+}, { immediate: true })
+
 // 获取用户信息
 const userName = computed(() => {
+  authVersion.value // 依赖触发重新计算
   const user = JSON.parse(localStorage.getItem('adminUser') || '{}')
   return user.name || '管理员'
 })
 
 // 获取角色名称
 const roleNames = computed(() => {
+  authVersion.value // 依赖触发重新计算
   const roles = JSON.parse(localStorage.getItem('adminRoles') || '[]')
   return roles.map(r => r.name)
 })
 
 // 获取权限列表
 const permissions = computed(() => {
+  authVersion.value // 依赖触发重新计算
   return JSON.parse(localStorage.getItem('adminPermissions') || '[]')
 })
 
