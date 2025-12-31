@@ -4,7 +4,7 @@
     <text class="picker-arrow">{{isOpen ? '▲' : '▼'}}</text>
   </view>
   <view class="picker-dropdown" wx:if="{{isOpen}}">
-    <view class="picker-option {{item.value === value ? 'selected' : ''}}" wx:for="{{options}}" wx:key="value" data-value="{{item.value}}" bindtap="onSelectOption">
+    <view class="picker-option {{item.value === value ? 'selected' : ''}}" wx:for="{{normalizedOptions}}" wx:key="value" data-value="{{item.value}}" bindtap="onSelectOption">
       <text>{{item.label}}</text>
       <text class="check-mark" wx:if="{{item.value === value}}">✓</text>
     </view>
