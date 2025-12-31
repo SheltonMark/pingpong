@@ -1,5 +1,5 @@
 .custom-picker { position: relative; }
-.picker-trigger { display: flex; justify-content: space-between; align-items: center; padding: 28rpx 32rpx; background: var(--white); border: 4rpx solid var(--gray-200); border-radius: 24rpx; transition: all 0.2s; }
+.picker-trigger { display: flex; justify-content: space-between; align-items: center; height: 96rpx; padding: 0 32rpx; background: var(--white); border: 4rpx solid var(--gray-200); border-radius: 24rpx; box-sizing: border-box; transition: all 0.2s; }
 .picker-trigger.open { border-color: var(--orange); border-radius: 24rpx 24rpx 0 0; }
 .picker-trigger.disabled { background: var(--gray-100); opacity: 0.6; }
 .picker-value { font-size: 30rpx; color: var(--gray-900); }
