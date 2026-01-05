@@ -75,10 +75,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
-
-const API_BASE = 'https://express-lksv-207842-4-1391867763.sh.run.tcloudbase.com'
 
 const loading = ref(false)
 const announcements = ref([])
@@ -94,12 +91,18 @@ const form = ref({
   link_event_id: null
 })
 
+const getUserId = () => {
+  const user = JSON.parse(localStorage.getItem('adminUser') || '{}')
+  return user.id
+}
+
 const loadAnnouncements = async () => {
   loading.value = true
   try {
-    const res = await axios.get(`${API_BASE}/api/admin/announcements`)
-    if (res.data.success) {
-      announcements.value = res.data.data.list || res.data.data
+    const res = await fetch(`/api/admin/announcements?user_id=${getUserId()}`)
+    const data = await res.json()
+    if (data.success) {
+      announcements.value = data.data || []
     }
   } catch (error) {
     console.error('加载公告失败:', error)
@@ -111,9 +114,10 @@ const loadAnnouncements = async () => {
 
 const loadEvents = async () => {
   try {
-    const res = await axios.get(`${API_BASE}/api/events`)
-    if (res.data.success) {
-      events.value = res.data.data.list || res.data.data
+    const res = await fetch(`/api/admin/events?user_id=${getUserId()}`)
+    const data = await res.json()
+    if (data.success) {
+      events.value = data.data || []
     }
   } catch (error) {
     console.error('加载赛事失败:', error)
@@ -146,17 +150,23 @@ const submitForm = async () => {
   submitting.value = true
   try {
     const url = isEdit.value
-      ? `${API_BASE}/api/admin/announcements/${form.value.id}`
-      : `${API_BASE}/api/admin/announcements`
-    const method = isEdit.value ? 'put' : 'post'
+      ? `/api/admin/announcements/${form.value.id}`
+      : '/api/admin/announcements'
+    const method = isEdit.value ? 'PUT' : 'POST'
 
-    const res = await axios[method](url, form.value)
-    if (res.data.success) {
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...form.value, user_id: getUserId() })
+    })
+    const data = await res.json()
+
+    if (data.success) {
       ElMessage.success(isEdit.value ? '更新成功' : '发布成功')
       dialogVisible.value = false
       loadAnnouncements()
     } else {
-      ElMessage.error(res.data.message || '操作失败')
+      ElMessage.error(data.message || '操作失败')
     }
   } catch (error) {
     console.error('提交失败:', error)
@@ -168,14 +178,18 @@ const submitForm = async () => {
 
 const toggleActive = async (row) => {
   try {
-    const res = await axios.put(`${API_BASE}/api/admin/announcements/${row.id}`, {
-      is_active: !row.is_active
+    const res = await fetch(`/api/admin/announcements/${row.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...row, status: row.status === 'active' ? 'inactive' : 'active', user_id: getUserId() })
     })
-    if (res.data.success) {
+    const data = await res.json()
+
+    if (data.success) {
       ElMessage.success('状态已更新')
       loadAnnouncements()
     } else {
-      ElMessage.error(res.data.message || '操作失败')
+      ElMessage.error(data.message || '操作失败')
     }
   } catch (error) {
     console.error('更新失败:', error)
@@ -189,12 +203,16 @@ const deleteAnnouncement = async (row) => {
       type: 'warning'
     })
 
-    const res = await axios.delete(`${API_BASE}/api/admin/announcements/${row.id}`)
-    if (res.data.success) {
+    const res = await fetch(`/api/admin/announcements/${row.id}?user_id=${getUserId()}`, {
+      method: 'DELETE'
+    })
+    const data = await res.json()
+
+    if (data.success) {
       ElMessage.success('删除成功')
       loadAnnouncements()
     } else {
-      ElMessage.error(res.data.message || '删除失败')
+      ElMessage.error(data.message || '删除失败')
     }
   } catch (error) {
     if (error !== 'cancel') {

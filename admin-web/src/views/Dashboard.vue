@@ -149,10 +149,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
 import { ElMessage } from 'element-plus'
-
-const API_BASE = 'https://express-lksv-207842-4-1391867763.sh.run.tcloudbase.com'
 
 const loading = ref(false)
 
@@ -204,6 +201,11 @@ const eventStatusTypes = {
   cancelled: 'danger'
 }
 
+const getUserId = () => {
+  const user = JSON.parse(localStorage.getItem('adminUser') || '{}')
+  return user.id
+}
+
 const getBarWidth = (count, data) => {
   const max = Math.max(...data.map(d => d.count))
   return max > 0 ? `${(count / max) * 100}%` : '0%'
@@ -211,9 +213,10 @@ const getBarWidth = (count, data) => {
 
 const loadDashboard = async () => {
   try {
-    const res = await axios.get(`${API_BASE}/api/admin/dashboard`)
-    if (res.data.success) {
-      stats.value = res.data.data
+    const res = await fetch(`/api/admin/dashboard?user_id=${getUserId()}`)
+    const data = await res.json()
+    if (data.success) {
+      stats.value = data.data
     }
   } catch (error) {
     console.error('加载概览失败:', error)
@@ -222,9 +225,10 @@ const loadDashboard = async () => {
 
 const loadUserStats = async () => {
   try {
-    const res = await axios.get(`${API_BASE}/api/admin/stats/users`)
-    if (res.data.success) {
-      userStats.value = res.data.data
+    const res = await fetch(`/api/admin/stats/users?user_id=${getUserId()}`)
+    const data = await res.json()
+    if (data.success) {
+      userStats.value = data.data
     }
   } catch (error) {
     console.error('加载用户统计失败:', error)
@@ -233,9 +237,10 @@ const loadUserStats = async () => {
 
 const loadEventStats = async () => {
   try {
-    const res = await axios.get(`${API_BASE}/api/admin/stats/events`)
-    if (res.data.success) {
-      eventStats.value = res.data.data
+    const res = await fetch(`/api/admin/stats/events?user_id=${getUserId()}`)
+    const data = await res.json()
+    if (data.success) {
+      eventStats.value = data.data
     }
   } catch (error) {
     console.error('加载赛事统计失败:', error)
@@ -244,9 +249,10 @@ const loadEventStats = async () => {
 
 const loadActivityStats = async () => {
   try {
-    const res = await axios.get(`${API_BASE}/api/admin/stats/activity`)
-    if (res.data.success) {
-      activity.value = res.data.data.today
+    const res = await fetch(`/api/admin/stats/activity?user_id=${getUserId()}`)
+    const data = await res.json()
+    if (data.success) {
+      activity.value = data.data.today
     }
   } catch (error) {
     console.error('加载活跃统计失败:', error)

@@ -107,10 +107,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
 import { ElMessage } from 'element-plus'
-
-const API_BASE = 'https://express-lksv-207842-4-1391867763.sh.run.tcloudbase.com'
 
 const loading = ref(false)
 const users = ref([])
@@ -132,18 +129,28 @@ const typeLabels = {
   staff: '教职工'
 }
 
+const getUserId = () => {
+  const user = JSON.parse(localStorage.getItem('adminUser') || '{}')
+  return user.id
+}
+
 const loadUsers = async () => {
   loading.value = true
   try {
-    const params = { page: page.value, limit: 20 }
+    const params = new URLSearchParams({
+      page: page.value,
+      limit: 20,
+      user_id: getUserId()
+    })
     if (searchKeyword.value) {
-      params.keyword = searchKeyword.value
+      params.append('keyword', searchKeyword.value)
     }
 
-    const res = await axios.get(`${API_BASE}/api/admin/users`, { params })
-    if (res.data.success) {
-      users.value = res.data.data.list || res.data.data
-      total.value = res.data.data.total || users.value.length
+    const res = await fetch(`/api/admin/users?${params}`)
+    const data = await res.json()
+    if (data.success) {
+      users.value = data.data || []
+      total.value = data.total || users.value.length
     }
   } catch (error) {
     console.error('加载用户失败:', error)
@@ -175,15 +182,19 @@ const editRole = (row) => {
 const submitRole = async () => {
   submitting.value = true
   try {
-    const res = await axios.put(`${API_BASE}/api/admin/users/${roleForm.value.id}/role`, {
-      role: roleForm.value.role
+    const res = await fetch(`/api/admin/users/${roleForm.value.id}/role`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: roleForm.value.role, user_id: getUserId() })
     })
-    if (res.data.success) {
+    const data = await res.json()
+
+    if (data.success) {
       ElMessage.success('角色更新成功')
       roleDialogVisible.value = false
       loadUsers()
     } else {
-      ElMessage.error(res.data.message || '更新失败')
+      ElMessage.error(data.message || '更新失败')
     }
   } catch (error) {
     console.error('更新角色失败:', error)
@@ -212,16 +223,23 @@ const submitRating = async () => {
 
   submitting.value = true
   try {
-    const res = await axios.post(`${API_BASE}/api/admin/users/${ratingForm.value.id}/adjust-rating`, {
-      adjustment: ratingForm.value.adjustment,
-      remark: ratingForm.value.remark
+    const res = await fetch(`/api/admin/users/${ratingForm.value.id}/adjust-rating`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        adjustment: ratingForm.value.adjustment,
+        remark: ratingForm.value.remark,
+        user_id: getUserId()
+      })
     })
-    if (res.data.success) {
+    const data = await res.json()
+
+    if (data.success) {
       ElMessage.success('积分调整成功')
       ratingDialogVisible.value = false
       loadUsers()
     } else {
-      ElMessage.error(res.data.message || '调整失败')
+      ElMessage.error(data.message || '调整失败')
     }
   } catch (error) {
     console.error('调整积分失败:', error)

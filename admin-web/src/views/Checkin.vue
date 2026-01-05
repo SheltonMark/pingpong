@@ -64,10 +64,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
-
-const API_BASE = 'https://express-lksv-207842-4-1391867763.sh.run.tcloudbase.com'
 
 const loading = ref(false)
 const points = ref([])
@@ -84,12 +81,18 @@ const form = ref({
   school_id: null
 })
 
+const getUserId = () => {
+  const user = JSON.parse(localStorage.getItem('adminUser') || '{}')
+  return user.id
+}
+
 const loadPoints = async () => {
   loading.value = true
   try {
-    const res = await axios.get(`${API_BASE}/api/admin/checkin-points`)
-    if (res.data.success) {
-      points.value = res.data.data || []
+    const res = await fetch(`/api/admin/checkin-points?user_id=${getUserId()}`)
+    const data = await res.json()
+    if (data.success) {
+      points.value = data.data || []
     }
   } catch (error) {
     console.error('加载签到点失败:', error)
@@ -101,9 +104,10 @@ const loadPoints = async () => {
 
 const loadSchools = async () => {
   try {
-    const res = await axios.get(`${API_BASE}/api/common/schools`)
-    if (res.data.success) {
-      schools.value = res.data.data || []
+    const res = await fetch('/api/common/schools')
+    const data = await res.json()
+    if (data.success) {
+      schools.value = data.data || []
     }
   } catch (error) {
     console.error('加载学校失败:', error)
@@ -131,17 +135,23 @@ const submitForm = async () => {
   submitting.value = true
   try {
     const url = isEdit.value
-      ? `${API_BASE}/api/admin/checkin-points/${form.value.id}`
-      : `${API_BASE}/api/admin/checkin-points`
-    const method = isEdit.value ? 'put' : 'post'
+      ? `/api/admin/checkin-points/${form.value.id}`
+      : '/api/admin/checkin-points'
+    const method = isEdit.value ? 'PUT' : 'POST'
 
-    const res = await axios[method](url, form.value)
-    if (res.data.success) {
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...form.value, user_id: getUserId() })
+    })
+    const data = await res.json()
+
+    if (data.success) {
       ElMessage.success(isEdit.value ? '更新成功' : '添加成功')
       dialogVisible.value = false
       loadPoints()
     } else {
-      ElMessage.error(res.data.message || '操作失败')
+      ElMessage.error(data.message || '操作失败')
     }
   } catch (error) {
     console.error('提交失败:', error)
@@ -155,12 +165,14 @@ const deletePoint = async (row) => {
   try {
     await ElMessageBox.confirm('确定要删除这个签到点吗？', '提示', { type: 'warning' })
 
-    const res = await axios.delete(`${API_BASE}/api/admin/checkin-points/${row.id}`)
-    if (res.data.success) {
+    const res = await fetch(`/api/admin/checkin-points/${row.id}?user_id=${getUserId()}`, { method: 'DELETE' })
+    const data = await res.json()
+
+    if (data.success) {
       ElMessage.success('删除成功')
       loadPoints()
     } else {
-      ElMessage.error(res.data.message || '删除失败')
+      ElMessage.error(data.message || '删除失败')
     }
   } catch (error) {
     if (error !== 'cancel') {

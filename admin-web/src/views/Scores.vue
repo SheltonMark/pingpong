@@ -79,10 +79,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
-
-const API_BASE = 'https://express-lksv-207842-4-1391867763.sh.run.tcloudbase.com'
 
 const loading = ref(false)
 const matches = ref([])
@@ -112,14 +109,18 @@ const statusTypes = {
   disputed: 'danger'
 }
 
+const getUserId = () => {
+  const user = JSON.parse(localStorage.getItem('adminUser') || '{}')
+  return user.id
+}
+
 const loadMatches = async () => {
   loading.value = true
   try {
-    const res = await axios.get(`${API_BASE}/api/admin/matches`, {
-      params: { status: activeTab.value }
-    })
-    if (res.data.success) {
-      matches.value = res.data.data.list || res.data.data
+    const res = await fetch(`/api/admin/matches?user_id=${getUserId()}&status=${activeTab.value}`)
+    const data = await res.json()
+    if (data.success) {
+      matches.value = data.data || []
     }
   } catch (error) {
     console.error('加载比赛失败:', error)
@@ -133,12 +134,18 @@ const confirmMatch = async (row) => {
   try {
     await ElMessageBox.confirm('确认这场比赛的成绩吗？', '提示')
 
-    const res = await axios.post(`${API_BASE}/api/admin/matches/${row.id}/confirm`)
-    if (res.data.success) {
+    const res = await fetch(`/api/admin/matches/${row.id}/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: getUserId() })
+    })
+    const data = await res.json()
+
+    if (data.success) {
       ElMessage.success('成绩已确认')
       loadMatches()
     } else {
-      ElMessage.error(res.data.message || '操作失败')
+      ElMessage.error(data.message || '操作失败')
     }
   } catch (error) {
     if (error !== 'cancel') {
@@ -155,14 +162,18 @@ const disputeMatch = async (row) => {
       cancelButtonText: '取消'
     })
 
-    const res = await axios.post(`${API_BASE}/api/admin/matches/${row.id}/dispute`, {
-      reason: value
+    const res = await fetch(`/api/admin/matches/${row.id}/dispute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: value, user_id: getUserId() })
     })
-    if (res.data.success) {
+    const data = await res.json()
+
+    if (data.success) {
       ElMessage.success('已标记争议')
       loadMatches()
     } else {
-      ElMessage.error(res.data.message || '操作失败')
+      ElMessage.error(data.message || '操作失败')
     }
   } catch (error) {
     if (error !== 'cancel') {
@@ -192,16 +203,23 @@ const submitScore = async () => {
 
   submitting.value = true
   try {
-    const res = await axios.put(`${API_BASE}/api/admin/matches/${scoreForm.value.id}`, {
-      score: scoreForm.value.score,
-      winner_id: scoreForm.value.winner_id
+    const res = await fetch(`/api/admin/matches/${scoreForm.value.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        score: scoreForm.value.score,
+        winner_id: scoreForm.value.winner_id,
+        user_id: getUserId()
+      })
     })
-    if (res.data.success) {
+    const data = await res.json()
+
+    if (data.success) {
       ElMessage.success('比分已更新')
       scoreDialogVisible.value = false
       loadMatches()
     } else {
-      ElMessage.error(res.data.message || '更新失败')
+      ElMessage.error(data.message || '更新失败')
     }
   } catch (error) {
     console.error('更新失败:', error)

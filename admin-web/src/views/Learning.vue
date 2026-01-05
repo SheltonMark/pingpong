@@ -99,10 +99,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
-
-const API_BASE = 'https://express-lksv-207842-4-1391867763.sh.run.tcloudbase.com'
 
 const loading = ref(false)
 const materials = ref([])
@@ -124,12 +121,17 @@ const form = ref({
 const typeLabels = { video: '视频', ppt: 'PPT', document: '文档' }
 const typeColors = { video: 'danger', ppt: 'warning', document: '' }
 
-const uploadUrl = computed(() => `${API_BASE}/api/upload/file`)
+const getUserId = () => {
+  const user = JSON.parse(localStorage.getItem('adminUser') || '{}')
+  return user.id
+}
+
+const uploadUrl = computed(() => '/api/upload/file')
 
 const getFullUrl = (url) => {
   if (!url) return ''
   if (url.startsWith('http')) return url
-  return `${API_BASE}${url}`
+  return url
 }
 
 const beforeUpload = (file) => {
@@ -158,9 +160,10 @@ const onUploadError = () => {
 const loadMaterials = async () => {
   loading.value = true
   try {
-    const res = await axios.get(`${API_BASE}/api/admin/learning`)
-    if (res.data.success) {
-      const all = res.data.data || []
+    const res = await fetch(`/api/admin/learning?user_id=${getUserId()}`)
+    const data = await res.json()
+    if (data.success) {
+      const all = data.data || []
       materials.value = all.filter(m => m.type === activeTab.value)
     }
   } catch (error) {
@@ -198,17 +201,23 @@ const submitForm = async () => {
   submitting.value = true
   try {
     const url = isEdit.value
-      ? `${API_BASE}/api/admin/learning/${form.value.id}`
-      : `${API_BASE}/api/admin/learning`
-    const method = isEdit.value ? 'put' : 'post'
+      ? `/api/admin/learning/${form.value.id}`
+      : '/api/admin/learning'
+    const method = isEdit.value ? 'PUT' : 'POST'
 
-    const res = await axios[method](url, form.value)
-    if (res.data.success) {
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...form.value, user_id: getUserId() })
+    })
+    const data = await res.json()
+
+    if (data.success) {
       ElMessage.success(isEdit.value ? '更新成功' : '添加成功')
       dialogVisible.value = false
       loadMaterials()
     } else {
-      ElMessage.error(res.data.message || '操作失败')
+      ElMessage.error(data.message || '操作失败')
     }
   } catch (error) {
     console.error('提交失败:', error)
@@ -222,12 +231,14 @@ const deleteMaterial = async (row) => {
   try {
     await ElMessageBox.confirm('确定要删除这个资料吗？', '提示', { type: 'warning' })
 
-    const res = await axios.delete(`${API_BASE}/api/admin/learning/${row.id}`)
-    if (res.data.success) {
+    const res = await fetch(`/api/admin/learning/${row.id}?user_id=${getUserId()}`, { method: 'DELETE' })
+    const data = await res.json()
+
+    if (data.success) {
       ElMessage.success('删除成功')
       loadMaterials()
     } else {
-      ElMessage.error(res.data.message || '删除失败')
+      ElMessage.error(data.message || '删除失败')
     }
   } catch (error) {
     if (error !== 'cancel') {
