@@ -150,8 +150,12 @@ Page({
 
   async onCheckIn() {
     if (!this.data.canCheckIn || this.data.isCheckingIn) return;
-    if (!app.globalData.isLoggedIn) {
+    if (!app.globalData.isLoggedIn || !app.globalData.userInfo?.id) {
       wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+    if (!this.data.nearestPoint?.id) {
+      wx.showToast({ title: '未找到签到点', icon: 'none' });
       return;
     }
 
