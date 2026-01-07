@@ -615,12 +615,12 @@ router.get('/learning', requireAdmin, async (req, res) => {
 // 创建学习资料
 router.post('/learning', requireAdmin, async (req, res) => {
   try {
-    const { title, type, url, original_name, description, school_id } = req.body;
+    const { title, type, url, original_name, description, school_id, cover_url } = req.body;
 
     const [result] = await pool.execute(`
-      INSERT INTO learning_materials (title, type, url, original_name, description, school_id, status, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, 'active', NOW())
-    `, [title, type, url, original_name || null, description || null, school_id || null]);
+      INSERT INTO learning_materials (title, type, url, original_name, description, school_id, cover_url, status, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'active', NOW())
+    `, [title, type, url, original_name || null, description || null, school_id || null, cover_url || null]);
 
     res.json({ success: true, data: { id: result.insertId } });
   } catch (error) {
@@ -633,12 +633,12 @@ router.post('/learning', requireAdmin, async (req, res) => {
 router.put('/learning/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, type, url, original_name, description, status } = req.body;
+    const { title, type, url, original_name, description, status, cover_url } = req.body;
 
     await pool.execute(`
-      UPDATE learning_materials SET title = ?, type = ?, url = ?, original_name = ?, description = ?, status = ?
+      UPDATE learning_materials SET title = ?, type = ?, url = ?, original_name = ?, description = ?, status = ?, cover_url = ?
       WHERE id = ?
-    `, [title, type, url, original_name || null, description || null, status || 'active', id]);
+    `, [title, type, url, original_name || null, description || null, status || 'active', cover_url || null, id]);
 
     res.json({ success: true });
   } catch (error) {

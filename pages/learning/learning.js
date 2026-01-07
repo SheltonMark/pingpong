@@ -4,9 +4,8 @@ Page({
   data: {
     currentTab: 'video',
     tabs: [
-      { key: 'video', label: '视频' },
-      { key: 'ppt', label: 'PPT' },
-      { key: 'document', label: '文档' }
+      { key: 'video', label: '教学视频' },
+      { key: 'document', label: 'PDF文档' }
     ],
     materials: [],
     isLoading: false,

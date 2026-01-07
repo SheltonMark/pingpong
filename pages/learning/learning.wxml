@@ -27,18 +27,19 @@
         data-type="video"
         data-url="{{item.url}}"
       >
-        <view class="video-cover">
-          <view class="play-btn">▶️</view>
-          <view class="video-duration" wx:if="{{item.duration}}">{{item.duration}}</view>
+        <view class="video-cover" style="{{item.cover_url ? 'background-image: url(' + item.cover_url + ')' : ''}}">
+          <view class="play-btn">
+            <view class="play-icon"></view>
+          </view>
         </view>
         <view class="video-info">
           <text class="video-title">{{item.title}}</text>
-          <text class="video-meta">{{item.author || '未知'}} · {{item.view_label}}次观看</text>
+          <text class="video-meta">{{item.view_label || '0'}}次观看</text>
         </view>
       </view>
     </block>
 
-    <!-- PPT/文档列表 -->
+    <!-- PDF文档列表 -->
     <block wx:else>
       <view
         class="doc-card"
@@ -46,15 +47,15 @@
         wx:key="id"
         bindtap="onTapMaterial"
         data-id="{{item.id}}"
-        data-type="{{item.type}}"
+        data-type="document"
         data-url="{{item.url}}"
       >
-        <view class="doc-icon">{{currentTab === 'ppt' ? '📊' : '📄'}}</view>
+        <view class="doc-icon">PDF</view>
         <view class="doc-info">
           <text class="doc-title">{{item.title}}</text>
-          <text class="doc-meta">{{item.author || '未知'}} · {{item.view_label}}次查看</text>
+          <text class="doc-meta">{{item.view_label || '0'}}次查看</text>
         </view>
-        <view class="doc-arrow">›</view>
+        <view class="doc-arrow"></view>
       </view>
     </block>
 
@@ -62,7 +63,7 @@
     <view class="no-more" wx:if="{{noMore && materials.length > 0}}">没有更多了</view>
     <view class="empty" wx:if="{{!isLoading && materials.length === 0}}">
       <text class="empty-icon">📚</text>
-      <text class="empty-text">暂无{{currentTab === 'video' ? '视频' : (currentTab === 'ppt' ? 'PPT' : '文档')}}资料</text>
+      <text class="empty-text">暂无{{currentTab === 'video' ? '视频' : 'PDF'}}资料</text>
     </view>
   </scroll-view>
 </view>
