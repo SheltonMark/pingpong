@@ -508,27 +508,27 @@ router.post('/users/:id/adjust-rating', requireAdmin, async (req, res) => {
       return res.json({ success: false, message: '调整值不能为0' });
     }
 
-    // 更新用户积分
+    // 更新用户积分 (字段名是 points)
     await pool.execute(
-      'UPDATE users SET rating = rating + ? WHERE id = ?',
+      'UPDATE users SET points = COALESCE(points, 0) + ? WHERE id = ?',
       [adjustment, id]
     );
 
-    // 记录积分变动日志（如果有rating_logs表）
+    // 记录积分变动日志
     try {
       await pool.execute(`
-        INSERT INTO rating_logs (user_id, change_amount, reason, created_at)
-        VALUES (?, ?, ?, NOW())
+        INSERT INTO rating_history (user_id, points_change, source_type, remark, created_at)
+        VALUES (?, ?, 'admin_adjust', ?, NOW())
       `, [id, adjustment, remark || '管理员调整']);
     } catch (e) {
       // 如果没有日志表，忽略错误
-      console.log('Rating log table may not exist:', e.message);
+      console.log('Rating history table may not exist:', e.message);
     }
 
     res.json({ success: true });
   } catch (error) {
     console.error('Adjust rating error:', error);
-    res.json({ success: false, message: '调整积分失败' });
+    res.json({ success: false, message: '调整积分失败: ' + error.message });
   }
 });
 
