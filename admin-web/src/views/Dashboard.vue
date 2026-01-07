@@ -420,7 +420,7 @@ onMounted(async () => {
   flex-wrap: wrap;
   gap: 20px;
   padding: 20px 0;
-  flex: 1;
+  min-height: 120px;
   align-items: center;
   align-content: center;
 }
@@ -439,7 +439,7 @@ onMounted(async () => {
   display: flex;
   justify-content: space-around;
   padding: 20px 0;
-  flex: 1;
+  min-height: 120px;
   align-items: center;
 }
 .activity-item {

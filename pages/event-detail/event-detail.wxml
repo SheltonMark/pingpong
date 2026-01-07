@@ -34,7 +34,7 @@
       </view>
       <view class="info-row">
         <text class="info-label">🏆 赛制</text>
-        <text class="info-value">{{event.event_format === 'knockout' ? '淘汰赛' : event.event_format === 'round_robin' ? '循环赛' : '小组+淘汰'}} · {{event.best_of}}局{{event.best_of == 3 ? '2' : event.best_of == 5 ? '3' : '4'}}胜</text>
+        <text class="info-value">{{event.event_format === 'knockout' ? '淘汰赛' : event.event_format === 'round_robin' ? '循环赛' : '小组+淘汰'}} · {{event.best_of}}局{{event.games_to_win || (event.best_of == 3 ? '2' : event.best_of == 5 ? '3' : '4')}}胜</text>
       </view>
       <view class="info-row">
         <text class="info-label">📊 计入积分</text>

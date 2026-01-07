@@ -61,11 +61,12 @@
           </el-select>
         </el-form-item>
         <el-form-item label="几局几胜">
-          <el-select v-model="form.best_of" placeholder="请选择">
-            <el-option label="3局2胜" :value="3" />
-            <el-option label="5局3胜" :value="5" />
-            <el-option label="7局4胜" :value="7" />
-          </el-select>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <el-input-number v-model="form.best_of" :min="1" :max="21" placeholder="局数" />
+            <span>局</span>
+            <el-input-number v-model="form.games_to_win" :min="1" :max="11" placeholder="胜数" />
+            <span>胜</span>
+          </div>
         </el-form-item>
         <el-form-item label="计入积分">
           <el-switch v-model="form.counts_for_ranking" />
@@ -143,6 +144,7 @@ const form = ref({
   event_type: 'singles',
   event_format: 'knockout',
   best_of: 5,
+  games_to_win: 3,
   counts_for_ranking: true,
   event_start: '',
   location: '',
@@ -221,6 +223,7 @@ const showCreateDialog = () => {
     event_type: 'singles',
     event_format: 'knockout',
     best_of: 5,
+    games_to_win: 3,
     counts_for_ranking: true,
     event_start: '',
     location: '',
