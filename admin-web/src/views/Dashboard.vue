@@ -100,7 +100,7 @@
       </el-col>
     </el-row>
 
-    <el-row :gutter="20" style="margin-top: 20px">
+    <el-row :gutter="20" style="margin-top: 20px" class="equal-height-row">
       <!-- 赛事状态分布 -->
       <el-col :xs="24" :sm="24" :md="12">
         <el-card>
@@ -282,6 +282,24 @@ onMounted(async () => {
   margin: 0;
 }
 
+.equal-height-row {
+  display: flex;
+  flex-wrap: wrap;
+}
+.equal-height-row > .el-col {
+  display: flex;
+}
+.equal-height-row > .el-col > .el-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.equal-height-row :deep(.el-card__body) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
 .stat-card {
   position: relative;
   padding: 20px;
@@ -401,8 +419,8 @@ onMounted(async () => {
   display: flex;
   flex-wrap: wrap;
   gap: 20px;
-  padding: 30px 0;
-  min-height: 120px;
+  padding: 20px 0;
+  flex: 1;
   align-items: center;
   align-content: center;
 }
@@ -420,8 +438,9 @@ onMounted(async () => {
 .activity-grid {
   display: flex;
   justify-content: space-around;
-  padding: 30px 0;
-  min-height: 120px;
+  padding: 20px 0;
+  flex: 1;
+  align-items: center;
 }
 .activity-item {
   text-align: center;

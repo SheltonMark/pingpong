@@ -12,6 +12,7 @@
       <el-tabs v-model="activeTab" @tab-change="loadMaterials">
         <el-tab-pane label="教学视频" name="video" />
         <el-tab-pane label="PDF文档" name="document" />
+        <el-tab-pane label="PPT课件" name="ppt" />
       </el-tabs>
 
       <el-table :data="materials" v-loading="loading" stripe>
@@ -37,7 +38,11 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" width="160" />
+        <el-table-column label="创建时间" width="160">
+          <template #default="{ row }">
+            {{ formatDateTime(row.created_at) }}
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="editMaterial(row)">编辑</el-button>
@@ -57,6 +62,7 @@
           <el-radio-group v-model="form.type">
             <el-radio value="video">教学视频</el-radio>
             <el-radio value="document">PDF文档</el-radio>
+            <el-radio value="ppt">PPT课件</el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="上传文件" required>
@@ -70,13 +76,13 @@
             :before-upload="beforeUpload"
             :file-list="fileList"
             :auto-upload="true"
-            :accept="form.type === 'video' ? 'video/*' : 'application/pdf'"
+            :accept="acceptTypes[form.type]"
             name="file"
           >
             <el-button type="primary">选择文件</el-button>
             <template #tip>
               <div class="el-upload__tip">
-                {{ form.type === 'video' ? '支持 MP4、AVI 等视频格式' : '仅支持 PDF 文件' }}，最大100MB
+                {{ uploadTips[form.type] }}，最大100MB
               </div>
             </template>
           </el-upload>
@@ -116,6 +122,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { formatDateTime } from '../utils/format'
 
 const loading = ref(false)
 const materials = ref([])
@@ -135,8 +142,20 @@ const form = ref({
   cover_url: ''
 })
 
-const typeLabels = { video: '视频', document: 'PDF' }
-const typeColors = { video: 'danger', document: '' }
+const typeLabels = { video: '视频', document: 'PDF', ppt: 'PPT' }
+const typeColors = { video: 'danger', document: '', ppt: 'warning' }
+
+const acceptTypes = {
+  video: 'video/*',
+  document: 'application/pdf',
+  ppt: '.ppt,.pptx,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation'
+}
+
+const uploadTips = {
+  video: '支持 MP4、AVI 等视频格式',
+  document: '仅支持 PDF 文件',
+  ppt: '支持 PPT、PPTX 文件'
+}
 
 const getUserId = () => {
   const user = JSON.parse(localStorage.getItem('adminUser') || '{}')
@@ -164,9 +183,21 @@ const beforeUpload = (file) => {
       ElMessage.error('请上传视频文件')
       return false
     }
-  } else {
+  } else if (form.value.type === 'document') {
     if (file.type !== 'application/pdf') {
       ElMessage.error('请上传 PDF 文件')
+      return false
+    }
+  } else if (form.value.type === 'ppt') {
+    const validTypes = [
+      'application/vnd.ms-powerpoint',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+    ]
+    const isPPT = validTypes.includes(file.type) ||
+                  file.name.endsWith('.ppt') ||
+                  file.name.endsWith('.pptx')
+    if (!isPPT) {
+      ElMessage.error('请上传 PPT 或 PPTX 文件')
       return false
     }
   }

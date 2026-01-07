@@ -723,6 +723,126 @@ router.delete('/checkin-points/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// 获取签到记录
+router.get('/checkin-records', requireAdmin, async (req, res) => {
+  try {
+    const { school_id, start_date, end_date, page = 1, limit = 100 } = req.query;
+    const offset = (page - 1) * limit;
+
+    let sql = `
+      SELECT ci.id, ci.check_in_time,
+             u.id as user_id, u.name as user_name, u.phone,
+             s.name as school_name,
+             cp.name as point_name,
+             (SELECT COUNT(*) FROM check_ins WHERE user_id = u.id) as checkin_count
+      FROM check_ins ci
+      JOIN users u ON ci.user_id = u.id
+      LEFT JOIN schools s ON u.school_id = s.id
+      LEFT JOIN check_in_points cp ON ci.point_id = cp.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (school_id) {
+      sql += ' AND u.school_id = ?';
+      params.push(school_id);
+    }
+    if (start_date) {
+      sql += ' AND DATE(ci.check_in_time) >= ?';
+      params.push(start_date);
+    }
+    if (end_date) {
+      sql += ' AND DATE(ci.check_in_time) <= ?';
+      params.push(end_date);
+    }
+
+    sql += ' ORDER BY ci.check_in_time DESC LIMIT ? OFFSET ?';
+    params.push(parseInt(limit), parseInt(offset));
+
+    const [records] = await pool.execute(sql, params);
+
+    // 获取总数
+    let countSql = `
+      SELECT COUNT(*) as total
+      FROM check_ins ci
+      JOIN users u ON ci.user_id = u.id
+      WHERE 1=1
+    `;
+    const countParams = [];
+    if (school_id) {
+      countSql += ' AND u.school_id = ?';
+      countParams.push(school_id);
+    }
+    if (start_date) {
+      countSql += ' AND DATE(ci.check_in_time) >= ?';
+      countParams.push(start_date);
+    }
+    if (end_date) {
+      countSql += ' AND DATE(ci.check_in_time) <= ?';
+      countParams.push(end_date);
+    }
+    const [[{ total }]] = await pool.execute(countSql, countParams);
+
+    res.json({ success: true, data: records, total });
+  } catch (error) {
+    console.error('Get checkin records error:', error);
+    res.json({ success: false, message: '获取签到记录失败' });
+  }
+});
+
+// 导出签到记录为CSV
+router.get('/checkin-records/export', requireAdmin, async (req, res) => {
+  try {
+    const { school_id, start_date, end_date } = req.query;
+
+    let sql = `
+      SELECT u.name as 用户姓名, u.phone as 手机号,
+             s.name as 学校,
+             cp.name as 签到点,
+             DATE_FORMAT(ci.check_in_time, '%Y-%m-%d %H:%i:%s') as 签到时间,
+             (SELECT COUNT(*) FROM check_ins WHERE user_id = u.id) as 累计签到次数
+      FROM check_ins ci
+      JOIN users u ON ci.user_id = u.id
+      LEFT JOIN schools s ON u.school_id = s.id
+      LEFT JOIN check_in_points cp ON ci.point_id = cp.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (school_id) {
+      sql += ' AND u.school_id = ?';
+      params.push(school_id);
+    }
+    if (start_date) {
+      sql += ' AND DATE(ci.check_in_time) >= ?';
+      params.push(start_date);
+    }
+    if (end_date) {
+      sql += ' AND DATE(ci.check_in_time) <= ?';
+      params.push(end_date);
+    }
+
+    sql += ' ORDER BY ci.check_in_time DESC';
+
+    const [records] = await pool.execute(sql, params);
+
+    // 生成CSV
+    const BOM = '\uFEFF';
+    const headers = ['用户姓名', '手机号', '学校', '签到点', '签到时间', '累计签到次数'];
+    const csvContent = BOM + headers.join(',') + '\n' +
+      records.map(row =>
+        headers.map(h => `"${(row[h] || '').toString().replace(/"/g, '""')}"`).join(',')
+      ).join('\n');
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename=checkin_records.csv');
+    res.send(csvContent);
+  } catch (error) {
+    console.error('Export checkin records error:', error);
+    res.status(500).json({ success: false, message: '导出失败' });
+  }
+});
+
 // ============ 数据统计 ============
 
 // 用户统计

@@ -1,42 +1,90 @@
 <template>
   <div class="page">
     <div class="page-header">
-      <h2>签到点管理</h2>
-      <el-button type="primary" @click="showCreateDialog">
+      <h2>签到管理</h2>
+      <el-button type="primary" @click="showCreateDialog" v-if="activeTab === 'points'">
         <el-icon><Plus /></el-icon>
         添加签到点
+      </el-button>
+      <el-button type="success" @click="exportRecords" v-if="activeTab === 'records'">
+        <el-icon><Download /></el-icon>
+        导出数据
       </el-button>
     </div>
 
     <el-card>
-      <el-table :data="points" v-loading="loading" stripe>
-        <el-table-column prop="id" label="ID" width="60" />
-        <el-table-column prop="name" label="名称" min-width="150" />
-        <el-table-column label="位置" min-width="200">
-          <template #default="{ row }">
-            <span class="location-text">{{ row.latitude }}, {{ row.longitude }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="radius" label="有效半径" width="100">
-          <template #default="{ row }">
-            {{ row.radius }}米
-          </template>
-        </el-table-column>
-        <el-table-column prop="school_name" label="所属学校" width="150" />
-        <el-table-column prop="status" label="状态" width="80">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 'active' ? 'success' : 'info'">
-              {{ row.status === 'active' ? '启用' : '禁用' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
-          <template #default="{ row }">
-            <el-button size="small" @click="editPoint(row)">编辑</el-button>
-            <el-button size="small" type="danger" @click="deletePoint(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <el-tabs v-model="activeTab">
+        <el-tab-pane label="签到点管理" name="points" />
+        <el-tab-pane label="签到记录" name="records" />
+      </el-tabs>
+
+      <!-- 签到点管理 -->
+      <div v-if="activeTab === 'points'">
+        <el-table :data="points" v-loading="loading" stripe>
+          <el-table-column prop="id" label="ID" width="60" />
+          <el-table-column prop="name" label="名称" min-width="150" />
+          <el-table-column label="位置" min-width="200">
+            <template #default="{ row }">
+              <span class="location-text">{{ row.latitude }}, {{ row.longitude }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="radius" label="有效半径" width="100">
+            <template #default="{ row }">
+              {{ row.radius }}米
+            </template>
+          </el-table-column>
+          <el-table-column prop="school_name" label="所属学校" width="150" />
+          <el-table-column prop="status" label="状态" width="80">
+            <template #default="{ row }">
+              <el-tag :type="row.status === 'active' ? 'success' : 'info'">
+                {{ row.status === 'active' ? '启用' : '禁用' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="150" fixed="right">
+            <template #default="{ row }">
+              <el-button size="small" @click="editPoint(row)">编辑</el-button>
+              <el-button size="small" type="danger" @click="deletePoint(row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <!-- 签到记录 -->
+      <div v-if="activeTab === 'records'">
+        <div class="filter-bar">
+          <el-select v-model="recordFilter.school_id" placeholder="选择学校" clearable style="width: 200px">
+            <el-option v-for="s in schools" :key="s.id" :label="s.name" :value="s.id" />
+          </el-select>
+          <el-date-picker
+            v-model="recordFilter.dateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            value-format="YYYY-MM-DD"
+            style="margin-left: 12px"
+          />
+          <el-button type="primary" @click="loadRecords" style="margin-left: 12px">查询</el-button>
+        </div>
+
+        <el-table :data="records" v-loading="recordsLoading" stripe style="margin-top: 16px">
+          <el-table-column prop="user_name" label="用户" width="100" />
+          <el-table-column prop="phone" label="手机号" width="130" />
+          <el-table-column prop="school_name" label="学校" width="150" />
+          <el-table-column prop="point_name" label="签到点" min-width="150" />
+          <el-table-column label="签到时间" width="160">
+            <template #default="{ row }">
+              {{ formatDateTime(row.check_in_time) }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="checkin_count" label="累计签到" width="100" />
+        </el-table>
+
+        <div class="record-summary" v-if="records.length > 0">
+          共 {{ recordTotal }} 条签到记录
+        </div>
+      </div>
     </el-card>
 
     <!-- 创建/编辑对话框 -->
@@ -104,8 +152,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { formatDateTime } from '../utils/format'
 
 const loading = ref(false)
 const points = ref([])
@@ -114,6 +163,16 @@ const dialogVisible = ref(false)
 const isEdit = ref(false)
 const submitting = ref(false)
 const searchAddress = ref('')
+const activeTab = ref('points')
+
+// 签到记录相关
+const records = ref([])
+const recordsLoading = ref(false)
+const recordTotal = ref(0)
+const recordFilter = ref({
+  school_id: null,
+  dateRange: null
+})
 
 let map = null
 let marker = null
@@ -409,6 +468,74 @@ const deletePoint = async (row) => {
   }
 }
 
+// 加载签到记录
+const loadRecords = async () => {
+  recordsLoading.value = true
+  try {
+    const params = new URLSearchParams({ user_id: getUserId() })
+    if (recordFilter.value.school_id) {
+      params.append('school_id', recordFilter.value.school_id)
+    }
+    if (recordFilter.value.dateRange && recordFilter.value.dateRange.length === 2) {
+      params.append('start_date', recordFilter.value.dateRange[0])
+      params.append('end_date', recordFilter.value.dateRange[1])
+    }
+
+    const res = await fetch(`/api/admin/checkin-records?${params}`)
+    const data = await res.json()
+    if (data.success) {
+      records.value = data.data || []
+      recordTotal.value = data.total || records.value.length
+    }
+  } catch (error) {
+    console.error('加载签到记录失败:', error)
+    ElMessage.error('加载失败')
+  } finally {
+    recordsLoading.value = false
+  }
+}
+
+// 导出签到数据
+const exportRecords = async () => {
+  try {
+    const params = new URLSearchParams({ user_id: getUserId(), export: 'csv' })
+    if (recordFilter.value.school_id) {
+      params.append('school_id', recordFilter.value.school_id)
+    }
+    if (recordFilter.value.dateRange && recordFilter.value.dateRange.length === 2) {
+      params.append('start_date', recordFilter.value.dateRange[0])
+      params.append('end_date', recordFilter.value.dateRange[1])
+    }
+
+    const res = await fetch(`/api/admin/checkin-records/export?${params}`)
+
+    if (res.ok) {
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `签到记录_${new Date().toISOString().slice(0, 10)}.csv`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+      ElMessage.success('导出成功')
+    } else {
+      ElMessage.error('导出失败')
+    }
+  } catch (error) {
+    console.error('导出失败:', error)
+    ElMessage.error('导出失败')
+  }
+}
+
+// 切换tab时加载数据
+watch(activeTab, (val) => {
+  if (val === 'records') {
+    loadRecords()
+  }
+})
+
 onMounted(() => {
   loadPoints()
   loadSchools()
@@ -469,5 +596,21 @@ onMounted(() => {
 
 :deep(.el-slider) {
   flex: 1;
+}
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.record-summary {
+  margin-top: 16px;
+  padding: 12px;
+  background: #f5f7fa;
+  border-radius: 4px;
+  color: #606266;
+  font-size: 14px;
 }
 </style>

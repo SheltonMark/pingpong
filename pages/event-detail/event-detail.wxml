@@ -52,7 +52,7 @@
 
     <view class="desc-card" wx:if="{{event.description}}">
       <view class="card-title">赛事说明</view>
-      <view class="desc-content">{{event.description}}</view>
+      <rich-text class="desc-content" nodes="{{event.description}}"></rich-text>
     </view>
   </view>
 

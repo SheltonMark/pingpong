@@ -41,7 +41,11 @@
             <el-tag v-else type="info">普通用户</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="注册时间" width="160" />
+        <el-table-column label="注册时间" width="160">
+          <template #default="{ row }">
+            {{ formatDateTime(row.created_at) }}
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="120" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="adjustRating(row)">调整积分</el-button>
@@ -88,6 +92,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { formatDateTime } from '../utils/format'
 
 const loading = ref(false)
 const users = ref([])

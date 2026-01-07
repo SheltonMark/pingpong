@@ -24,7 +24,11 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="event_start" label="开始时间" width="160" />
+        <el-table-column label="开始时间" width="160">
+          <template #default="{ row }">
+            {{ formatDateTime(row.event_start) }}
+          </template>
+        </el-table-column>
         <el-table-column prop="location" label="地点" width="120" />
         <el-table-column prop="participant_count" label="报名人数" width="100" />
         <el-table-column label="操作" width="200" fixed="right">
@@ -73,7 +77,7 @@
         </el-form-item>
         <el-form-item label="报名截止">
           <el-date-picker
-            v-model="form.registration_deadline"
+            v-model="form.registration_end"
             type="datetime"
             placeholder="选择报名截止时间"
             format="YYYY-MM-DD HH:mm"
@@ -81,7 +85,26 @@
           />
         </el-form-item>
         <el-form-item label="赛事说明">
-          <el-input v-model="form.description" type="textarea" :rows="3" placeholder="请输入赛事说明" />
+          <div class="rich-editor">
+            <div class="toolbar">
+              <el-button-group>
+                <el-button size="small" @click="execCommand('bold')"><strong>B</strong></el-button>
+                <el-button size="small" @click="execCommand('italic')"><em>I</em></el-button>
+                <el-button size="small" @click="execCommand('underline')"><u>U</u></el-button>
+              </el-button-group>
+              <el-button-group style="margin-left: 8px">
+                <el-button size="small" @click="execCommand('insertUnorderedList')">列表</el-button>
+                <el-button size="small" @click="insertImage">图片</el-button>
+              </el-button-group>
+            </div>
+            <div
+              ref="editorRef"
+              class="editor-content"
+              contenteditable="true"
+              @input="onEditorInput"
+              v-html="form.description"
+            ></div>
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -95,12 +118,14 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { formatDateTime } from '../utils/format'
 
 const loading = ref(false)
 const events = ref([])
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const submitting = ref(false)
+const editorRef = ref(null)
 
 const form = ref({
   title: '',
@@ -109,9 +134,31 @@ const form = ref({
   event_start: '',
   location: '',
   max_participants: 32,
-  registration_deadline: '',
+  registration_end: '',
   description: ''
 })
+
+// 富文本编辑器函数
+const execCommand = (command) => {
+  document.execCommand(command, false, null)
+  editorRef.value?.focus()
+}
+
+const insertImage = () => {
+  ElMessageBox.prompt('请输入图片URL', '插入图片', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    inputPlaceholder: 'https://...'
+  }).then(({ value }) => {
+    if (value) {
+      document.execCommand('insertImage', false, value)
+    }
+  }).catch(() => {})
+}
+
+const onEditorInput = (e) => {
+  form.value.description = e.target.innerHTML
+}
 
 const typeLabels = {
   singles: '单打',
@@ -163,7 +210,7 @@ const showCreateDialog = () => {
     event_start: '',
     location: '',
     max_participants: 32,
-    registration_deadline: '',
+    registration_end: '',
     description: ''
   }
   dialogVisible.value = true
@@ -255,5 +302,30 @@ onMounted(() => {
 }
 .page-header h2 {
   margin: 0;
+}
+
+.rich-editor {
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.rich-editor .toolbar {
+  padding: 8px;
+  background: #f5f7fa;
+  border-bottom: 1px solid #dcdfe6;
+}
+.rich-editor .editor-content {
+  min-height: 150px;
+  padding: 12px;
+  outline: none;
+  line-height: 1.6;
+}
+.rich-editor .editor-content:empty:before {
+  content: '请输入赛事说明...';
+  color: #c0c4cc;
+}
+.rich-editor .editor-content img {
+  max-width: 100%;
+  height: auto;
 }
 </style>

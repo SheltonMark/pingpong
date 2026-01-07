@@ -113,6 +113,10 @@
   margin-right: 28rpx;
 }
 
+.doc-icon.ppt-icon {
+  background: linear-gradient(135deg, #F97316, #EA580C);
+}
+
 .doc-info {
   flex: 1;
 }

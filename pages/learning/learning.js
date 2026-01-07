@@ -5,7 +5,8 @@ Page({
     currentTab: 'video',
     tabs: [
       { key: 'video', label: '教学视频' },
-      { key: 'document', label: 'PDF文档' }
+      { key: 'document', label: 'PDF文档' },
+      { key: 'ppt', label: 'PPT课件' }
     ],
     materials: [],
     isLoading: false,
@@ -82,6 +83,47 @@ Page({
     if (type === 'video') {
       wx.navigateTo({
         url: `/pages/video-player/video-player?id=${id}&url=${encodeURIComponent(fullUrl)}`
+      });
+    } else if (type === 'ppt') {
+      // PPT 只能下载
+      wx.showModal({
+        title: '提示',
+        content: 'PPT文件将下载到手机，是否继续？',
+        success: (res) => {
+          if (res.confirm) {
+            wx.showLoading({ title: '下载中...' });
+            wx.downloadFile({
+              url: fullUrl,
+              success: (res) => {
+                wx.hideLoading();
+                if (res.statusCode === 200) {
+                  wx.saveFile({
+                    tempFilePath: res.tempFilePath,
+                    success: (saveRes) => {
+                      wx.showToast({ title: '下载成功', icon: 'success' });
+                    },
+                    fail: () => {
+                      // 保存失败也可以打开文件
+                      wx.openDocument({
+                        filePath: res.tempFilePath,
+                        showMenu: true,
+                        fail: () => {
+                          wx.showToast({ title: '打开失败', icon: 'none' });
+                        }
+                      });
+                    }
+                  });
+                } else {
+                  wx.showToast({ title: '下载失败', icon: 'none' });
+                }
+              },
+              fail: () => {
+                wx.hideLoading();
+                wx.showToast({ title: '下载失败', icon: 'none' });
+              }
+            });
+          }
+        }
       });
     } else {
       wx.showLoading({ title: '加载中...' });

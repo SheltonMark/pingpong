@@ -40,7 +40,7 @@
     </block>
 
     <!-- PDF文档列表 -->
-    <block wx:else>
+    <block wx:elif="{{currentTab === 'document'}}">
       <view
         class="doc-card"
         wx:for="{{materials}}"
@@ -59,11 +59,31 @@
       </view>
     </block>
 
+    <!-- PPT课件列表 -->
+    <block wx:else>
+      <view
+        class="doc-card ppt-card"
+        wx:for="{{materials}}"
+        wx:key="id"
+        bindtap="onTapMaterial"
+        data-id="{{item.id}}"
+        data-type="ppt"
+        data-url="{{item.url}}"
+      >
+        <view class="doc-icon ppt-icon">PPT</view>
+        <view class="doc-info">
+          <text class="doc-title">{{item.title}}</text>
+          <text class="doc-meta">{{item.view_label || '0'}}次下载 · 点击下载</text>
+        </view>
+        <view class="doc-arrow"></view>
+      </view>
+    </block>
+
     <view class="loading" wx:if="{{isLoading}}">加载中...</view>
     <view class="no-more" wx:if="{{noMore && materials.length > 0}}">没有更多了</view>
     <view class="empty" wx:if="{{!isLoading && materials.length === 0}}">
       <text class="empty-icon">📚</text>
-      <text class="empty-text">暂无{{currentTab === 'video' ? '视频' : 'PDF'}}资料</text>
+      <text class="empty-text">暂无{{currentTab === 'video' ? '视频' : (currentTab === 'document' ? 'PDF' : 'PPT')}}资料</text>
     </view>
   </scroll-view>
 </view>
