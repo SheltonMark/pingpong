@@ -293,7 +293,8 @@ router.get('/profile', async (req, res) => {
     const [users] = await pool.query(`
       SELECT
         u.id, u.name, u.gender, u.phone, u.avatar_url,
-        u.user_type, u.class_name, u.enrollment_year,
+        u.user_type, u.school_id, u.college_id, u.department_id,
+        u.class_name, u.enrollment_year,
         u.points, u.wins, u.losses,
         u.is_registered, u.privacy_agreed,
         s.name as school_name,
