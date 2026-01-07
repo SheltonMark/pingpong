@@ -27,7 +27,8 @@
         data-type="video"
         data-url="{{item.url}}"
       >
-        <view class="video-cover" style="{{item.cover_url ? 'background-image: url(' + item.cover_url + ')' : ''}}">
+        <view class="video-cover">
+          <image wx:if="{{item.cover_url}}" class="cover-image" src="{{item.cover_url}}" mode="aspectFill" />
           <view class="play-btn">
             <view class="play-icon"></view>
           </view>

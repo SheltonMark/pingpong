@@ -60,32 +60,63 @@ Page({
 
   // 加载用户现有数据
   async loadUserData() {
-    const userInfo = app.globalData.userInfo;
-    if (!userInfo) return;
-
-    // 预填表单数据
-    this.setData({
-      selectedType: userInfo.user_type || 'student',
-      'form.name': userInfo.name || '',
-      'form.gender': userInfo.gender || null,
-      'form.phone': userInfo.phone || '',
-      'form.schoolId': userInfo.school_id || null,
-      'form.className': userInfo.class_name || '',
-      'form.enrollmentYear': userInfo.enrollment_year || null,
-      'form.avatarUrl': userInfo.avatar_url || ''
-    });
-
-    // 加载学院/单位
-    if (userInfo.school_id) {
-      await this.loadColleges(userInfo.school_id);
-      if (userInfo.user_type === 'staff') {
-        await this.loadDepartments(userInfo.school_id);
-      }
-
-      this.setData({
-        'form.collegeId': userInfo.college_id || null,
-        'form.departmentId': userInfo.department_id || null
+    // 从后端重新获取最新用户信息
+    try {
+      const res = await new Promise((resolve, reject) => {
+        wx.request({
+          url: `${app.globalData.baseUrl}/api/user/profile?openid=${app.globalData.openid}`,
+          success: (res) => resolve(res.data),
+          fail: reject
+        });
       });
+
+      if (res.success && res.data) {
+        const userInfo = res.data;
+        // 更新全局数据
+        app.globalData.userInfo = userInfo;
+        wx.setStorageSync('userInfo', userInfo);
+
+        // 预填表单数据
+        this.setData({
+          selectedType: userInfo.user_type || 'student',
+          'form.name': userInfo.name || '',
+          'form.gender': userInfo.gender || null,
+          'form.phone': userInfo.phone || '',
+          'form.schoolId': userInfo.school_id || null,
+          'form.className': userInfo.class_name || '',
+          'form.enrollmentYear': userInfo.enrollment_year || null,
+          'form.avatarUrl': userInfo.avatar_url || ''
+        });
+
+        // 加载学院/单位
+        if (userInfo.school_id) {
+          await this.loadColleges(userInfo.school_id);
+          if (userInfo.user_type === 'staff') {
+            await this.loadDepartments(userInfo.school_id);
+          }
+
+          this.setData({
+            'form.collegeId': userInfo.college_id || null,
+            'form.departmentId': userInfo.department_id || null
+          });
+        }
+      }
+    } catch (error) {
+      console.error('加载用户数据失败:', error);
+      // 降级使用本地数据
+      const userInfo = app.globalData.userInfo;
+      if (userInfo) {
+        this.setData({
+          selectedType: userInfo.user_type || 'student',
+          'form.name': userInfo.name || '',
+          'form.gender': userInfo.gender || null,
+          'form.phone': userInfo.phone || '',
+          'form.schoolId': userInfo.school_id || null,
+          'form.className': userInfo.class_name || '',
+          'form.enrollmentYear': userInfo.enrollment_year || null,
+          'form.avatarUrl': userInfo.avatar_url || ''
+        });
+      }
     }
   },
 

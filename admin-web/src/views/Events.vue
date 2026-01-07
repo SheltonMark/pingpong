@@ -62,9 +62,9 @@
         </el-form-item>
         <el-form-item label="几局几胜">
           <div style="display: flex; align-items: center; gap: 10px;">
-            <el-input-number v-model="form.best_of" :min="1" :max="21" placeholder="局数" />
+            <el-input-number v-model="form.best_of" :min="1" :max="21" />
             <span>局</span>
-            <el-input-number v-model="form.games_to_win" :min="1" :max="11" placeholder="胜数" />
+            <el-input-number v-model="form.games_to_win" :min="1" :max="11" />
             <span>胜</span>
           </div>
         </el-form-item>
@@ -97,26 +97,29 @@
           />
         </el-form-item>
         <el-form-item label="赛事说明">
-          <div class="rich-editor">
-            <div class="toolbar">
-              <el-button-group>
-                <el-button size="small" @click="execCommand('bold')"><strong>B</strong></el-button>
-                <el-button size="small" @click="execCommand('italic')"><em>I</em></el-button>
-                <el-button size="small" @click="execCommand('underline')"><u>U</u></el-button>
-              </el-button-group>
-              <el-button-group style="margin-left: 8px">
-                <el-button size="small" @click="execCommand('insertUnorderedList')">列表</el-button>
-                <el-button size="small" @click="insertImage">图片</el-button>
-              </el-button-group>
+          <el-input
+            v-model="form.description"
+            type="textarea"
+            :rows="4"
+            placeholder="请输入赛事说明"
+          />
+        </el-form-item>
+        <el-form-item label="说明图片">
+          <el-upload
+            class="desc-image-uploader"
+            action="/api/upload/file"
+            :show-file-list="false"
+            :on-success="onImageUploadSuccess"
+            accept="image/*"
+            name="file"
+          >
+            <img v-if="form.description_image" :src="form.description_image" class="desc-image-preview" />
+            <div v-else class="desc-image-placeholder">
+              <el-icon><Plus /></el-icon>
+              <span>上传图片</span>
             </div>
-            <div
-              ref="editorRef"
-              class="editor-content"
-              contenteditable="true"
-              @input="onEditorInput"
-              v-html="form.description"
-            ></div>
-          </div>
+          </el-upload>
+          <el-button v-if="form.description_image" size="small" type="danger" style="margin-left: 10px" @click="form.description_image = ''">删除图片</el-button>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -137,7 +140,6 @@ const events = ref([])
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const submitting = ref(false)
-const editorRef = ref(null)
 
 const form = ref({
   title: '',
@@ -150,29 +152,17 @@ const form = ref({
   location: '',
   max_participants: 32,
   registration_end: '',
-  description: ''
+  description: '',
+  description_image: ''
 })
 
-// 富文本编辑器函数
-const execCommand = (command) => {
-  document.execCommand(command, false, null)
-  editorRef.value?.focus()
-}
-
-const insertImage = () => {
-  ElMessageBox.prompt('请输入图片URL', '插入图片', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    inputPlaceholder: 'https://...'
-  }).then(({ value }) => {
-    if (value) {
-      document.execCommand('insertImage', false, value)
-    }
-  }).catch(() => {})
-}
-
-const onEditorInput = (e) => {
-  form.value.description = e.target.innerHTML
+const onImageUploadSuccess = (response) => {
+  if (response.success) {
+    form.value.description_image = response.data.url
+    ElMessage.success('图片上传成功')
+  } else {
+    ElMessage.error(response.message || '上传失败')
+  }
 }
 
 const typeLabels = {
@@ -195,15 +185,15 @@ const statusTypes = {
   finished: ''
 }
 
-const getUserId = () => {
-  const user = JSON.parse(localStorage.getItem('adminUser') || '{}')
-  return user.id
+const getAdminUser = () => {
+  return JSON.parse(localStorage.getItem('adminUser') || '{}')
 }
 
 const loadEvents = async () => {
   loading.value = true
   try {
-    const res = await fetch(`/api/admin/events?user_id=${getUserId()}`)
+    const user = getAdminUser()
+    const res = await fetch(`/api/admin/events?user_id=${user.id}`)
     const data = await res.json()
     if (data.success) {
       events.value = data.data || []
@@ -229,7 +219,8 @@ const showCreateDialog = () => {
     location: '',
     max_participants: 32,
     registration_end: '',
-    description: ''
+    description: '',
+    description_image: ''
   }
   dialogVisible.value = true
 }
@@ -245,9 +236,14 @@ const submitForm = async () => {
     ElMessage.warning('请输入赛事名称')
     return
   }
+  if (!form.value.event_start) {
+    ElMessage.warning('请选择开始时间')
+    return
+  }
 
   submitting.value = true
   try {
+    const user = getAdminUser()
     const url = isEdit.value
       ? `/api/admin/events/${form.value.id}`
       : '/api/admin/events'
@@ -258,7 +254,8 @@ const submitForm = async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...form.value,
-        user_id: getUserId()
+        user_id: user.id,
+        school_id: user.school_id || null
       })
     })
     const data = await res.json()
@@ -284,7 +281,8 @@ const deleteEvent = async (row) => {
       type: 'warning'
     })
 
-    const res = await fetch(`/api/admin/events/${row.id}?user_id=${getUserId()}`, {
+    const user = getAdminUser()
+    const res = await fetch(`/api/admin/events/${row.id}?user_id=${user.id}`, {
       method: 'DELETE'
     })
     const data = await res.json()
@@ -322,28 +320,33 @@ onMounted(() => {
   margin: 0;
 }
 
-.rich-editor {
-  border: 1px solid #dcdfe6;
+.desc-image-uploader {
+  display: inline-block;
+}
+.desc-image-preview {
+  width: 200px;
+  height: 112px;
+  object-fit: cover;
   border-radius: 4px;
-  overflow: hidden;
 }
-.rich-editor .toolbar {
-  padding: 8px;
-  background: #f5f7fa;
-  border-bottom: 1px solid #dcdfe6;
+.desc-image-placeholder {
+  width: 200px;
+  height: 112px;
+  border: 1px dashed #d9d9d9;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #8c939d;
+  background: #fafafa;
+  cursor: pointer;
 }
-.rich-editor .editor-content {
-  min-height: 150px;
-  padding: 12px;
-  outline: none;
-  line-height: 1.6;
+.desc-image-placeholder:hover {
+  border-color: #409eff;
 }
-.rich-editor .editor-content:empty:before {
-  content: '请输入赛事说明...';
-  color: #c0c4cc;
-}
-.rich-editor .editor-content img {
-  max-width: 100%;
-  height: auto;
+.desc-image-placeholder .el-icon {
+  font-size: 28px;
+  margin-bottom: 8px;
 }
 </style>
