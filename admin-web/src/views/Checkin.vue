@@ -246,17 +246,38 @@ const searchLocation = async () => {
   }
 
   try {
-    // 使用腾讯地图搜索服务
-    const searchService = new window.TMap.service.Search({
-      pageSize: 1
+    // 使用腾讯地图 WebService API 搜索
+    const key = 'ORNBZ-LB63J-CYOFT-XCIHE-ZMZCQ-NOBTU'
+    const url = `https://apis.map.qq.com/ws/place/v1/search?keyword=${encodeURIComponent(searchAddress.value)}&boundary=region(全国,0)&key=${key}&output=jsonp&callback=searchCallback`
+
+    // 使用 JSONP 方式调用
+    const result = await new Promise((resolve, reject) => {
+      const callbackName = 'searchCallback_' + Date.now()
+      window[callbackName] = (data) => {
+        delete window[callbackName]
+        document.body.removeChild(script)
+        resolve(data)
+      }
+
+      const script = document.createElement('script')
+      script.src = url.replace('callback=searchCallback', `callback=${callbackName}`)
+      script.onerror = () => {
+        delete window[callbackName]
+        document.body.removeChild(script)
+        reject(new Error('请求失败'))
+      }
+      document.body.appendChild(script)
+
+      // 超时处理
+      setTimeout(() => {
+        if (window[callbackName]) {
+          delete window[callbackName]
+          reject(new Error('请求超时'))
+        }
+      }, 10000)
     })
 
-    const result = await searchService.searchRegion({
-      keyword: searchAddress.value,
-      boundary: 'region(全国,0)'
-    })
-
-    if (result.data && result.data.length > 0) {
+    if (result.status === 0 && result.data && result.data.length > 0) {
       const poi = result.data[0]
       const position = poi.location
       form.value.latitude = position.lat.toFixed(6)
