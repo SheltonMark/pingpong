@@ -60,7 +60,8 @@ router.post('/file', upload.single('file'), (req, res) => {
 
     // 返回文件URL
     const fileUrl = `/uploads/${req.file.filename}`;
-    const originalName = req.file.originalname;
+    // 修复中文文件名乱码问题
+    const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
 
     res.json({
       success: true,

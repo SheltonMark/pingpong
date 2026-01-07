@@ -401,7 +401,10 @@ onMounted(async () => {
   display: flex;
   flex-wrap: wrap;
   gap: 20px;
-  padding: 20px 0;
+  padding: 30px 0;
+  min-height: 120px;
+  align-items: center;
+  align-content: center;
 }
 .status-item {
   display: flex;
@@ -418,6 +421,7 @@ onMounted(async () => {
   display: flex;
   justify-content: space-around;
   padding: 30px 0;
+  min-height: 120px;
 }
 .activity-item {
   text-align: center;
