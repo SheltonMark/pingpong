@@ -60,6 +60,17 @@
             <el-option label="小组+淘汰" value="group_knockout" />
           </el-select>
         </el-form-item>
+        <el-form-item label="几局几胜">
+          <el-select v-model="form.best_of" placeholder="请选择">
+            <el-option label="3局2胜" :value="3" />
+            <el-option label="5局3胜" :value="5" />
+            <el-option label="7局4胜" :value="7" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="计入积分">
+          <el-switch v-model="form.counts_for_ranking" />
+          <span style="margin-left: 10px; color: #909399">开启后比赛结果将计入用户积分</span>
+        </el-form-item>
         <el-form-item label="开始时间" required>
           <el-date-picker
             v-model="form.event_start"
@@ -131,6 +142,8 @@ const form = ref({
   title: '',
   event_type: 'singles',
   event_format: 'knockout',
+  best_of: 5,
+  counts_for_ranking: true,
   event_start: '',
   location: '',
   max_participants: 32,
@@ -207,6 +220,8 @@ const showCreateDialog = () => {
     title: '',
     event_type: 'singles',
     event_format: 'knockout',
+    best_of: 5,
+    counts_for_ranking: true,
     event_start: '',
     location: '',
     max_participants: 32,

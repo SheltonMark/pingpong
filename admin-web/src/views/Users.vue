@@ -23,15 +23,15 @@
 
       <el-table :data="users" v-loading="loading" stripe>
         <el-table-column prop="id" label="ID" width="60" />
-        <el-table-column prop="name" label="姓名" width="100" />
-        <el-table-column prop="phone" label="手机号" width="130" />
+        <el-table-column prop="name" label="姓名" min-width="100" />
+        <el-table-column prop="phone" label="手机号" min-width="130" />
         <el-table-column prop="user_type" label="身份" width="80">
           <template #default="{ row }">
             {{ typeLabels[row.user_type] || row.user_type }}
           </template>
         </el-table-column>
-        <el-table-column prop="school_name" label="学校" width="150" />
-        <el-table-column prop="college_name" label="学院" width="120" />
+        <el-table-column prop="school_name" label="学校" min-width="150" />
+        <el-table-column prop="college_name" label="学院" min-width="120" />
         <el-table-column prop="rating" label="积分" width="80" />
         <el-table-column prop="role" label="角色" width="100">
           <template #default="{ row }">
@@ -46,7 +46,7 @@
             {{ formatDateTime(row.created_at) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
+        <el-table-column label="操作" width="100" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="adjustRating(row)">调整积分</el-button>
           </template>

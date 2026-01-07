@@ -85,10 +85,10 @@ Page({
         url: `/pages/video-player/video-player?id=${id}&url=${encodeURIComponent(fullUrl)}`
       });
     } else if (type === 'ppt') {
-      // PPT 只能下载
+      // PPT 下载并打开
       wx.showModal({
         title: '提示',
-        content: 'PPT文件将下载到手机，是否继续？',
+        content: 'PPT文件将下载到手机，下载后可选择用其他应用打开',
         success: (res) => {
           if (res.confirm) {
             wx.showLoading({ title: '下载中...' });
@@ -97,29 +97,26 @@ Page({
               success: (res) => {
                 wx.hideLoading();
                 if (res.statusCode === 200) {
-                  wx.saveFile({
-                    tempFilePath: res.tempFilePath,
-                    success: (saveRes) => {
-                      wx.showToast({ title: '下载成功', icon: 'success' });
+                  // 直接用openDocument打开，用户可以通过右上角菜单保存或分享
+                  wx.openDocument({
+                    filePath: res.tempFilePath,
+                    showMenu: true,
+                    success: () => {
+                      console.log('PPT打开成功');
                     },
-                    fail: () => {
-                      // 保存失败也可以打开文件
-                      wx.openDocument({
-                        filePath: res.tempFilePath,
-                        showMenu: true,
-                        fail: () => {
-                          wx.showToast({ title: '打开失败', icon: 'none' });
-                        }
-                      });
+                    fail: (err) => {
+                      console.error('打开PPT失败:', err);
+                      wx.showToast({ title: '打开失败，请重试', icon: 'none' });
                     }
                   });
                 } else {
                   wx.showToast({ title: '下载失败', icon: 'none' });
                 }
               },
-              fail: () => {
+              fail: (err) => {
                 wx.hideLoading();
-                wx.showToast({ title: '下载失败', icon: 'none' });
+                console.error('下载PPT失败:', err);
+                wx.showToast({ title: '下载失败，请检查网络', icon: 'none' });
               }
             });
           }

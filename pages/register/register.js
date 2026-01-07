@@ -23,7 +23,8 @@ Page({
       collegeId: null,
       departmentId: null,
       className: '',
-      enrollmentYear: null
+      enrollmentYear: null,
+      avatarUrl: ''
     },
 
     // 下拉选项
@@ -70,7 +71,8 @@ Page({
       'form.phone': userInfo.phone || '',
       'form.schoolId': userInfo.school_id || null,
       'form.className': userInfo.class_name || '',
-      'form.enrollmentYear': userInfo.enrollment_year || null
+      'form.enrollmentYear': userInfo.enrollment_year || null,
+      'form.avatarUrl': userInfo.avatar_url || ''
     });
 
     // 加载学院/单位
@@ -222,6 +224,14 @@ Page({
     }
   },
 
+  // 选择头像
+  onChooseAvatar(e) {
+    const { avatarUrl } = e.detail;
+    if (avatarUrl) {
+      this.setData({ 'form.avatarUrl': avatarUrl });
+    }
+  },
+
   // 表单验证
   validateForm() {
     const { form, selectedType } = this.data;
@@ -291,7 +301,8 @@ Page({
             college_id: form.collegeId,
             department_id: form.departmentId,
             class_name: form.className,
-            enrollment_year: form.enrollmentYear
+            enrollment_year: form.enrollmentYear,
+            avatar_url: form.avatarUrl
           },
           success: (res) => resolve(res),
           fail: reject
