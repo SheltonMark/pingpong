@@ -83,13 +83,15 @@
 .check-in-btn {
   width: 100%;
   height: 96rpx;
-  line-height: 96rpx;
   border-radius: 28rpx;
   font-size: 32rpx;
   font-weight: 600;
   margin-top: 40rpx;
   border: none;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
 }
 
 .check-in-btn.active {

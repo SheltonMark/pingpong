@@ -150,7 +150,9 @@ Page({
 
   async onCheckIn() {
     if (!this.data.canCheckIn || this.data.isCheckingIn) return;
-    if (!app.globalData.isLoggedIn || !app.globalData.userInfo?.id) {
+
+    const userId = app.globalData.userInfo?.id || app.globalData.userInfo?.user_id;
+    if (!app.globalData.isLoggedIn || !userId) {
       wx.showToast({ title: '请先登录', icon: 'none' });
       return;
     }
@@ -163,7 +165,7 @@ Page({
 
     try {
       const res = await this.request('/api/checkin/check-in', {
-        user_id: app.globalData.userInfo.id,
+        user_id: userId,
         point_id: this.data.nearestPoint.id,
         latitude: this.data.location.lat,
         longitude: this.data.location.lng
