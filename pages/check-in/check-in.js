@@ -124,11 +124,12 @@ Page({
   },
 
   async loadRecords() {
-    if (!app.globalData.userInfo?.id) return;
+    const userId = app.globalData.userInfo?.id || app.globalData.userInfo?.user_id;
+    if (!userId) return;
 
     try {
       const res = await this.request('/api/checkin/records', {
-        user_id: app.globalData.userInfo.id
+        user_id: userId
       });
 
       if (res.success) {
