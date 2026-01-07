@@ -47,10 +47,18 @@ Page({
       });
 
       if (res.success) {
-        const materials = res.data.list.map(m => ({
-          ...m,
-          view_label: this.formatViewCount(m.view_count)
-        }));
+        const materials = res.data.list.map(m => {
+          // 处理封面URL，拼接完整路径
+          let coverUrl = m.cover_url;
+          if (coverUrl && !coverUrl.startsWith('http')) {
+            coverUrl = app.globalData.baseUrl + coverUrl;
+          }
+          return {
+            ...m,
+            cover_url: coverUrl,
+            view_label: this.formatViewCount(m.view_count)
+          };
+        });
 
         this.setData({
           materials: loadMore ? [...this.data.materials, ...materials] : materials,
