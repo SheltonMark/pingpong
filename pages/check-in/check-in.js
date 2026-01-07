@@ -9,7 +9,11 @@ Page({
     records: [],
     monthlyCount: 0,
     isLoading: true,
-    isCheckingIn: false
+    isCheckingIn: false,
+    // 地图相关
+    mapScale: 16,
+    markers: [],
+    circles: []
   },
 
   onLoad() {
@@ -20,6 +24,7 @@ Page({
     this.loadRecords();
   },
 
+  // 获取位置（会自动弹出授权弹窗）
   async getLocation() {
     try {
       const res = await wx.getLocation({
@@ -34,7 +39,7 @@ Page({
       this.loadNearestPoint();
     } catch (error) {
       console.error('获取位置失败:', error);
-      wx.showToast({ title: '请开启定位权限', icon: 'none' });
+      wx.showToast({ title: '需要位置权限才能签到', icon: 'none' });
       this.setData({ isLoading: false });
     }
   },
@@ -53,10 +58,62 @@ Page({
         const point = res.data[0];
         const canCheckIn = point.distance <= point.radius;
 
+        // 设置地图标记和范围圈
+        const markers = [
+          {
+            id: 1,
+            latitude: parseFloat(point.latitude),
+            longitude: parseFloat(point.longitude),
+            title: point.name,
+            width: 28,
+            height: 36,
+            callout: {
+              content: point.name,
+              display: 'ALWAYS',
+              fontSize: 13,
+              borderRadius: 6,
+              padding: 8,
+              bgColor: '#10B981',
+              color: '#fff',
+              borderWidth: 0
+            }
+          },
+          {
+            id: 2,
+            latitude: this.data.location.lat,
+            longitude: this.data.location.lng,
+            title: '我的位置',
+            width: 24,
+            height: 24,
+            callout: {
+              content: '我的位置',
+              display: 'BYCLICK',
+              fontSize: 12,
+              borderRadius: 4,
+              padding: 6,
+              bgColor: '#3B82F6',
+              color: '#fff'
+            }
+          }
+        ];
+
+        const circles = [
+          {
+            latitude: parseFloat(point.latitude),
+            longitude: parseFloat(point.longitude),
+            radius: point.radius,
+            color: '#10B98133',
+            fillColor: '#10B98122',
+            strokeWidth: 2
+          }
+        ];
+
         this.setData({
           nearestPoint: point,
           distance: Math.round(point.distance),
-          canCheckIn
+          canCheckIn,
+          markers,
+          circles
         });
       }
     } catch (error) {
@@ -125,6 +182,23 @@ Page({
   onRefreshLocation() {
     this.setData({ isLoading: true });
     this.getLocation();
+  },
+
+  // 点击地图上的标记
+  onMarkerTap(e) {
+    const markerId = e.markerId;
+    if (markerId === 1 && this.data.nearestPoint) {
+      wx.showToast({ title: this.data.nearestPoint.name, icon: 'none' });
+    }
+  },
+
+  // 移动到当前位置
+  moveToLocation() {
+    const mapCtx = wx.createMapContext('checkInMap');
+    mapCtx.moveToLocation({
+      latitude: this.data.location?.lat,
+      longitude: this.data.location?.lng
+    });
   },
 
   formatDate(dateStr) {

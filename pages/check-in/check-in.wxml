@@ -1,14 +1,36 @@
 <view class="check-in-page">
+  <!-- 地图显示 -->
+  <view class="map-section" wx:if="{{location && nearestPoint}}">
+    <map
+      id="checkInMap"
+      class="check-in-map"
+      latitude="{{nearestPoint.latitude}}"
+      longitude="{{nearestPoint.longitude}}"
+      scale="{{mapScale}}"
+      markers="{{markers}}"
+      circles="{{circles}}"
+      show-location
+      bindmarkertap="onMarkerTap"
+    ></map>
+    <view class="map-btn-group">
+      <view class="map-btn" bindtap="moveToLocation">
+        <text>📍 我的位置</text>
+      </view>
+    </view>
+  </view>
+
   <!-- 签到状态卡片 -->
   <view class="status-card">
     <view class="status-icon {{canCheckIn ? 'active' : ''}}">📍</view>
 
     <block wx:if="{{isLoading}}">
       <text class="status-title">定位中...</text>
+      <text class="status-desc">正在获取您的位置信息</text>
     </block>
     <block wx:elif="{{nearestPoint}}">
       <text class="status-title">{{nearestPoint.name}}</text>
       <text class="status-desc">当前位置距离签到点 {{distance}}m</text>
+      <text class="status-hint" wx:if="{{!canCheckIn}}">需要在{{nearestPoint.radius}}m范围内才能签到</text>
 
       <button
         class="check-in-btn {{canCheckIn ? 'active' : 'disabled'}}"
