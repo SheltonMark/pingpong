@@ -1,0 +1,43 @@
+.video-player-page {
+  min-height: 100vh;
+  background: #000;
+}
+
+.video {
+  width: 100%;
+  height: 56.25vw; /* 16:9 */
+}
+
+.video-info {
+  padding: 30rpx;
+  background: #fff;
+  margin-top: 20rpx;
+}
+
+.video-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+  display: block;
+  line-height: 1.4;
+}
+
+.video-meta {
+  display: flex;
+  align-items: center;
+  margin-top: 16rpx;
+  font-size: 26rpx;
+  color: #999;
+}
+
+.video-meta .dot {
+  margin: 0 12rpx;
+}
+
+.video-desc {
+  display: block;
+  margin-top: 20rpx;
+  font-size: 28rpx;
+  color: #666;
+  line-height: 1.6;
+}

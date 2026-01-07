@@ -26,7 +26,11 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" width="160" />
+        <el-table-column prop="created_at" label="创建时间" width="160">
+          <template #default="{ row }">
+            {{ formatDate(row.created_at) }}
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="editAnnouncement(row)">编辑</el-button>
@@ -94,6 +98,17 @@ const form = ref({
 const getUserId = () => {
   const user = JSON.parse(localStorage.getItem('adminUser') || '{}')
   return user.id
+}
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}`
 }
 
 const loadAnnouncements = async () => {
@@ -181,7 +196,7 @@ const toggleActive = async (row) => {
     const res = await fetch(`/api/admin/announcements/${row.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...row, status: row.status === 'active' ? 'inactive' : 'active', user_id: getUserId() })
+      body: JSON.stringify({ ...row, is_active: row.is_active ? 0 : 1, user_id: getUserId() })
     })
     const data = await res.json()
 

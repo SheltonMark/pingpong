@@ -74,18 +74,39 @@ Page({
   onTapMaterial(e) {
     const { id, type, url } = e.currentTarget.dataset;
 
+    // 构建完整URL
+    let fullUrl = url;
+    if (url && !url.startsWith('http')) {
+      fullUrl = app.globalData.baseUrl + url;
+    }
+
     if (type === 'video') {
       wx.navigateTo({
-        url: `/pages/video-player/video-player?id=${id}&url=${encodeURIComponent(url)}`
+        url: `/pages/video-player/video-player?id=${id}&url=${encodeURIComponent(fullUrl)}`
       });
     } else {
+      wx.showLoading({ title: '加载中...' });
       wx.downloadFile({
-        url: url,
+        url: fullUrl,
         success: (res) => {
-          wx.openDocument({
-            filePath: res.tempFilePath,
-            showMenu: true
-          });
+          wx.hideLoading();
+          if (res.statusCode === 200) {
+            wx.openDocument({
+              filePath: res.tempFilePath,
+              showMenu: true,
+              fail: (err) => {
+                console.error('打开文档失败:', err);
+                wx.showToast({ title: '打开失败', icon: 'none' });
+              }
+            });
+          } else {
+            wx.showToast({ title: '下载失败', icon: 'none' });
+          }
+        },
+        fail: (err) => {
+          wx.hideLoading();
+          console.error('下载失败:', err);
+          wx.showToast({ title: '下载失败', icon: 'none' });
         }
       });
     }

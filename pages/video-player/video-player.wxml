@@ -1,0 +1,26 @@
+<view class="video-player-page">
+  <video
+    id="videoPlayer"
+    class="video"
+    src="{{videoUrl}}"
+    controls
+    autoplay
+    show-fullscreen-btn
+    show-play-btn
+    show-center-play-btn
+    enable-progress-gesture
+    object-fit="contain"
+    binderror="onVideoError"
+    bindended="onVideoEnded"
+  ></video>
+
+  <view class="video-info" wx:if="{{videoInfo}}">
+    <text class="video-title">{{videoInfo.title}}</text>
+    <view class="video-meta">
+      <text>{{videoInfo.author || '未知作者'}}</text>
+      <text class="dot">·</text>
+      <text>{{videoInfo.view_count || 0}}次观看</text>
+    </view>
+    <text class="video-desc" wx:if="{{videoInfo.description}}">{{videoInfo.description}}</text>
+  </view>
+</view>

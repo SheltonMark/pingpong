@@ -15,6 +15,7 @@
     "pages/invitation-detail/invitation-detail",
     "pages/check-in/check-in",
     "pages/learning/learning",
+    "pages/video-player/video-player",
     "pages/match-history/match-history",
     "pages/my-events/my-events",
     "pages/invitations/invitations",

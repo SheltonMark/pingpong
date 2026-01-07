@@ -366,14 +366,18 @@ router.get('/users', requireAdmin, async (req, res) => {
     const offset = (page - 1) * limit;
 
     let sql = `
-      SELECT u.id, u.name, u.phone, u.user_type, u.points, u.wins, u.losses,
+      SELECT u.id, u.name, u.phone, u.user_type, u.points as rating, u.wins, u.losses,
              u.is_registered, u.created_at,
              s.name as school_name,
-             GROUP_CONCAT(r.name) as roles
+             c.name as college_name,
+             (SELECT r2.code FROM user_roles ur2
+              JOIN roles r2 ON ur2.role_id = r2.id
+              WHERE ur2.user_id = u.id
+              AND r2.code IN ('super_admin', 'school_admin', 'event_manager')
+              LIMIT 1) as role
       FROM users u
       LEFT JOIN schools s ON u.school_id = s.id
-      LEFT JOIN user_roles ur ON u.id = ur.user_id
-      LEFT JOIN roles r ON ur.role_id = r.id
+      LEFT JOIN colleges c ON u.college_id = c.id
     `;
     const params = [];
 
@@ -382,7 +386,7 @@ router.get('/users', requireAdmin, async (req, res) => {
       params.push(`%${keyword}%`, `%${keyword}%`);
     }
 
-    sql += ' GROUP BY u.id ORDER BY u.created_at DESC LIMIT ? OFFSET ?';
+    sql += ' ORDER BY u.created_at DESC LIMIT ? OFFSET ?';
     params.push(parseInt(limit), parseInt(offset));
 
     const [users] = await pool.execute(sql, params);
@@ -553,8 +557,8 @@ router.post('/announcements', requireAdmin, async (req, res) => {
     const { title, content, link_type, link_id, school_id, user_id } = req.body;
 
     const [result] = await pool.execute(`
-      INSERT INTO announcements (title, content, link_type, link_id, school_id, created_by, status, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, 'active', NOW())
+      INSERT INTO announcements (title, content, link_type, link_id, school_id, created_by, is_active, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, 1, NOW())
     `, [title, content, link_type || null, link_id || null, school_id || null, user_id]);
 
     res.json({ success: true, data: { id: result.insertId } });
@@ -568,12 +572,12 @@ router.post('/announcements', requireAdmin, async (req, res) => {
 router.put('/announcements/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, content, link_type, link_id, status } = req.body;
+    const { title, content, link_type, link_id, is_active } = req.body;
 
     await pool.execute(`
-      UPDATE announcements SET title = ?, content = ?, link_type = ?, link_id = ?, status = ?
+      UPDATE announcements SET title = ?, content = ?, link_type = ?, link_id = ?, is_active = ?
       WHERE id = ?
-    `, [title, content, link_type || null, link_id || null, status, id]);
+    `, [title, content, link_type || null, link_id || null, is_active !== undefined ? is_active : 1, id]);
 
     res.json({ success: true });
   } catch (error) {

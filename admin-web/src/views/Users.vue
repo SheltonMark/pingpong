@@ -37,13 +37,13 @@
           <template #default="{ row }">
             <el-tag v-if="row.role === 'super_admin'" type="danger">超级管理</el-tag>
             <el-tag v-else-if="row.role === 'school_admin'" type="warning">校管理员</el-tag>
+            <el-tag v-else-if="row.role === 'event_manager'" type="success">赛事管理</el-tag>
             <el-tag v-else type="info">普通用户</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="created_at" label="注册时间" width="160" />
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="120" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" @click="editRole(row)">设置角色</el-button>
             <el-button size="small" @click="adjustRating(row)">调整积分</el-button>
           </template>
         </el-table-column>
@@ -59,26 +59,6 @@
         @current-change="handlePageChange"
       />
     </el-card>
-
-    <!-- 角色设置对话框 -->
-    <el-dialog v-model="roleDialogVisible" title="设置用户角色" width="400px">
-      <el-form :model="roleForm" label-width="80px">
-        <el-form-item label="用户">
-          <span>{{ roleForm.name }}</span>
-        </el-form-item>
-        <el-form-item label="角色">
-          <el-select v-model="roleForm.role">
-            <el-option label="普通用户" value="user" />
-            <el-option label="校管理员" value="school_admin" />
-            <el-option label="超级管理员" value="super_admin" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="roleDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitRole" :loading="submitting">确定</el-button>
-      </template>
-    </el-dialog>
 
     <!-- 积分调整对话框 -->
     <el-dialog v-model="ratingDialogVisible" title="调整用户积分" width="400px">
@@ -116,10 +96,8 @@ const total = ref(0)
 const searchKeyword = ref('')
 const submitting = ref(false)
 
-const roleDialogVisible = ref(false)
 const ratingDialogVisible = ref(false)
 
-const roleForm = ref({ id: null, name: '', role: '' })
 const ratingForm = ref({ id: null, name: '', currentRating: 0, adjustment: 0, remark: '' })
 
 const typeLabels = {
@@ -168,40 +146,6 @@ const searchUsers = () => {
 const handlePageChange = (newPage) => {
   page.value = newPage
   loadUsers()
-}
-
-const editRole = (row) => {
-  roleForm.value = {
-    id: row.id,
-    name: row.name,
-    role: row.role || 'user'
-  }
-  roleDialogVisible.value = true
-}
-
-const submitRole = async () => {
-  submitting.value = true
-  try {
-    const res = await fetch(`/api/admin/users/${roleForm.value.id}/role`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role: roleForm.value.role, user_id: getUserId() })
-    })
-    const data = await res.json()
-
-    if (data.success) {
-      ElMessage.success('角色更新成功')
-      roleDialogVisible.value = false
-      loadUsers()
-    } else {
-      ElMessage.error(data.message || '更新失败')
-    }
-  } catch (error) {
-    console.error('更新角色失败:', error)
-    ElMessage.error('更新失败')
-  } finally {
-    submitting.value = false
-  }
 }
 
 const adjustRating = (row) => {
