@@ -18,7 +18,7 @@ async function runMigrations() {
       try {
         const migration = require(path.join(migrationsDir, file));
         if (typeof migration.up === 'function') {
-          await migration.up();
+          await migration.up(pool);
           console.log(`✅ Completed: ${file}`);
         } else {
           console.log(`  ⚠️ Skipped: No up() function`);
