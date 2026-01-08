@@ -175,7 +175,7 @@ router.post('/events', requireAdmin, async (req, res) => {
         best_of, games_to_win, points_per_game, counts_for_ranking,
         registration_start, registration_end, event_start, event_end,
         location, max_participants, school_id, created_by, status, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', NOW())
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', NOW())
     `, [
       title, description || null, event_type, event_format, scope || 'school',
       best_of || 5, games_to_win || 3, points_per_game || 11, counts_for_ranking ? 1 : 0,
