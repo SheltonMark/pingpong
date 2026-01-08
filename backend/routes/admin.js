@@ -163,7 +163,7 @@ router.get('/events', requireAdmin, async (req, res) => {
 router.post('/events', requireAdmin, async (req, res) => {
   try {
     const {
-      title, description, description_image, event_type, event_format, scope,
+      title, description, event_type, event_format, scope,
       best_of, games_to_win, points_per_game, counts_for_ranking,
       registration_start, registration_end, event_start, event_end,
       location, max_participants, school_id, user_id
@@ -171,13 +171,13 @@ router.post('/events', requireAdmin, async (req, res) => {
 
     const [result] = await pool.execute(`
       INSERT INTO events (
-        title, description, description_image, event_type, event_format, scope,
+        title, description, event_type, event_format, scope,
         best_of, games_to_win, points_per_game, counts_for_ranking,
         registration_start, registration_end, event_start, event_end,
         location, max_participants, school_id, created_by, status, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', NOW())
     `, [
-      title, description || null, description_image || null, event_type, event_format, scope || 'school',
+      title, description || null, event_type, event_format, scope || 'school',
       best_of || 5, games_to_win || 3, points_per_game || 11, counts_for_ranking ? 1 : 0,
       registration_start || null, registration_end || null, event_start || null, event_end || null,
       location || null, max_participants || 32, school_id || null, user_id
@@ -195,7 +195,7 @@ router.put('/events/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const {
-      title, description, description_image, event_type, event_format, scope,
+      title, description, event_type, event_format, scope,
       best_of, games_to_win, points_per_game, counts_for_ranking,
       registration_start, registration_end, event_start, event_end,
       location, max_participants, status
@@ -203,13 +203,13 @@ router.put('/events/:id', requireAdmin, async (req, res) => {
 
     await pool.execute(`
       UPDATE events SET
-        title = ?, description = ?, description_image = ?, event_type = ?, event_format = ?, scope = ?,
+        title = ?, description = ?, event_type = ?, event_format = ?, scope = ?,
         best_of = ?, games_to_win = ?, points_per_game = ?, counts_for_ranking = ?,
         registration_start = ?, registration_end = ?, event_start = ?, event_end = ?,
         location = ?, max_participants = ?, status = ?, updated_at = NOW()
       WHERE id = ?
     `, [
-      title, description || null, description_image || null, event_type, event_format, scope || 'school',
+      title, description || null, event_type, event_format, scope || 'school',
       best_of || 5, games_to_win || 3, points_per_game || 11, counts_for_ranking ? 1 : 0,
       registration_start || null, registration_end || null, event_start || null, event_end || null,
       location || null, max_participants || 32, status || 'draft', id

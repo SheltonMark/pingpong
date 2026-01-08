@@ -13,7 +13,9 @@
     "vue-router": "^4.2.5",
     "element-plus": "^2.4.4",
     "axios": "^1.6.2",
-    "@element-plus/icons-vue": "^2.3.1"
+    "@element-plus/icons-vue": "^2.3.1",
+    "@wangeditor/editor": "^5.1.23",
+    "@wangeditor/editor-for-vue": "^5.1.12"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^4.5.2",

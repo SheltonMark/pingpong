@@ -96,31 +96,23 @@
             value-format="YYYY-MM-DD HH:mm:ss"
           />
         </el-form-item>
-        <el-form-item label="赛事说明">
-          <el-input
-            v-model="form.description"
-            type="textarea"
-            :rows="4"
-            placeholder="请输入赛事说明"
-          />
-        </el-form-item>
-        <el-form-item label="说明图片">
-          <el-upload
-            class="desc-image-uploader"
-            action="/api/upload/file"
-            :show-file-list="false"
-            :on-success="onImageUploadSuccess"
-            accept="image/*"
-            name="file"
-          >
-            <img v-if="form.description_image" :src="form.description_image" class="desc-image-preview" />
-            <div v-else class="desc-image-placeholder">
-              <el-icon><Plus /></el-icon>
-              <span>上传图片</span>
-            </div>
-          </el-upload>
-          <el-button v-if="form.description_image" size="small" type="danger" style="margin-left: 10px" @click="form.description_image = ''">删除图片</el-button>
-        </el-form-item>
+		  <el-form-item label="赛事说明">
+			<div class="editor-container">
+			  <Toolbar
+				style="border-bottom: 1px solid #ccc"
+				:editor="editorRef"
+				:defaultConfig="toolbarConfig"
+				mode="default"
+			  />
+			  <Editor
+				style="height: 300px; overflow-y: hidden;"
+				v-model="form.description"
+				:defaultConfig="editorConfig"
+				mode="default"
+				@onCreated="handleCreated"
+			  />
+			</div>
+		  </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -131,16 +123,45 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { formatDateTime } from '../utils/format'
+import { ref, shallowRef, onMounted, onBeforeUnmount } from 'vue'
+import '@wangeditor/editor/dist/css/style.css'
+import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
 
 const loading = ref(false)
 const events = ref([])
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const submitting = ref(false)
+const editorRef = shallowRef()
 
+const toolbarConfig = {
+excludeKeys: ['fullScreen', 'group-video']
+}
+
+const editorConfig = {
+placeholder: '请输入赛事说明...',
+MENU_CONF: {
+  uploadImage: {
+	server: '/api/upload/file',
+	fieldName: 'file',
+	maxFileSize: 5 * 1024 * 1024,
+	allowedFileTypes: ['image/*'],
+	customInsert(res, insertFn) {
+	  if (res.success) {
+		insertFn(res.data.url, res.data.url, '')
+	  } else {
+		ElMessage.error(res.message || '上传失败')
+	  }
+	}
+  }
+}
+}
+
+const handleCreated = (editor) => {
+editorRef.value = editor
+}
 const form = ref({
   title: '',
   event_type: 'singles',
@@ -153,17 +174,7 @@ const form = ref({
   max_participants: 32,
   registration_end: '',
   description: '',
-  description_image: ''
 })
-
-const onImageUploadSuccess = (response) => {
-  if (response.success) {
-    form.value.description_image = response.data.url
-    ElMessage.success('图片上传成功')
-  } else {
-    ElMessage.error(response.message || '上传失败')
-  }
-}
 
 const typeLabels = {
   singles: '单打',
@@ -220,7 +231,6 @@ const showCreateDialog = () => {
     max_participants: 32,
     registration_end: '',
     description: '',
-    description_image: ''
   }
   dialogVisible.value = true
 }
@@ -320,33 +330,10 @@ onMounted(() => {
   margin: 0;
 }
 
-.desc-image-uploader {
-  display: inline-block;
+.editor-container {
+border: 1px solid #ccc;
+border-radius: 4px;
+width: 100%;
 }
-.desc-image-preview {
-  width: 200px;
-  height: 112px;
-  object-fit: cover;
-  border-radius: 4px;
-}
-.desc-image-placeholder {
-  width: 200px;
-  height: 112px;
-  border: 1px dashed #d9d9d9;
-  border-radius: 4px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: #8c939d;
-  background: #fafafa;
-  cursor: pointer;
-}
-.desc-image-placeholder:hover {
-  border-color: #409eff;
-}
-.desc-image-placeholder .el-icon {
-  font-size: 28px;
-  margin-bottom: 8px;
-}
+
 </style>

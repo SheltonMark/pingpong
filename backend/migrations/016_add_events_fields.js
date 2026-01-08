@@ -19,22 +19,5 @@ module.exports = {
       console.log('games_to_win column already exists');
     }
 
-    // 检查并添加 description_image 列
-    const [cols2] = await pool.execute(`
-      SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
-      WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = 'events'
-      AND COLUMN_NAME = 'description_image'
-    `);
-
-    if (cols2.length === 0) {
-      await pool.execute(`
-        ALTER TABLE events
-        ADD COLUMN description_image VARCHAR(500) NULL COMMENT '赛事说明图片' AFTER description
-      `);
-      console.log('Added description_image column to events');
-    } else {
-      console.log('description_image column already exists');
-    }
   }
 };

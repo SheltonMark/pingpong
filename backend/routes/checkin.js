@@ -77,10 +77,10 @@ router.post('/check-in', async (req, res) => {
       return res.json({ success: false, message: '今日已签到' });
     }
 
-    // 插入签到记录
+    // 插入签到记录，使用当前服务器时间
     await pool.query(
-      `INSERT INTO check_ins (user_id, point_id, latitude, longitude, distance)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO check_ins (user_id, point_id, latitude, longitude, distance, check_in_time)
+       VALUES (?, ?, ?, ?, ?, NOW())`,
       [user_id, point_id, latitude, longitude, Math.round(distance)]
     );
 
