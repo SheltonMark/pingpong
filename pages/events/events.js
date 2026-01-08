@@ -93,7 +93,9 @@ Page({
 
       if (res.success) {
         this.setData({
-          events: loadMore ? [...this.data.events, ...res.data.list] : res.data.list,
+          events: loadMore 
+            ? [...this.data.events, ...res.data.list.map(e => ({...e, event_start: this.formatTime(e.event_start)}))]
+            : res.data.list.map(e => ({...e, event_start: this.formatTime(e.event_start)})),
           page: page + 1,
           hasMore: res.data.list.length === 20
         });
@@ -143,6 +145,19 @@ Page({
         max_participants: 8
       }
     ];
+  },
+
+  
+  // 格式化时间
+  formatTime(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hour = String(d.getHours()).padStart(2, '0');
+    const minute = String(d.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hour}:${minute}`;
   },
 
   // 点击赛事
