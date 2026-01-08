@@ -19,7 +19,7 @@ Page({
     page: 1,
 
     // Mock 数据
-    useMock: true
+    useMock: false
   },
 
   onLoad() {
