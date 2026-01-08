@@ -102,7 +102,7 @@
             accept="image/*"
             name="file"
           >
-            <img v-if="form.cover_url" :src="form.cover_url" class="cover-preview" />
+            <img v-if="form.cover_url" :src="getFullUrl(form.cover_url)" class="cover-preview" />
             <div v-else class="cover-placeholder">
               <el-icon><Plus /></el-icon>
               <span>上传封面</span>
@@ -167,7 +167,8 @@ const uploadUrl = computed(() => '/api/upload/file')
 const getFullUrl = (url) => {
   if (!url) return ''
   if (url.startsWith('http')) return url
-  return url
+  // 相对路径需要拼接完整URL
+  return window.location.origin + url
 }
 
 const beforeUpload = (file) => {
