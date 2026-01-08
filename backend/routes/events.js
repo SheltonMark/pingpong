@@ -48,12 +48,13 @@ router.get('/', async (req, res) => {
       FROM events e
       LEFT JOIN schools s ON e.school_id = s.id
       LEFT JOIN users u ON e.created_by = u.id
-      WHERE 1=1
+      WHERE e.status != 'draft'
     `;
     const params = [];
 
     if (school_id) {
-      sql += ' AND e.school_id = ?';
+      // school_id 为 null 的赛事是全局赛事，所有人可见
+      sql += ' AND (e.school_id = ? OR e.school_id IS NULL)';
       params.push(school_id);
     }
     if (status) {
@@ -71,10 +72,10 @@ router.get('/', async (req, res) => {
     const [rows] = await pool.query(sql, params);
 
     // 获取总数
-    let countSql = 'SELECT COUNT(*) as total FROM events WHERE 1=1';
+    let countSql = "SELECT COUNT(*) as total FROM events WHERE status != 'draft'";
     const countParams = [];
     if (school_id) {
-      countSql += ' AND school_id = ?';
+      countSql += ' AND (school_id = ? OR school_id IS NULL)';
       countParams.push(school_id);
     }
     if (status) {
