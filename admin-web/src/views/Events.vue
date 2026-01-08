@@ -254,9 +254,21 @@ const showCreateDialog = () => {
   dialogVisible.value = true
 }
 
+// 将HTML中的相对路径转为完整URL
+const processDescriptionUrls = (html) => {
+  if (!html) return html
+  const origin = window.location.origin
+  // 替换 src="/uploads/..." 为 src="https://xxx/uploads/..."
+  return html.replace(/src="(\/uploads\/[^"]+)"/g, `src="${origin}$1"`)
+}
+
 const editEvent = (row) => {
   isEdit.value = true
-  form.value = { ...row }
+  form.value = {
+    ...row,
+    // 处理description中的相对URL
+    description: processDescriptionUrls(row.description)
+  }
   dialogVisible.value = true
 }
 

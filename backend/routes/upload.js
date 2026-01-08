@@ -58,15 +58,28 @@ router.post('/file', upload.single('file'), (req, res) => {
       return res.status(400).json({ success: false, message: '没有上传文件' });
     }
 
-    // 返回文件URL
-    const fileUrl = `/uploads/${req.file.filename}`;
+    // 构建完整的文件URL
+    const relativePath = `/uploads/${req.file.filename}`;
+
+    // 优先使用环境变量配置的BASE_URL，否则从请求中获取
+    let baseUrl = process.env.BASE_URL;
+    if (!baseUrl) {
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+      const host = req.headers['x-forwarded-host'] || req.headers.host;
+      baseUrl = `${protocol}://${host}`;
+    }
+
+    // 返回完整URL（用于富文本编辑器等需要完整路径的场景）
+    const fullUrl = baseUrl + relativePath;
+
     // 修复中文文件名乱码问题
     const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
 
     res.json({
       success: true,
       data: {
-        url: fileUrl,
+        url: fullUrl,           // 完整URL，用于富文本编辑器
+        relativePath: relativePath, // 相对路径，备用
         filename: req.file.filename,
         originalName: originalName,
         size: req.file.size,

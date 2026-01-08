@@ -2,6 +2,21 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
 
+// 将相对URL转为完整URL
+function toFullUrl(url, req) {
+  if (!url) return url;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+
+  // 优先使用环境变量
+  let baseUrl = process.env.BASE_URL;
+  if (!baseUrl) {
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    const host = req.headers['x-forwarded-host'] || req.headers.host;
+    baseUrl = `${protocol}://${host}`;
+  }
+  return baseUrl + url;
+}
+
 // 获取学习资料列表
 router.get('/', async (req, res) => {
   try {
@@ -31,7 +46,14 @@ router.get('/', async (req, res) => {
 
     const [materials] = await pool.query(sql, params);
 
-    res.json({ success: true, data: { list: materials } });
+    // 转换URL为完整路径
+    const list = materials.map(m => ({
+      ...m,
+      url: toFullUrl(m.url, req),
+      cover_url: toFullUrl(m.cover_url, req)
+    }));
+
+    res.json({ success: true, data: { list } });
   } catch (error) {
     console.error('获取学习资料失败:', error);
     res.status(500).json({ success: false, message: '服务器错误' });
@@ -61,7 +83,14 @@ router.get('/:id', async (req, res) => {
       [id]
     );
 
-    res.json({ success: true, data: materials[0] });
+    // 转换URL为完整路径
+    const material = {
+      ...materials[0],
+      url: toFullUrl(materials[0].url, req),
+      cover_url: toFullUrl(materials[0].cover_url, req)
+    };
+
+    res.json({ success: true, data: material });
   } catch (error) {
     console.error('获取资料详情失败:', error);
     res.status(500).json({ success: false, message: '服务器错误' });

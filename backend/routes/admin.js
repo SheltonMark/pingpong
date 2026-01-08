@@ -10,6 +10,20 @@ function formatDateForMySQL(dateStr) {
   return d.toISOString().slice(0, 19).replace('T', ' ');
 }
 
+// 将相对URL转为完整URL
+function toFullUrl(url, req) {
+  if (!url) return url;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+
+  let baseUrl = process.env.BASE_URL;
+  if (!baseUrl) {
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    const host = req.headers['x-forwarded-host'] || req.headers.host;
+    baseUrl = `${protocol}://${host}`;
+  }
+  return baseUrl + url;
+}
+
 
 const { requireAdmin, requireSuperAdmin, getUserRoles, isSchoolAdmin } = require('../middleware/adminAuth');
 
@@ -614,7 +628,14 @@ router.get('/learning', requireAdmin, async (req, res) => {
       SELECT * FROM learning_materials ORDER BY created_at DESC
     `);
 
-    res.json({ success: true, data: materials });
+    // 转换URL为完整路径
+    const list = materials.map(m => ({
+      ...m,
+      url: toFullUrl(m.url, req),
+      cover_url: toFullUrl(m.cover_url, req)
+    }));
+
+    res.json({ success: true, data: list });
   } catch (error) {
     console.error('Get learning materials error:', error);
     res.json({ success: false, message: '获取学习资料失败' });

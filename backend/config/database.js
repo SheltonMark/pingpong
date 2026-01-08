@@ -11,6 +11,9 @@ const pool = mysql.createPool({
   connectionLimit: 5,
   queueLimit: 0,
   charset: 'utf8mb4',
+  // 时区设置：返回日期字符串而不是Date对象，避免时区转换问题
+  dateStrings: true,
+  timezone: '+08:00',
   // Serverless 数据库优化
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000,
