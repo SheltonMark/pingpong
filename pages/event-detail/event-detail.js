@@ -1,6 +1,18 @@
 // pages/event-detail/event-detail.js
 const app = getApp();
 
+// 日期格式化工具
+const formatDate = (dateStr) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const month = d.getMonth() + 1;
+  const day = d.getDate();
+  const hour = d.getHours().toString().padStart(2, '0');
+  const minute = d.getMinutes().toString().padStart(2, '0');
+  return `${month}月${day}日 ${hour}:${minute}`;
+};
+
 Page({
   data: {
     eventId: null,
@@ -11,7 +23,10 @@ Page({
     isRegistered: false,
     myRegistration: null,
     loading: true,
-    useMock: true
+    useMock: false,
+    // 领队申请相关
+    captainStatus: null, // null: 未申请, pending: 待审批, approved: 已通过, rejected: 已拒绝
+    isCaptain: false
   },
 
   onLoad(options) {
@@ -44,13 +59,23 @@ Page({
       });
 
       if (res.success) {
+        const event = res.data.event;
+        // 格式化日期显示
+        event.event_start_display = formatDate(event.event_start);
+        event.event_end_display = formatDate(event.event_end);
+        event.registration_end_display = formatDate(event.registration_end);
+
         this.setData({
-          event: res.data.event,
+          event: event,
           registrations: res.data.registrations,
           loading: false
         });
         this.checkRegistrationStatus();
         this.loadMatches();
+        // 团体赛加载领队状态
+        if (event.event_type === 'team') {
+          this.loadCaptainStatus();
+        }
       }
     } catch (error) {
       console.error('加载失败:', error);
@@ -78,6 +103,69 @@ Page({
     } catch (error) {
       console.error('加载对阵表失败:', error);
     }
+  },
+
+  // 加载领队状态
+  async loadCaptainStatus() {
+    const userId = app.globalData.userInfo?.user_id;
+    if (!userId) return;
+
+    try {
+      const res = await new Promise((resolve, reject) => {
+        wx.request({
+          url: `${app.globalData.baseUrl}/api/events/${this.data.eventId}/captain-status?user_id=${userId}`,
+          success: (res) => resolve(res.data),
+          fail: reject
+        });
+      });
+
+      if (res.success) {
+        this.setData({
+          isCaptain: res.data.isCaptain,
+          captainStatus: res.data.application?.status || null
+        });
+      }
+    } catch (error) {
+      console.error('加载领队状态失败:', error);
+    }
+  },
+
+  // 申请成为领队
+  onApplyCaptain() {
+    if (!app.globalData.isLoggedIn) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+
+    wx.showModal({
+      title: '申请成为领队',
+      content: '领队可以组建队伍并管理队员报名。确定申请吗？',
+      success: async (res) => {
+        if (res.confirm) {
+          try {
+            const result = await new Promise((resolve, reject) => {
+              wx.request({
+                url: `${app.globalData.baseUrl}/api/events/${this.data.eventId}/apply-captain`,
+                method: 'POST',
+                data: { user_id: app.globalData.userInfo.user_id },
+                success: (res) => resolve(res.data),
+                fail: reject
+              });
+            });
+
+            if (result.success) {
+              wx.showToast({ title: '申请已提交', icon: 'success' });
+              this.setData({ captainStatus: 'pending' });
+            } else {
+              wx.showToast({ title: result.message || '申请失败', icon: 'none' });
+            }
+          } catch (error) {
+            console.error('申请领队失败:', error);
+            wx.showToast({ title: '申请失败', icon: 'none' });
+          }
+        }
+      }
+    });
   },
 
   // 检查当前用户是否已报名

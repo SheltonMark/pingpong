@@ -287,3 +287,73 @@
   color: var(--gray-400);
   font-size: 28rpx;
 }
+
+/* 领队申请卡片 */
+.captain-card {
+  background: #fff;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+}
+
+.captain-content {
+  margin-top: 16rpx;
+}
+
+.captain-status {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 24rpx;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+}
+
+.captain-status.approved {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--green);
+}
+
+.captain-status.pending {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--orange);
+}
+
+.captain-status.rejected {
+  background: rgba(239, 68, 68, 0.1);
+  color: #EF4444;
+  flex-wrap: wrap;
+}
+
+.status-icon {
+  font-size: 32rpx;
+}
+
+.captain-tip {
+  text-align: center;
+  padding: 24rpx;
+}
+
+.captain-tip text {
+  display: block;
+  font-size: 26rpx;
+  color: var(--gray-500);
+  margin-bottom: 24rpx;
+}
+
+.apply-btn {
+  display: inline-block;
+  padding: 20rpx 48rpx;
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #fff;
+  background: linear-gradient(135deg, var(--orange), var(--orange-dark));
+  border-radius: 40rpx;
+  border: none;
+}
+
+.apply-btn.small {
+  margin-top: 16rpx;
+  padding: 12rpx 32rpx;
+  font-size: 24rpx;
+}

@@ -109,7 +109,8 @@ router.get('/:id', async (req, res) => {
     const { id } = req.params;
 
     const [events] = await pool.query(`
-      SELECT e.*, s.name as school_name, u.name as creator_name
+      SELECT e.*, s.name as school_name, u.name as creator_name,
+        (SELECT COUNT(*) FROM event_registrations WHERE event_id = e.id AND status != 'cancelled') as participant_count
       FROM events e
       LEFT JOIN schools s ON e.school_id = s.id
       LEFT JOIN users u ON e.created_by = u.id
@@ -119,6 +120,10 @@ router.get('/:id', async (req, res) => {
     if (events.length === 0) {
       return res.status(404).json({ success: false, message: '赛事不存在' });
     }
+
+    // 动态计算状态
+    const event = events[0];
+    event.status = computeEventStatus(event);
 
     // 获取报名列表
     const [registrations] = await pool.query(`
@@ -133,7 +138,7 @@ router.get('/:id', async (req, res) => {
     res.json({
       success: true,
       data: {
-        event: events[0],
+        event,
         registrations
       }
     });

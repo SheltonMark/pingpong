@@ -26,7 +26,7 @@
     <view class="info-card">
       <view class="info-row">
         <text class="info-label">📅 比赛时间</text>
-        <text class="info-value">{{event.event_start}}</text>
+        <text class="info-value">{{event.event_start_display || event.event_start}}</text>
       </view>
       <view class="info-row">
         <text class="info-label">📍 比赛地点</text>
@@ -46,13 +46,37 @@
       </view>
       <view class="info-row">
         <text class="info-label">⏰ 报名截止</text>
-        <text class="info-value">{{event.registration_end}}</text>
+        <text class="info-value">{{event.registration_end_display || event.registration_end}}</text>
       </view>
     </view>
 
     <view class="desc-card" wx:if="{{event.description}}">
       <view class="card-title">赛事说明</view>
       <rich-text class="desc-content" nodes="{{event.description}}"></rich-text>
+    </view>
+
+    <!-- 团体赛领队申请 -->
+    <view class="captain-card" wx:if="{{event.event_type === 'team'}}">
+      <view class="card-title">领队申请</view>
+      <view class="captain-content">
+        <view wx:if="{{isCaptain}}" class="captain-status approved">
+          <text class="status-icon">✓</text>
+          <text>您是该赛事的领队</text>
+        </view>
+        <view wx:elif="{{captainStatus === 'pending'}}" class="captain-status pending">
+          <text class="status-icon">⏳</text>
+          <text>领队申请审批中</text>
+        </view>
+        <view wx:elif="{{captainStatus === 'rejected'}}" class="captain-status rejected">
+          <text class="status-icon">✗</text>
+          <text>申请被拒绝，可重新申请</text>
+          <button class="apply-btn small" bindtap="onApplyCaptain">重新申请</button>
+        </view>
+        <view wx:else class="captain-tip">
+          <text>领队可以组建队伍并管理队员报名</text>
+          <button class="apply-btn" bindtap="onApplyCaptain">申请成为领队</button>
+        </view>
+      </view>
     </view>
   </view>
 
