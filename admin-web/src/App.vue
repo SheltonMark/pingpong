@@ -31,6 +31,10 @@
             <el-icon><Trophy /></el-icon>
             <span>赛事管理</span>
           </el-menu-item>
+          <el-menu-item v-if="hasPermission('events')" index="/captain-approvals">
+            <el-icon><UserFilled /></el-icon>
+            <span>领队审批</span>
+          </el-menu-item>
           <el-menu-item v-if="hasPermission('users') || hasPermission('users_readonly')" index="/users">
             <el-icon><User /></el-icon>
             <span>用户管理</span>

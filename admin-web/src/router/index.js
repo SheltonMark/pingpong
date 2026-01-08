@@ -70,6 +70,12 @@ const routes = [
     name: 'Schools',
     component: () => import('../views/Schools.vue'),
     meta: { requiresAuth: true, permission: 'schools' }
+  },
+  {
+    path: '/captain-approvals',
+    name: 'CaptainApprovals',
+    component: () => import('../views/CaptainApprovals.vue'),
+    meta: { requiresAuth: true, permission: 'events' }
   }
 ]
 

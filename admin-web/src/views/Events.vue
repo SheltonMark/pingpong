@@ -12,7 +12,12 @@
       <el-table :data="events" v-loading="loading" stripe>
         <el-table-column prop="id" label="ID" width="60" />
         <el-table-column prop="title" label="赛事名称" min-width="150" />
-        <el-table-column prop="event_type" label="类型" width="100">
+        <el-table-column prop="scope" label="范围" width="80">
+          <template #default="{ row }">
+            {{ scopeLabels[row.scope] || row.scope }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="event_type" label="类型" width="80">
           <template #default="{ row }">
             {{ typeLabels[row.event_type] || row.event_type }}
           </template>
@@ -45,6 +50,12 @@
       <el-form :model="form" label-width="100px">
         <el-form-item label="赛事名称" required>
           <el-input v-model="form.title" placeholder="请输入赛事名称" />
+        </el-form-item>
+        <el-form-item label="赛事范围" required>
+          <el-select v-model="form.scope" placeholder="请选择范围">
+            <el-option label="校内赛" value="school" />
+            <el-option label="校际赛" value="inter_school" />
+          </el-select>
         </el-form-item>
         <el-form-item label="赛事类型" required>
           <el-select v-model="form.event_type" placeholder="请选择类型">
@@ -164,6 +175,7 @@ editorRef.value = editor
 }
 const form = ref({
   title: '',
+  scope: 'school',
   event_type: 'singles',
   event_format: 'knockout',
   best_of: 5,
@@ -175,6 +187,11 @@ const form = ref({
   registration_end: '',
   description: '',
 })
+
+const scopeLabels = {
+  school: '校内赛',
+  inter_school: '校际赛'
+}
 
 const typeLabels = {
   singles: '单打',
@@ -221,6 +238,7 @@ const showCreateDialog = () => {
   isEdit.value = false
   form.value = {
     title: '',
+    scope: 'school',
     event_type: 'singles',
     event_format: 'knockout',
     best_of: 5,

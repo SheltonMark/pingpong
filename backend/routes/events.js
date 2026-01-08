@@ -53,8 +53,8 @@ router.get('/', async (req, res) => {
     const params = [];
 
     if (school_id) {
-      // school_id 为 null 的赛事是全局赛事，所有人可见
-      sql += ' AND (e.school_id = ? OR e.school_id IS NULL)';
+      // 校际赛对所有人可见，校内赛只对本校用户可见
+      sql += " AND (e.scope = 'inter_school' OR (e.scope = 'school' AND e.school_id = ?))";
       params.push(school_id);
     }
     if (status) {
@@ -75,7 +75,7 @@ router.get('/', async (req, res) => {
     let countSql = "SELECT COUNT(*) as total FROM events WHERE status != 'draft'";
     const countParams = [];
     if (school_id) {
-      countSql += ' AND (school_id = ? OR school_id IS NULL)';
+      countSql += " AND (scope = 'inter_school' OR (scope = 'school' AND school_id = ?))";
       countParams.push(school_id);
     }
     if (status) {
@@ -461,5 +461,117 @@ async function updatePlayerRatings(eventId, matchId, winnerId, loserId) {
     // 积分更新失败不影响比赛确认结果
   }
 }
+
+// ============ 领队申请 ============
+
+// 申请成为领队
+router.post('/:id/apply-captain', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id, reason } = req.body;
+
+    if (!user_id) {
+      return res.status(400).json({ success: false, message: '缺少用户ID' });
+    }
+
+    // 检查赛事是否存在且是团体赛
+    const [events] = await pool.query('SELECT * FROM events WHERE id = ?', [id]);
+    if (events.length === 0) {
+      return res.status(404).json({ success: false, message: '赛事不存在' });
+    }
+
+    const event = events[0];
+    if (event.event_type !== 'team') {
+      return res.status(400).json({ success: false, message: '只有团体赛需要领队' });
+    }
+
+    // 检查是否已申请过
+    const [existing] = await pool.query(
+      'SELECT * FROM captain_applications WHERE event_id = ? AND user_id = ?',
+      [id, user_id]
+    );
+    if (existing.length > 0) {
+      const app = existing[0];
+      if (app.status === 'pending') {
+        return res.status(400).json({ success: false, message: '已提交申请，请等待审批' });
+      }
+      if (app.status === 'approved') {
+        return res.status(400).json({ success: false, message: '您已是该赛事的领队' });
+      }
+      // 如果之前被拒绝，可以重新申请
+      await pool.execute(
+        'UPDATE captain_applications SET status = ?, reason = ?, reject_reason = NULL, reviewed_by = NULL, reviewed_at = NULL WHERE id = ?',
+        ['pending', reason || null, app.id]
+      );
+    } else {
+      await pool.execute(
+        'INSERT INTO captain_applications (event_id, user_id, reason) VALUES (?, ?, ?)',
+        [id, user_id, reason || null]
+      );
+    }
+
+    res.json({ success: true, message: '申请已提交，请等待审批' });
+  } catch (error) {
+    console.error('申请领队失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
+// 获取我的领队申请
+router.get('/captain-applications/my', async (req, res) => {
+  try {
+    const { user_id } = req.query;
+
+    if (!user_id) {
+      return res.status(400).json({ success: false, message: '缺少用户ID' });
+    }
+
+    const [applications] = await pool.query(`
+      SELECT ca.*, e.title as event_title, e.event_type, e.event_start, e.location
+      FROM captain_applications ca
+      JOIN events e ON ca.event_id = e.id
+      WHERE ca.user_id = ?
+      ORDER BY ca.created_at DESC
+    `, [user_id]);
+
+    res.json({ success: true, data: applications });
+  } catch (error) {
+    console.error('获取领队申请失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
+// 检查用户是否是某赛事的领队
+router.get('/:id/captain-status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id } = req.query;
+
+    if (!user_id) {
+      return res.json({ success: true, data: { isCaptain: false, application: null } });
+    }
+
+    const [applications] = await pool.query(
+      'SELECT * FROM captain_applications WHERE event_id = ? AND user_id = ?',
+      [id, user_id]
+    );
+
+    if (applications.length === 0) {
+      return res.json({ success: true, data: { isCaptain: false, application: null } });
+    }
+
+    const app = applications[0];
+    res.json({
+      success: true,
+      data: {
+        isCaptain: app.status === 'approved',
+        application: app
+      }
+    });
+  } catch (error) {
+    console.error('获取领队状态失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
 
 module.exports = router;

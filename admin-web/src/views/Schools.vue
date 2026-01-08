@@ -50,10 +50,14 @@
           <el-input v-model="schoolForm.short_name" placeholder="如：浙大、复旦" />
         </el-form-item>
         <el-form-item label="省份">
-          <el-input v-model="schoolForm.province" placeholder="如：浙江省" />
+          <el-select v-model="schoolForm.province" placeholder="请选择省份" @change="handleProvinceChange">
+            <el-option v-for="p in provinces" :key="p" :label="p" :value="p" />
+          </el-select>
         </el-form-item>
         <el-form-item label="城市">
-          <el-input v-model="schoolForm.city" placeholder="如：杭州市" />
+          <el-select v-model="schoolForm.city" placeholder="请选择城市">
+            <el-option v-for="c in currentCities" :key="c" :label="c" :value="c" />
+          </el-select>
         </el-form-item>
         <el-form-item label="状态" v-if="editingSchool">
           <el-switch v-model="schoolForm.is_active" active-text="启用" inactive-text="禁用" />
@@ -68,7 +72,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const loading = ref(false)
@@ -79,11 +83,40 @@ const dialogVisible = ref(false)
 const editingSchool = ref(null)
 const formRef = ref(null)
 
+// 省份和城市数据
+const provinces = ['浙江省', '江苏省', '上海市', '安徽省', '福建省', '广东省', '北京市', '天津市', '其他']
+
+const citiesByProvince = {
+  '浙江省': ['杭州市', '宁波市', '温州市', '嘉兴市', '湖州市', '绍兴市', '金华市', '衢州市', '舟山市', '台州市', '丽水市'],
+  '江苏省': ['南京市', '苏州市', '无锡市', '常州市', '南通市', '扬州市', '镇江市', '泰州市', '盐城市', '淮安市', '连云港市', '徐州市', '宿迁市'],
+  '上海市': ['上海市'],
+  '安徽省': ['合肥市', '芜湖市', '蚌埠市', '淮南市', '马鞍山市', '淮北市', '铜陵市', '安庆市', '黄山市', '阜阳市', '宿州市', '滁州市', '六安市', '宣城市', '池州市', '亳州市'],
+  '福建省': ['福州市', '厦门市', '莆田市', '三明市', '泉州市', '漳州市', '南平市', '龙岩市', '宁德市'],
+  '广东省': ['广州市', '深圳市', '珠海市', '汕头市', '佛山市', '韶关市', '湛江市', '肇庆市', '江门市', '茂名市', '惠州市', '梅州市', '汕尾市', '河源市', '阳江市', '清远市', '东莞市', '中山市', '潮州市', '揭阳市', '云浮市'],
+  '北京市': ['北京市'],
+  '天津市': ['天津市'],
+  '其他': ['其他']
+}
+
+const currentCities = computed(() => {
+  return citiesByProvince[schoolForm.province] || []
+})
+
+const handleProvinceChange = () => {
+  // 切换省份时重置城市
+  const cities = citiesByProvince[schoolForm.province]
+  if (cities && cities.length > 0) {
+    schoolForm.city = cities[0]
+  } else {
+    schoolForm.city = ''
+  }
+}
+
 const schoolForm = reactive({
   name: '',
   short_name: '',
-  province: '',
-  city: '',
+  province: '浙江省',
+  city: '杭州市',
   is_active: true
 })
 
@@ -114,8 +147,8 @@ const loadSchools = async () => {
 const resetForm = () => {
   schoolForm.name = ''
   schoolForm.short_name = ''
-  schoolForm.province = ''
-  schoolForm.city = ''
+  schoolForm.province = '浙江省'
+  schoolForm.city = '杭州市'
   schoolForm.is_active = true
   editingSchool.value = null
 }

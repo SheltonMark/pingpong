@@ -1256,3 +1256,118 @@ router.delete('/events/:id', requireAdmin, async (req, res) => {
     res.json({ success: false, message: '删除赛事失败: ' + error.message });
   }
 });
+
+// ============ 领队申请管理 ============
+
+// 获取领队申请列表
+router.get('/captain-applications', requireAdmin, async (req, res) => {
+  try {
+    const { status, school_id, page = 1, limit = 20 } = req.query;
+    const offset = (page - 1) * limit;
+
+    let sql = `
+      SELECT ca.*,
+             e.title as event_title, e.event_type, e.event_start, e.school_id as event_school_id,
+             u.name as applicant_name, u.phone as applicant_phone, u.avatar_url as applicant_avatar,
+             s.name as school_name,
+             r.name as reviewer_name
+      FROM captain_applications ca
+      JOIN events e ON ca.event_id = e.id
+      JOIN users u ON ca.user_id = u.id
+      LEFT JOIN schools s ON e.school_id = s.id
+      LEFT JOIN users r ON ca.reviewed_by = r.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (status) {
+      sql += ' AND ca.status = ?';
+      params.push(status);
+    }
+    if (school_id) {
+      sql += ' AND e.school_id = ?';
+      params.push(school_id);
+    }
+
+    sql += ' ORDER BY ca.created_at DESC LIMIT ? OFFSET ?';
+    params.push(parseInt(limit), parseInt(offset));
+
+    const [applications] = await pool.execute(sql, params);
+
+    // 获取总数
+    let countSql = `
+      SELECT COUNT(*) as total
+      FROM captain_applications ca
+      JOIN events e ON ca.event_id = e.id
+      WHERE 1=1
+    `;
+    const countParams = [];
+    if (status) {
+      countSql += ' AND ca.status = ?';
+      countParams.push(status);
+    }
+    if (school_id) {
+      countSql += ' AND e.school_id = ?';
+      countParams.push(school_id);
+    }
+    const [[{ total }]] = await pool.execute(countSql, countParams);
+
+    res.json({ success: true, data: applications, total });
+  } catch (error) {
+    console.error('Get captain applications error:', error);
+    res.json({ success: false, message: '获取领队申请列表失败' });
+  }
+});
+
+// 审批通过领队申请
+router.post('/captain-applications/:id/approve', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id } = req.body;
+
+    // 更新申请状态
+    await pool.execute(
+      'UPDATE captain_applications SET status = ?, reviewed_by = ?, reviewed_at = NOW() WHERE id = ?',
+      ['approved', user_id, id]
+    );
+
+    // 获取申请信息，更新报名表中的领队标记
+    const [[app]] = await pool.execute('SELECT * FROM captain_applications WHERE id = ?', [id]);
+    if (app) {
+      // 检查是否已报名，如果已报名则更新为领队
+      const [regs] = await pool.execute(
+        'SELECT * FROM event_registrations WHERE event_id = ? AND user_id = ?',
+        [app.event_id, app.user_id]
+      );
+      if (regs.length > 0) {
+        await pool.execute(
+          'UPDATE event_registrations SET is_team_leader = 1 WHERE event_id = ? AND user_id = ?',
+          [app.event_id, app.user_id]
+        );
+      }
+    }
+
+    res.json({ success: true, message: '已批准' });
+  } catch (error) {
+    console.error('Approve captain application error:', error);
+    res.json({ success: false, message: '审批失败' });
+  }
+});
+
+// 拒绝领队申请
+router.post('/captain-applications/:id/reject', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id, reject_reason } = req.body;
+
+    await pool.execute(
+      'UPDATE captain_applications SET status = ?, reviewed_by = ?, reviewed_at = NOW(), reject_reason = ? WHERE id = ?',
+      ['rejected', user_id, reject_reason || null, id]
+    );
+
+    res.json({ success: true, message: '已拒绝' });
+  } catch (error) {
+    console.error('Reject captain application error:', error);
+    res.json({ success: false, message: '审批失败' });
+  }
+});
