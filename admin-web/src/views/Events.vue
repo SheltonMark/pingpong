@@ -231,6 +231,7 @@ const showCreateDialog = () => {
     max_participants: 32,
     registration_end: '',
     description: '',
+    status: 'registration'
   }
   dialogVisible.value = true
 }

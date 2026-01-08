@@ -2,6 +2,15 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const { pool } = require('../config/database');
+// 格式化日期为 MySQL 格式
+function formatDateForMySQL(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 19).replace('T', ' ');
+}
+
+
 const { requireAdmin, requireSuperAdmin, getUserRoles, isSchoolAdmin } = require('../middleware/adminAuth');
 
 // 初始化超级管理员（仅用于首次设置）
@@ -166,7 +175,7 @@ router.post('/events', requireAdmin, async (req, res) => {
       title, description, event_type, event_format, scope,
       best_of, games_to_win, points_per_game, counts_for_ranking,
       registration_start, registration_end, event_start, event_end,
-      location, max_participants, school_id, user_id
+      location, max_participants, school_id, user_id, status
     } = req.body;
 
     const [result] = await pool.execute(`
@@ -175,12 +184,12 @@ router.post('/events', requireAdmin, async (req, res) => {
         best_of, games_to_win, points_per_game, counts_for_ranking,
         registration_start, registration_end, event_start, event_end,
         location, max_participants, school_id, created_by, status, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', NOW())
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `, [
       title, description || null, event_type, event_format, scope || 'school',
       best_of || 5, games_to_win || 3, points_per_game || 11, counts_for_ranking ? 1 : 0,
-      registration_start || null, registration_end || null, event_start || null, event_end || null,
-      location || null, max_participants || 32, school_id || null, user_id
+      formatDateForMySQL(registration_start), formatDateForMySQL(registration_end), formatDateForMySQL(event_start), formatDateForMySQL(event_end),
+      location || null, max_participants || 32, school_id || null, user_id, status || 'draft'
     ]);
 
     res.json({ success: true, data: { id: result.insertId } });
@@ -211,7 +220,7 @@ router.put('/events/:id', requireAdmin, async (req, res) => {
     `, [
       title, description || null, event_type, event_format, scope || 'school',
       best_of || 5, games_to_win || 3, points_per_game || 11, counts_for_ranking ? 1 : 0,
-      registration_start || null, registration_end || null, event_start || null, event_end || null,
+      formatDateForMySQL(registration_start), formatDateForMySQL(registration_end), formatDateForMySQL(event_start), formatDateForMySQL(event_end),
       location || null, max_participants || 32, status || 'draft', id
     ]);
 
@@ -1224,3 +1233,26 @@ router.delete('/schools/:id', requireSuperAdmin, async (req, res) => {
 });
 
 module.exports = router;
+
+// 删除赛事
+router.delete('/events/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // 检查是否有报名记录
+    const [regs] = await pool.execute(
+      'SELECT COUNT(*) as count FROM event_registrations WHERE event_id = ?',
+      [id]
+    );
+    
+    if (regs[0].count > 0) {
+      return res.json({ success: false, message: '该赛事已有报名记录，无法删除' });
+    }
+    
+    await pool.execute('DELETE FROM events WHERE id = ?', [id]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete event error:', error);
+    res.json({ success: false, message: '删除赛事失败: ' + error.message });
+  }
+});

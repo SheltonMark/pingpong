@@ -4,6 +4,38 @@ const router = express.Router();
 const { pool } = require('../config/database');
 const { calculateMatchRating } = require('../utils/ratingCalculator');
 
+
+// 动态计算赛事状态
+function computeEventStatus(event) {
+  const now = new Date();
+  const regEnd = event.registration_end ? new Date(event.registration_end) : null;
+  const eventEnd = event.event_end ? new Date(event.event_end) : null;
+  const eventStart = event.event_start ? new Date(event.event_start) : null;
+  
+  // 草稿和取消状态不变
+  if (event.status === 'draft' || event.status === 'cancelled') {
+    return event.status;
+  }
+  
+  // 已手动设为已结束的不变
+  if (event.status === 'finished') {
+    return 'finished';
+  }
+  
+  // 动态判断
+  if (eventEnd && now >= eventEnd) {
+    return 'finished';
+  }
+  if (regEnd && now >= regEnd) {
+    return 'ongoing';
+  }
+  if (event.participant_count >= event.max_participants) {
+    return 'ongoing'; // 人满也变进行中
+  }
+  
+  return 'registration';
+}
+
 // 获取赛事列表
 router.get('/', async (req, res) => {
   try {
@@ -58,7 +90,7 @@ router.get('/', async (req, res) => {
     res.json({
       success: true,
       data: {
-        list: rows,
+        list: rows.map(e => ({ ...e, status: computeEventStatus(e) })),
         total: countResult[0].total,
         page: parseInt(page),
         limit: parseInt(limit)
@@ -120,17 +152,38 @@ router.post('/:id/register', async (req, res) => {
       return res.status(400).json({ success: false, message: '缺少用户ID' });
     }
 
-    // 检查赛事是否存在且在报名期
+    // 检查赛事是否存在
     const [events] = await pool.query(
-      'SELECT * FROM events WHERE id = ? AND status = "registration"',
+      'SELECT e.*, (SELECT COUNT(*) FROM event_registrations WHERE event_id = e.id AND status != "cancelled") as participant_count FROM events e WHERE e.id = ?',
       [id]
     );
 
     if (events.length === 0) {
-      return res.status(400).json({ success: false, message: '赛事不存在或不在报名期' });
+      return res.status(400).json({ success: false, message: '赛事不存在' });
     }
 
     const event = events[0];
+    
+    // 检查赛事状态
+    if (event.status === 'draft') {
+      return res.status(400).json({ success: false, message: '赛事尚未发布' });
+    }
+    if (event.status === 'cancelled') {
+      return res.status(400).json({ success: false, message: '赛事已取消' });
+    }
+    if (event.status === 'finished') {
+      return res.status(400).json({ success: false, message: '赛事已结束' });
+    }
+    
+    // 检查报名截止时间
+    if (event.registration_end && new Date() > new Date(event.registration_end)) {
+      return res.status(400).json({ success: false, message: '报名已截止' });
+    }
+    
+    // 检查人数限制
+    if (event.max_participants && event.participant_count >= event.max_participants) {
+      return res.status(400).json({ success: false, message: '报名人数已满' });
+    }
 
     // 检查是否已报名
     const [existing] = await pool.query(

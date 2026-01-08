@@ -16,7 +16,17 @@
       "Bash(git add:*)",
       "Bash(git reset:*)",
       "Bash(git remote add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(npm install:*)",
+      "Bash(npm cache clean:*)",
+      "Bash(npm:*)",
+      "Bash(node --version)",
+      "Bash(node -e:*)",
+      "Bash(npx vite build:*)",
+      "Bash(git push:*)",
+      "Bash(xargs ls:*)",
+      "Bash(node scripts/migrate.js:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []
