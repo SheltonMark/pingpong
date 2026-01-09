@@ -17,7 +17,9 @@
   <!-- 标签切换 -->
   <view class="tab-bar">
     <view class="tab-item {{currentTab === 'info' ? 'active' : ''}}" data-tab="info" bindtap="onTabChange">赛事信息</view>
-    <view class="tab-item {{currentTab === 'players' ? 'active' : ''}}" data-tab="players" bindtap="onTabChange">参赛选手 ({{registrations.length}})</view>
+    <view class="tab-item {{currentTab === 'players' ? 'active' : ''}}" data-tab="players" bindtap="onTabChange">
+      {{event.event_type === 'team' ? '参赛队伍' : '参赛选手'}} ({{event.event_type === 'team' ? (teamCount || 0) : registrations.length}})
+    </view>
     <view class="tab-item {{currentTab === 'matches' ? 'active' : ''}}" data-tab="matches" bindtap="onTabChange">对阵表</view>
   </view>
 
@@ -36,13 +38,13 @@
         <text class="info-label">🏆 赛制</text>
         <text class="info-value">{{event.event_format === 'knockout' ? '淘汰赛' : event.event_format === 'round_robin' ? '循环赛' : '小组+淘汰'}} · {{event.best_of}}局{{event.games_to_win || (event.best_of == 3 ? '2' : event.best_of == 5 ? '3' : '4')}}胜</text>
       </view>
-      <view class="info-row">
+      <view class="info-row" wx:if="{{event.event_type === 'singles'}}">
         <text class="info-label">📊 计入积分</text>
         <text class="info-value">{{event.counts_for_ranking ? '是' : '否'}}</text>
       </view>
       <view class="info-row">
-        <text class="info-label">👤 报名人数</text>
-        <text class="info-value">{{registrations.length}}/{{event.max_participants}}</text>
+        <text class="info-label">{{event.event_type === 'team' ? '🏅 参赛队伍' : '👤 报名人数'}}</text>
+        <text class="info-value">{{event.event_type === 'team' ? (teamCount || 0) : registrations.length}}/{{event.max_participants}}</text>
       </view>
       <view class="info-row">
         <text class="info-label">⏰ 报名截止</text>
@@ -121,8 +123,24 @@
 
   <!-- 底部按钮 -->
   <view class="bottom-action" wx:if="{{event.status === 'registration'}}">
-    <button class="register-btn" wx:if="{{!isRegistered}}" bindtap="onRegister">立即报名</button>
-    <button class="cancel-btn" wx:else bindtap="onCancelRegister">取消报名</button>
+    <!-- 单打：直接报名 -->
+    <block wx:if="{{event.event_type === 'singles'}}">
+      <button class="register-btn" wx:if="{{!isRegistered}}" bindtap="onRegister">立即报名</button>
+      <button class="cancel-btn" wx:else bindtap="onCancelRegister">取消报名</button>
+    </block>
+    <!-- 双打：报名并选择搭档 -->
+    <block wx:elif="{{event.event_type === 'doubles'}}">
+      <button class="register-btn" wx:if="{{!isRegistered}}" bindtap="onRegisterDoubles">报名双打</button>
+      <button class="cancel-btn" wx:else bindtap="onCancelRegister">取消报名</button>
+    </block>
+    <!-- 团体赛：只有领队可以报名队伍，普通用户不能直接报名 -->
+    <block wx:elif="{{event.event_type === 'team'}}">
+      <button class="register-btn" wx:if="{{isCaptain && !hasTeamRegistered}}" bindtap="onRegisterTeam">报名队伍</button>
+      <view class="team-tip" wx:elif="{{!isCaptain}}">
+        <text>团体赛需要先申请成为领队，再组建队伍报名</text>
+      </view>
+      <button class="cancel-btn" wx:elif="{{hasTeamRegistered}}" bindtap="onCancelTeamRegister">取消队伍报名</button>
+    </block>
   </view>
 </view>
 

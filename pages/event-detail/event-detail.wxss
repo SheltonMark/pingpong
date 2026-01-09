@@ -357,3 +357,13 @@
   padding: 12rpx 32rpx;
   font-size: 24rpx;
 }
+
+/* 团体赛提示 */
+.team-tip {
+  text-align: center;
+  padding: 24rpx;
+  color: var(--gray-500);
+  font-size: 26rpx;
+  background: rgba(245, 158, 11, 0.1);
+  border-radius: 16rpx;
+}

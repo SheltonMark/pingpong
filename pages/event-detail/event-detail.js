@@ -26,7 +26,11 @@ Page({
     useMock: false,
     // 领队申请相关
     captainStatus: null, // null: 未申请, pending: 待审批, approved: 已通过, rejected: 已拒绝
-    isCaptain: false
+    isCaptain: false,
+    // 团体赛相关
+    teamCount: 0,
+    hasTeamRegistered: false,
+    teams: []
   },
 
   onLoad(options) {
@@ -274,6 +278,62 @@ Page({
             }
           } catch (error) {
             console.error('取消失败:', error);
+          }
+        }
+      }
+    });
+  },
+
+  // 双打报名
+  onRegisterDoubles() {
+    if (!app.globalData.isLoggedIn) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+    wx.navigateTo({
+      url: `/pages/doubles-register/doubles-register?event_id=${this.data.eventId}`
+    });
+  },
+
+  // 团体赛报名（领队）
+  onRegisterTeam() {
+    if (!this.data.isCaptain) {
+      wx.showToast({ title: '请先申请成为领队', icon: 'none' });
+      return;
+    }
+    wx.navigateTo({
+      url: `/pages/team-register/team-register?event_id=${this.data.eventId}`
+    });
+  },
+
+  // 取消团体赛报名
+  onCancelTeamRegister() {
+    wx.showModal({
+      title: '取消队伍报名',
+      content: '确定要取消队伍报名吗？队伍中的所有队员报名都将被取消。',
+      success: async (res) => {
+        if (res.confirm) {
+          try {
+            const result = await new Promise((resolve, reject) => {
+              wx.request({
+                url: `${app.globalData.baseUrl}/api/events/${this.data.eventId}/cancel-team`,
+                method: 'POST',
+                data: { user_id: app.globalData.userInfo.user_id },
+                success: (res) => resolve(res.data),
+                fail: reject
+              });
+            });
+
+            if (result.success) {
+              wx.showToast({ title: '已取消', icon: 'success' });
+              this.setData({ hasTeamRegistered: false });
+              this.loadEventDetail();
+            } else {
+              wx.showToast({ title: result.message || '取消失败', icon: 'none' });
+            }
+          } catch (error) {
+            console.error('取消失败:', error);
+            wx.showToast({ title: '取消失败', icon: 'none' });
           }
         }
       }
