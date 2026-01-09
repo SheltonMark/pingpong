@@ -8,6 +8,7 @@ Page({
     hasJoined: false,
     isCreator: false,
     isPlayer: false,
+    hasConfirmed: false,
     statusLabels: {
       open: '招募中',
       full: '已满员',
@@ -53,8 +54,18 @@ Page({
       const res = await this.request(`/api/invitations/${this.data.invitationId}/match`);
       if (res.success && res.data) {
         const userId = app.globalData.userInfo?.id;
-        const isPlayer = res.data.player1_id === userId || res.data.player2_id === userId;
-        this.setData({ match: res.data, isPlayer });
+        const match = res.data;
+        const isPlayer = match.player1_id === userId || match.player2_id === userId;
+
+        // 检查当前用户是否已确认
+        let hasConfirmed = false;
+        if (userId === match.player1_id) {
+          hasConfirmed = !!match.player1_confirmed;
+        } else if (userId === match.player2_id) {
+          hasConfirmed = !!match.player2_confirmed;
+        }
+
+        this.setData({ match, isPlayer, hasConfirmed });
       }
     } catch (error) {
       console.error('加载比赛失败:', error);
@@ -118,7 +129,63 @@ Page({
   onEnterScore() {
     if (!this.data.match) return;
     wx.navigateTo({
-      url: `/pages/score-entry/score-entry?matchId=${this.data.match.id}&type=invitation`
+      url: `/pages/score-entry/score-entry?match_id=${this.data.match.id}&type=invitation`
+    });
+  },
+
+  // 确认比分
+  async onConfirmScore() {
+    if (!this.data.match) return;
+
+    wx.showModal({
+      title: '确认比分',
+      content: '确认比分无误吗？确认后将无法修改。',
+      success: async (res) => {
+        if (res.confirm) {
+          try {
+            const result = await this.request(`/api/events/matches/${this.data.match.id}/confirm`, {
+              user_id: app.globalData.userInfo.id
+            }, 'POST');
+
+            if (result.success) {
+              wx.showToast({ title: '已确认', icon: 'success' });
+              this.loadMatch();
+            } else {
+              wx.showToast({ title: result.message || '确认失败', icon: 'none' });
+            }
+          } catch (error) {
+            console.error('确认比分失败:', error);
+            wx.showToast({ title: '确认失败', icon: 'none' });
+          }
+        }
+      }
+    });
+  },
+
+  // 结束约球
+  async onFinishMatch() {
+    wx.showModal({
+      title: '结束约球',
+      content: '确定要结束这次约球吗？',
+      success: async (res) => {
+        if (res.confirm) {
+          try {
+            const result = await this.request(`/api/invitations/${this.data.invitationId}/finish`, {
+              user_id: app.globalData.userInfo.id
+            }, 'POST');
+
+            if (result.success) {
+              wx.showToast({ title: '已结束', icon: 'success' });
+              this.loadInvitation();
+            } else {
+              wx.showToast({ title: result.message || '操作失败', icon: 'none' });
+            }
+          } catch (error) {
+            console.error('结束约球失败:', error);
+            wx.showToast({ title: '操作失败', icon: 'none' });
+          }
+        }
+      }
     });
   },
 

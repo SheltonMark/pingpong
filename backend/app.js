@@ -18,6 +18,7 @@ const rankingsRouter = require('./routes/rankings');
 const adminRouter = require('./routes/admin');
 const adminAuthRouter = require('./routes/adminAuth');
 const uploadRouter = require('./routes/upload');
+const { autoConfirmScores } = require('./tasks/autoConfirmScores');
 
 const app = express();
 const PORT = process.env.PORT || 80;
@@ -47,6 +48,17 @@ app.use('/api/rankings', rankingsRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/admin/auth', adminAuthRouter);
 app.use('/api/upload', uploadRouter);
+
+// 定时任务API（可由云函数定时触发）
+app.post('/api/tasks/auto-confirm', async (req, res) => {
+  try {
+    const result = await autoConfirmScores();
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Auto confirm task error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
 // 运行数据库迁移
 async function runMigrations() {
@@ -106,6 +118,17 @@ async function startServer() {
   } else {
     // 运行迁移
     await runMigrations();
+
+    // 启动定时任务：每小时检查一次超时比分
+    setInterval(async () => {
+      try {
+        await autoConfirmScores();
+      } catch (error) {
+        console.error('定时任务执行失败:', error.message);
+      }
+    }, 60 * 60 * 1000); // 每小时执行一次
+
+    console.log('⏰ 定时任务已启动（每小时检查超时比分）');
   }
 
   app.listen(PORT, () => {

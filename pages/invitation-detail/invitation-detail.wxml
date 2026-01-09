@@ -62,23 +62,51 @@
         </view>
       </view>
       <view class="total-score">
-        <text class="total {{match.player1_games > match.player2_games ? 'winner' : ''}}">{{match.player1_games}}</text>
+        <text class="total {{match.player1_games > match.player2_games ? 'winner' : ''}}">{{match.player1_games || 0}}</text>
         <text class="total-sep">:</text>
-        <text class="total {{match.player2_games > match.player1_games ? 'winner' : ''}}">{{match.player2_games}}</text>
+        <text class="total {{match.player2_games > match.player1_games ? 'winner' : ''}}">{{match.player2_games || 0}}</text>
+      </view>
+      <!-- 比分确认状态 -->
+      <view class="confirm-status" wx:if="{{match.status === 'pending_confirm'}}">
+        <text class="status-tip">等待双方确认比分</text>
+        <view class="confirm-checks">
+          <text class="{{match.player1_confirmed ? 'confirmed' : ''}}">{{match.player1_name}}: {{match.player1_confirmed ? '已确认' : '待确认'}}</text>
+          <text class="{{match.player2_confirmed ? 'confirmed' : ''}}">{{match.player2_name}}: {{match.player2_confirmed ? '已确认' : '待确认'}}</text>
+        </view>
+      </view>
+      <view class="match-finished" wx:if="{{match.status === 'finished'}}">
+        <text class="finished-tip">比赛已结束</text>
       </view>
     </view>
   </view>
 
   <view class="action-bar">
+    <!-- 招募中：参与/退出 -->
     <block wx:if="{{invitation.status === 'open'}}">
       <button wx:if="{{!hasJoined}}" class="action-btn primary" bindtap="onJoin">参与约球</button>
       <button wx:elif="{{!isCreator}}" class="action-btn secondary" bindtap="onLeave">退出约球</button>
     </block>
+
+    <!-- 创建者可以开始比赛 -->
     <block wx:if="{{isCreator && (invitation.status === 'full' || (invitation.status === 'open' && invitation.participants.length >= 2))}}">
       <button class="action-btn primary" bindtap="onStartMatch">开始比赛</button>
     </block>
-    <block wx:if="{{isPlayer && invitation.status === 'ongoing'}}">
+
+    <!-- 进行中：录入比分 -->
+    <block wx:if="{{isPlayer && invitation.status === 'ongoing' && (!match || !match.scores || match.scores.length === 0)}}">
       <button class="action-btn primary" bindtap="onEnterScore">录入比分</button>
+    </block>
+
+    <!-- 待确认：确认比分 -->
+    <block wx:if="{{isPlayer && match && match.status === 'pending_confirm'}}">
+      <button class="action-btn primary" wx:if="{{!hasConfirmed}}" bindtap="onConfirmScore">确认比分</button>
+      <button class="action-btn secondary" wx:if="{{!hasConfirmed}}" bindtap="onEnterScore">修改比分</button>
+      <text class="confirmed-text" wx:if="{{hasConfirmed}}">您已确认，等待对方确认</text>
+    </block>
+
+    <!-- 创建者可以结束比赛 -->
+    <block wx:if="{{isCreator && invitation.status === 'ongoing' && match && match.status === 'finished'}}">
+      <button class="action-btn primary" bindtap="onFinishMatch">结束约球</button>
     </block>
   </view>
 </view>
