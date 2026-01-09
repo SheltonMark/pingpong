@@ -9,7 +9,7 @@ Page({
     totalScore: { player1: 0, player2: 0 },
     loading: true,
     confirming: false,
-    useMock: true
+    useMock: false
   },
 
   onLoad(options) {

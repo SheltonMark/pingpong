@@ -330,30 +330,31 @@ router.get('/:id/match-history', async (req, res) => {
     const { page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
 
-    // 获取比赛记录
+    // 获取比赛记录（包括赛事比赛和约球比赛）
     const [matches] = await pool.query(`
       SELECT
-        m.id, m.event_id, m.status, m.created_at,
+        m.id, m.event_id, m.invitation_id, m.status, m.created_at,
         m.player1_id, m.player2_id, m.player1_games, m.player2_games,
         u1.name as player1_name, u1.avatar_url as player1_avatar,
         u2.name as player2_name, u2.avatar_url as player2_avatar,
-        e.name as event_name, e.type as event_type
+        e.name as event_name,
+        CASE WHEN m.invitation_id IS NOT NULL THEN 'invitation' ELSE 'event' END as match_type
       FROM matches m
       LEFT JOIN users u1 ON m.player1_id = u1.id
       LEFT JOIN users u2 ON m.player2_id = u2.id
       LEFT JOIN events e ON m.event_id = e.id
-      WHERE (m.player1_id = ? OR m.player2_id = ?) AND m.status = 'confirmed'
+      WHERE (m.player1_id = ? OR m.player2_id = ?) AND m.status IN ('confirmed', 'finished')
       ORDER BY m.created_at DESC
       LIMIT ? OFFSET ?
     `, [id, id, parseInt(limit), offset]);
 
-    // 统计胜负
+    // 统计胜负（包括赛事和约球）
     const [stats] = await pool.query(`
       SELECT
         SUM(CASE WHEN (player1_id = ? AND player1_games > player2_games) OR (player2_id = ? AND player2_games > player1_games) THEN 1 ELSE 0 END) as wins,
         SUM(CASE WHEN (player1_id = ? AND player1_games < player2_games) OR (player2_id = ? AND player2_games < player1_games) THEN 1 ELSE 0 END) as losses
       FROM matches
-      WHERE (player1_id = ? OR player2_id = ?) AND status = 'confirmed'
+      WHERE (player1_id = ? OR player2_id = ?) AND status IN ('confirmed', 'finished')
     `, [id, id, id, id, id, id]);
 
     const wins = stats[0].wins || 0;
