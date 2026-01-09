@@ -38,15 +38,18 @@ function processDescription(description, req) {
     return `<img src="${baseUrl}${match}" style="max-width:100%">`;
   });
 
-  // 清理img标签中可能导致小程序rich-text解析问题的属性
-  // 只保留src和style属性
-  processed = processed.replace(/<img([^>]*)>/gi, (match, attrs) => {
-    // 提取src
-    const srcMatch = attrs.match(/src="([^"]+)"/);
-    const src = srcMatch ? srcMatch[1] : '';
-    if (!src) return '';
+  // 清理img标签，只保留src属性，移除所有其他属性
+  // 这是为了兼容小程序rich-text组件
+  processed = processed.replace(/<img\s+[^>]*src="([^"]+)"[^>]*>/gi, (match, src) => {
     return `<img src="${src}" style="max-width:100%;display:block;">`;
   });
+
+  // 移除可能残留的属性文本（如 " alt="..." 被错误显示的情况）
+  // 这些是wangEditor生成的属性，在某些情况下会被错误解析
+  processed = processed.replace(/"\s*alt="[^"]*"/gi, '');
+  processed = processed.replace(/"\s*data-href="[^"]*"/gi, '');
+  processed = processed.replace(/"\s*style="[^"]*"\/>/gi, '');
+  processed = processed.replace(/style=""\s*\/>/gi, '');
 
   return processed;
 }
