@@ -13,43 +13,63 @@ function toFullUrl(url, req) {
   if (!baseUrl) {
     const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
     const host = req.headers['x-forwarded-host'] || req.headers.host;
-    baseUrl = `${protocol}://${host}`;
+    if (host) {
+      baseUrl = `${protocol}://${host}`;
+    } else {
+      baseUrl = 'https://express-lksv-207842-4-1391867763.sh.run.tcloudbase.com';
+    }
   }
   return baseUrl + url;
 }
 
-// 处理description中的图片URL
+// 处理description中的图片URL，转换为小程序rich-text支持的格式
 function processDescription(description, req) {
   if (!description) return description;
 
+  // 获取 baseUrl，优先使用环境变量
   let baseUrl = process.env.BASE_URL;
   if (!baseUrl) {
+    // 尝试从请求头获取
     const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
     const host = req.headers['x-forwarded-host'] || req.headers.host;
-    baseUrl = `${protocol}://${host}`;
+    if (host) {
+      baseUrl = `${protocol}://${host}`;
+    } else {
+      // 默认值（腾讯云函数部署地址）
+      baseUrl = 'https://express-lksv-207842-4-1391867763.sh.run.tcloudbase.com';
+    }
   }
 
-  // 替换 src="/uploads/..." 为完整URL
-  let processed = description.replace(/src="(\/uploads\/[^"]+)"/g, `src="${baseUrl}$1"`);
+  let processed = description;
 
-  // 处理纯文本形式的图片路径（之前错误存储的数据）
-  // 将 /uploads/xxx.jpg 转换为 <img src="...">
-  processed = processed.replace(/(?<![">])(\/uploads\/[\w\-\.]+\.(jpg|jpeg|png|gif|webp))/gi, (match) => {
-    return `<img src="${baseUrl}${match}" style="max-width:100%">`;
+  // 1. 先处理已有的完整img标签，提取src并重建
+  // 匹配各种格式的img标签
+  processed = processed.replace(/<img[^>]*src=["']([^"']+)["'][^>]*\/?>/gi, (match, src) => {
+    // 如果是相对路径，转为绝对路径
+    if (src.startsWith('/uploads/')) {
+      src = baseUrl + src;
+    }
+    return `<img src="${src}"/>`;
   });
 
-  // 清理img标签，只保留src属性，移除所有其他属性
-  // 这是为了兼容小程序rich-text组件
-  processed = processed.replace(/<img\s+[^>]*src="([^"]+)"[^>]*>/gi, (match, src) => {
-    return `<img src="${src}" style="max-width:100%;display:block;">`;
+  // 2. 处理纯文本形式的图片URL（完整URL）
+  // 匹配 https://xxx.com/uploads/xxx.jpg 格式
+  processed = processed.replace(/(?<![="'])(https?:\/\/[^\s<>"']+\/uploads\/[^\s<>"']+\.(jpg|jpeg|png|gif|webp))/gi, (match) => {
+    return `<img src="${match}"/>`;
   });
 
-  // 移除可能残留的属性文本（如 " alt="..." 被错误显示的情况）
-  // 这些是wangEditor生成的属性，在某些情况下会被错误解析
+  // 3. 处理纯文本形式的相对路径
+  // 匹配 /uploads/xxx.jpg 格式（前面不是引号或>）
+  processed = processed.replace(/(?<![="'>])(\/uploads\/[\w\-\.]+\.(jpg|jpeg|png|gif|webp))/gi, (match) => {
+    return `<img src="${baseUrl}${match}"/>`;
+  });
+
+  // 4. 清理可能残留的HTML属性文本（被错误显示的情况）
+  // 这些是img标签被部分解析后残留的文本
+  processed = processed.replace(/"\s*style="[^"]*">/gi, '');
   processed = processed.replace(/"\s*alt="[^"]*"/gi, '');
-  processed = processed.replace(/"\s*data-href="[^"]*"/gi, '');
-  processed = processed.replace(/"\s*style="[^"]*"\/>/gi, '');
-  processed = processed.replace(/style=""\s*\/>/gi, '');
+  processed = processed.replace(/"\s*data-[^=]*="[^"]*"/gi, '');
+  processed = processed.replace(/style="[^"]*"\s*\/?>/gi, '');
 
   return processed;
 }
@@ -629,5 +649,448 @@ router.get('/:id/captain-status', async (req, res) => {
     res.status(500).json({ success: false, message: '服务器错误' });
   }
 });
+
+// ============ 团体赛报名 ============
+
+// 团体赛报名（领队组建队伍）
+router.post('/:id/register-team', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id, team_name, member_ids } = req.body;
+    // member_ids: 队员用户ID数组（不包含领队自己）
+
+    if (!user_id) {
+      return res.status(400).json({ success: false, message: '缺少用户ID' });
+    }
+    if (!team_name) {
+      return res.status(400).json({ success: false, message: '请输入队伍名称' });
+    }
+    if (!member_ids || !Array.isArray(member_ids) || member_ids.length === 0) {
+      return res.status(400).json({ success: false, message: '请选择队员' });
+    }
+
+    // 检查赛事是否存在且是团体赛
+    const [events] = await pool.query(
+      'SELECT e.*, (SELECT COUNT(DISTINCT team_name) FROM event_registrations WHERE event_id = e.id AND status != "cancelled" AND team_name IS NOT NULL) as team_count FROM events e WHERE e.id = ?',
+      [id]
+    );
+
+    if (events.length === 0) {
+      return res.status(404).json({ success: false, message: '赛事不存在' });
+    }
+
+    const event = events[0];
+    if (event.event_type !== 'team') {
+      return res.status(400).json({ success: false, message: '该赛事不是团体赛' });
+    }
+
+    // 检查赛事状态
+    const status = computeEventStatus(event);
+    if (status !== 'registration') {
+      return res.status(400).json({ success: false, message: '赛事不在报名阶段' });
+    }
+
+    // 检查用户是否是已批准的领队
+    const [captainApps] = await pool.query(
+      'SELECT * FROM captain_applications WHERE event_id = ? AND user_id = ? AND status = "approved"',
+      [id, user_id]
+    );
+    if (captainApps.length === 0) {
+      return res.status(403).json({ success: false, message: '您不是该赛事的领队，无法组建队伍' });
+    }
+
+    // 检查队伍数量限制
+    if (event.max_participants && event.team_count >= event.max_participants) {
+      return res.status(400).json({ success: false, message: '队伍数量已满' });
+    }
+
+    // 检查队伍名称是否重复
+    const [existingTeam] = await pool.query(
+      'SELECT * FROM event_registrations WHERE event_id = ? AND team_name = ? AND status != "cancelled"',
+      [id, team_name]
+    );
+    if (existingTeam.length > 0) {
+      return res.status(400).json({ success: false, message: '队伍名称已存在' });
+    }
+
+    // 检查领队是否已报名
+    const [leaderReg] = await pool.query(
+      'SELECT * FROM event_registrations WHERE event_id = ? AND user_id = ? AND status != "cancelled"',
+      [id, user_id]
+    );
+    if (leaderReg.length > 0) {
+      return res.status(400).json({ success: false, message: '您已报名该赛事' });
+    }
+
+    // 检查队员是否已报名其他队伍
+    const [memberRegs] = await pool.query(
+      'SELECT er.*, u.name FROM event_registrations er JOIN users u ON er.user_id = u.id WHERE er.event_id = ? AND er.user_id IN (?) AND er.status != "cancelled"',
+      [id, member_ids]
+    );
+    if (memberRegs.length > 0) {
+      const names = memberRegs.map(r => r.name).join('、');
+      return res.status(400).json({ success: false, message: `以下队员已报名其他队伍：${names}` });
+    }
+
+    // 开启事务
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    try {
+      // 插入领队报名记录
+      await connection.execute(
+        `INSERT INTO event_registrations (event_id, user_id, team_name, is_team_leader, status)
+         VALUES (?, ?, ?, 1, 'confirmed')`,
+        [id, user_id, team_name]
+      );
+
+      // 插入队员报名记录
+      for (const memberId of member_ids) {
+        await connection.execute(
+          `INSERT INTO event_registrations (event_id, user_id, team_name, is_team_leader, team_leader_id, status)
+           VALUES (?, ?, ?, 0, ?, 'confirmed')`,
+          [id, memberId, team_name, user_id]
+        );
+      }
+
+      await connection.commit();
+
+      res.json({
+        success: true,
+        message: '队伍报名成功',
+        data: {
+          team_name,
+          leader_id: user_id,
+          member_count: member_ids.length + 1
+        }
+      });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('团体赛报名失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
+// 获取赛事队伍列表（团体赛）
+router.get('/:id/teams', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 获取所有队伍
+    const [teams] = await pool.query(`
+      SELECT
+        er.team_name,
+        COUNT(*) as member_count,
+        MAX(CASE WHEN er.is_team_leader = 1 THEN er.user_id END) as leader_id,
+        MAX(CASE WHEN er.is_team_leader = 1 THEN u.name END) as leader_name,
+        MAX(CASE WHEN er.is_team_leader = 1 THEN u.avatar_url END) as leader_avatar
+      FROM event_registrations er
+      JOIN users u ON er.user_id = u.id
+      WHERE er.event_id = ? AND er.status != 'cancelled' AND er.team_name IS NOT NULL
+      GROUP BY er.team_name
+      ORDER BY MIN(er.registered_at)
+    `, [id]);
+
+    // 获取每个队伍的成员
+    for (const team of teams) {
+      const [members] = await pool.query(`
+        SELECT er.user_id, u.name, u.avatar_url, er.is_team_leader
+        FROM event_registrations er
+        JOIN users u ON er.user_id = u.id
+        WHERE er.event_id = ? AND er.team_name = ? AND er.status != 'cancelled'
+        ORDER BY er.is_team_leader DESC, er.registered_at
+      `, [id, team.team_name]);
+      team.members = members;
+    }
+
+    res.json({ success: true, data: teams });
+  } catch (error) {
+    console.error('获取队伍列表失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
+// ============ 赛事排名 ============
+
+// 获取赛事排名（循环赛/淘汰赛）
+router.get('/:id/standings', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 获取赛事信息
+    const [events] = await pool.query('SELECT * FROM events WHERE id = ?', [id]);
+    if (events.length === 0) {
+      return res.status(404).json({ success: false, message: '赛事不存在' });
+    }
+
+    const event = events[0];
+    let standings = [];
+
+    if (event.format === 'round_robin') {
+      // 循环赛排名
+      standings = await calculateRoundRobinStandings(id);
+    } else if (event.format === 'knockout') {
+      // 淘汰赛排名
+      standings = await calculateKnockoutStandings(id);
+    } else if (event.format === 'group_knockout') {
+      // 小组赛+淘汰赛
+      standings = await calculateGroupKnockoutStandings(id);
+    }
+
+    res.json({ success: true, data: standings });
+  } catch (error) {
+    console.error('获取赛事排名失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
+/**
+ * 计算循环赛排名
+ * 排名规则：胜场数 > 净胜局 > 净胜分 > 相互战绩
+ */
+async function calculateRoundRobinStandings(eventId) {
+  // 获取所有参赛者
+  const [registrations] = await pool.query(`
+    SELECT er.user_id, u.name, u.avatar_url
+    FROM event_registrations er
+    JOIN users u ON er.user_id = u.id
+    WHERE er.event_id = ? AND er.status = 'confirmed'
+  `, [eventId]);
+
+  // 获取所有已完成的比赛
+  const [matches] = await pool.query(`
+    SELECT m.*,
+      (SELECT SUM(player1_score) FROM match_scores WHERE match_id = m.id) as player1_total_points,
+      (SELECT SUM(player2_score) FROM match_scores WHERE match_id = m.id) as player2_total_points
+    FROM matches m
+    WHERE m.event_id = ? AND m.status = 'finished'
+  `, [eventId]);
+
+  // 初始化统计数据
+  const stats = {};
+  for (const reg of registrations) {
+    stats[reg.user_id] = {
+      user_id: reg.user_id,
+      name: reg.name,
+      avatar_url: reg.avatar_url,
+      matches_played: 0,
+      wins: 0,
+      losses: 0,
+      games_won: 0,
+      games_lost: 0,
+      points_won: 0,
+      points_lost: 0,
+      head_to_head: {} // 相互战绩
+    };
+  }
+
+  // 统计比赛数据
+  for (const match of matches) {
+    const p1 = match.player1_id;
+    const p2 = match.player2_id;
+
+    if (!stats[p1] || !stats[p2]) continue;
+
+    stats[p1].matches_played++;
+    stats[p2].matches_played++;
+
+    stats[p1].games_won += match.player1_games || 0;
+    stats[p1].games_lost += match.player2_games || 0;
+    stats[p2].games_won += match.player2_games || 0;
+    stats[p2].games_lost += match.player1_games || 0;
+
+    stats[p1].points_won += match.player1_total_points || 0;
+    stats[p1].points_lost += match.player2_total_points || 0;
+    stats[p2].points_won += match.player2_total_points || 0;
+    stats[p2].points_lost += match.player1_total_points || 0;
+
+    if (match.winner_id === p1) {
+      stats[p1].wins++;
+      stats[p2].losses++;
+      stats[p1].head_to_head[p2] = (stats[p1].head_to_head[p2] || 0) + 1;
+      stats[p2].head_to_head[p1] = (stats[p2].head_to_head[p1] || 0) - 1;
+    } else {
+      stats[p2].wins++;
+      stats[p1].losses++;
+      stats[p2].head_to_head[p1] = (stats[p2].head_to_head[p1] || 0) + 1;
+      stats[p1].head_to_head[p2] = (stats[p1].head_to_head[p2] || 0) - 1;
+    }
+  }
+
+  // 转换为数组并排序
+  const standings = Object.values(stats);
+  standings.sort((a, b) => {
+    // 1. 胜场数
+    if (b.wins !== a.wins) return b.wins - a.wins;
+    // 2. 净胜局
+    const aNetGames = a.games_won - a.games_lost;
+    const bNetGames = b.games_won - b.games_lost;
+    if (bNetGames !== aNetGames) return bNetGames - aNetGames;
+    // 3. 净胜分
+    const aNetPoints = a.points_won - a.points_lost;
+    const bNetPoints = b.points_won - b.points_lost;
+    if (bNetPoints !== aNetPoints) return bNetPoints - aNetPoints;
+    // 4. 相互战绩
+    const h2h = a.head_to_head[b.user_id] || 0;
+    return -h2h; // 正数表示a赢b，应该排前面
+  });
+
+  // 添加排名
+  standings.forEach((s, index) => {
+    s.rank = index + 1;
+    s.net_games = s.games_won - s.games_lost;
+    s.net_points = s.points_won - s.points_lost;
+    delete s.head_to_head; // 不返回相互战绩详情
+  });
+
+  return standings;
+}
+
+/**
+ * 计算淘汰赛排名
+ * 排名规则：根据淘汰轮次确定名次
+ */
+async function calculateKnockoutStandings(eventId) {
+  // 获取所有比赛，按轮次排序
+  const [matches] = await pool.query(`
+    SELECT m.*,
+      u1.name as player1_name, u1.avatar_url as player1_avatar,
+      u2.name as player2_name, u2.avatar_url as player2_avatar
+    FROM matches m
+    LEFT JOIN users u1 ON m.player1_id = u1.id
+    LEFT JOIN users u2 ON m.player2_id = u2.id
+    WHERE m.event_id = ?
+    ORDER BY m.round DESC, m.match_order
+  `, [eventId]);
+
+  if (matches.length === 0) {
+    return [];
+  }
+
+  // 找出最大轮次（决赛）
+  const maxRound = Math.max(...matches.map(m => m.round || 1));
+
+  const standings = [];
+  const rankedPlayers = new Set();
+
+  // 从决赛开始往前推
+  for (let round = maxRound; round >= 1; round--) {
+    const roundMatches = matches.filter(m => m.round === round);
+
+    for (const match of roundMatches) {
+      // 处理胜者
+      if (match.winner_id && !rankedPlayers.has(match.winner_id)) {
+        let rank;
+        if (round === maxRound) {
+          rank = 1; // 冠军
+        } else if (round === maxRound - 1) {
+          // 半决赛胜者进决赛，这里不处理
+          continue;
+        }
+
+        const isPlayer1Winner = match.winner_id === match.player1_id;
+        standings.push({
+          rank,
+          user_id: match.winner_id,
+          name: isPlayer1Winner ? match.player1_name : match.player2_name,
+          avatar_url: isPlayer1Winner ? match.player1_avatar : match.player2_avatar,
+          eliminated_round: null,
+          final_round: round
+        });
+        rankedPlayers.add(match.winner_id);
+      }
+
+      // 处理败者
+      const loserId = match.winner_id === match.player1_id ? match.player2_id : match.player1_id;
+      if (loserId && !rankedPlayers.has(loserId)) {
+        let rank;
+        if (round === maxRound) {
+          rank = 2; // 亚军
+        } else if (round === maxRound - 1) {
+          rank = 3; // 4强（半决赛败者）
+        } else if (round === maxRound - 2) {
+          rank = 5; // 8强（1/4决赛败者）
+        } else if (round === maxRound - 3) {
+          rank = 9; // 16强
+        } else {
+          rank = Math.pow(2, maxRound - round) + 1;
+        }
+
+        const isPlayer1Loser = loserId === match.player1_id;
+        standings.push({
+          rank,
+          user_id: loserId,
+          name: isPlayer1Loser ? match.player1_name : match.player2_name,
+          avatar_url: isPlayer1Loser ? match.player1_avatar : match.player2_avatar,
+          eliminated_round: round,
+          final_round: round
+        });
+        rankedPlayers.add(loserId);
+      }
+    }
+  }
+
+  // 按排名排序
+  standings.sort((a, b) => a.rank - b.rank);
+
+  // 添加轮次名称
+  const roundNames = {
+    [maxRound]: '决赛',
+    [maxRound - 1]: '半决赛',
+    [maxRound - 2]: '1/4决赛',
+    [maxRound - 3]: '1/8决赛'
+  };
+
+  standings.forEach(s => {
+    if (s.eliminated_round) {
+      s.eliminated_at = roundNames[s.eliminated_round] || `第${s.eliminated_round}轮`;
+    } else {
+      s.eliminated_at = null;
+    }
+  });
+
+  return standings;
+}
+
+/**
+ * 计算小组赛+淘汰赛排名
+ */
+async function calculateGroupKnockoutStandings(eventId) {
+  // 先获取淘汰赛阶段的排名
+  const knockoutStandings = await calculateKnockoutStandings(eventId);
+
+  // 获取未进入淘汰赛的选手（小组赛被淘汰）
+  const [registrations] = await pool.query(`
+    SELECT er.user_id, u.name, u.avatar_url
+    FROM event_registrations er
+    JOIN users u ON er.user_id = u.id
+    WHERE er.event_id = ? AND er.status = 'confirmed'
+  `, [eventId]);
+
+  const rankedIds = new Set(knockoutStandings.map(s => s.user_id));
+  const unrankedPlayers = registrations.filter(r => !rankedIds.has(r.user_id));
+
+  // 小组赛被淘汰的选手排在淘汰赛选手之后
+  const maxKnockoutRank = knockoutStandings.length > 0
+    ? Math.max(...knockoutStandings.map(s => s.rank))
+    : 0;
+
+  unrankedPlayers.forEach((p, index) => {
+    knockoutStandings.push({
+      rank: maxKnockoutRank + index + 1,
+      user_id: p.user_id,
+      name: p.name,
+      avatar_url: p.avatar_url,
+      eliminated_at: '小组赛'
+    });
+  });
+
+  return knockoutStandings;
+}
 
 module.exports = router;

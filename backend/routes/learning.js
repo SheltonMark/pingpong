@@ -12,7 +12,12 @@ function toFullUrl(url, req) {
   if (!baseUrl) {
     const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
     const host = req.headers['x-forwarded-host'] || req.headers.host;
-    baseUrl = `${protocol}://${host}`;
+    if (host) {
+      baseUrl = `${protocol}://${host}`;
+    } else {
+      // 默认值（腾讯云函数部署地址）
+      baseUrl = 'https://express-lksv-207842-4-1391867763.sh.run.tcloudbase.com';
+    }
   }
   return baseUrl + url;
 }
