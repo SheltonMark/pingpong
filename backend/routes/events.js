@@ -4,6 +4,42 @@ const router = express.Router();
 const { pool } = require('../config/database');
 const { calculateMatchRating } = require('../utils/ratingCalculator');
 
+// 将相对URL转为完整URL
+function toFullUrl(url, req) {
+  if (!url) return url;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+
+  let baseUrl = process.env.BASE_URL;
+  if (!baseUrl) {
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    const host = req.headers['x-forwarded-host'] || req.headers.host;
+    baseUrl = `${protocol}://${host}`;
+  }
+  return baseUrl + url;
+}
+
+// 处理description中的图片URL
+function processDescription(description, req) {
+  if (!description) return description;
+
+  let baseUrl = process.env.BASE_URL;
+  if (!baseUrl) {
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    const host = req.headers['x-forwarded-host'] || req.headers.host;
+    baseUrl = `${protocol}://${host}`;
+  }
+
+  // 替换 src="/uploads/..." 为完整URL
+  let processed = description.replace(/src="(\/uploads\/[^"]+)"/g, `src="${baseUrl}$1"`);
+
+  // 处理纯文本形式的图片路径（之前错误存储的数据）
+  // 将 /uploads/xxx.jpg 转换为 <img src="...">
+  processed = processed.replace(/(?<![">])(\/uploads\/[\w\-\.]+\.(jpg|jpeg|png|gif|webp))/gi, (match) => {
+    return `<img src="${baseUrl}${match}" style="max-width:100%">`;
+  });
+
+  return processed;
+}
 
 // 动态计算赛事状态
 function computeEventStatus(event) {
@@ -124,6 +160,8 @@ router.get('/:id', async (req, res) => {
     // 动态计算状态
     const event = events[0];
     event.status = computeEventStatus(event);
+    // 处理description中的图片URL
+    event.description = processDescription(event.description, req);
 
     // 获取报名列表
     const [registrations] = await pool.query(`

@@ -152,22 +152,26 @@ excludeKeys: ['fullScreen', 'group-video']
 }
 
 const editorConfig = {
-placeholder: '请输入赛事说明...',
-MENU_CONF: {
-  uploadImage: {
-	server: '/api/upload/file',
-	fieldName: 'file',
-	maxFileSize: 5 * 1024 * 1024,
-	allowedFileTypes: ['image/*'],
-	customInsert(res, insertFn) {
-	  if (res.success) {
-		insertFn(res.data.url, res.data.url, '')
-	  } else {
-		ElMessage.error(res.message || '上传失败')
-	  }
-	}
+  placeholder: '请输入赛事说明...',
+  MENU_CONF: {
+    uploadImage: {
+      server: '/api/upload/file',
+      fieldName: 'file',
+      maxFileSize: 5 * 1024 * 1024,
+      allowedFileTypes: ['image/*'],
+      // 自定义插入图片
+      customInsert(res, insertFn) {
+        if (res.success) {
+          // insertFn(url, alt, href)
+          // url 必须是完整的URL，否则编辑器可能无法正确显示
+          const imageUrl = res.data.url
+          insertFn(imageUrl, '', imageUrl)
+        } else {
+          ElMessage.error(res.message || '上传失败')
+        }
+      }
+    }
   }
-}
 }
 
 const handleCreated = (editor) => {
@@ -259,14 +263,22 @@ const processDescriptionUrls = (html) => {
   if (!html) return html
   const origin = window.location.origin
   // 替换 src="/uploads/..." 为 src="https://xxx/uploads/..."
-  return html.replace(/src="(\/uploads\/[^"]+)"/g, `src="${origin}$1"`)
+  let processed = html.replace(/src="(\/uploads\/[^"]+)"/g, `src="${origin}$1"`)
+
+  // 处理纯文本形式的图片路径（之前错误存储的数据）
+  // 将 /uploads/xxx.jpg 转换为 <img src="...">
+  processed = processed.replace(/(?<![">])(\/uploads\/[\w\-\.]+\.(jpg|jpeg|png|gif|webp))/gi, (match) => {
+    return `<img src="${origin}${match}" style="max-width:100%">`
+  })
+
+  return processed
 }
 
 const editEvent = (row) => {
   isEdit.value = true
   form.value = {
     ...row,
-    // 处理description中的相对URL
+    // 处理description中的相对URL和纯文本图片路径
     description: processDescriptionUrls(row.description)
   }
   dialogVisible.value = true
