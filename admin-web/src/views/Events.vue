@@ -274,6 +274,13 @@ const processDescriptionUrls = (html) => {
   return processed
 }
 
+// 将HTML中的完整URL转回相对路径（用于保存到数据库）
+const toRelativeUrls = (html) => {
+  if (!html) return html
+  // 将完整URL转回相对路径
+  return html.replace(/src="https?:\/\/[^"]*?(\/uploads\/[^"]+)"/g, 'src="$1"')
+}
+
 const editEvent = (row) => {
   isEdit.value = true
   form.value = {
@@ -302,14 +309,18 @@ const submitForm = async () => {
       : '/api/admin/events'
     const method = isEdit.value ? 'PUT' : 'POST'
 
+    // 保存时将description中的完整URL转回相对路径
+    const saveData = {
+      ...form.value,
+      description: toRelativeUrls(form.value.description),
+      user_id: user.id,
+      school_id: user.school_id || null
+    }
+
     const res = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...form.value,
-        user_id: user.id,
-        school_id: user.school_id || null
-      })
+      body: JSON.stringify(saveData)
     })
     const data = await res.json()
 

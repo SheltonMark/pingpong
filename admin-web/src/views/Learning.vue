@@ -171,6 +171,17 @@ const getFullUrl = (url) => {
   return window.location.origin + url
 }
 
+// 将完整URL转回相对路径（用于保存到数据库）
+const toRelativePath = (url) => {
+  if (!url) return url
+  // 如果是完整URL，提取相对路径
+  if (url.startsWith('http')) {
+    const match = url.match(/\/uploads\/[^?#]+/)
+    if (match) return match[0]
+  }
+  return url
+}
+
 const beforeUpload = (file) => {
   const isLt100M = file.size / 1024 / 1024 < 100
   if (!isLt100M) {
@@ -277,10 +288,18 @@ const submitForm = async () => {
       : '/api/admin/learning'
     const method = isEdit.value ? 'PUT' : 'POST'
 
+    // 保存时将完整URL转回相对路径
+    const saveData = {
+      ...form.value,
+      url: toRelativePath(form.value.url),
+      cover_url: toRelativePath(form.value.cover_url),
+      user_id: getUserId()
+    }
+
     const res = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form.value, user_id: getUserId() })
+      body: JSON.stringify(saveData)
     })
     const data = await res.json()
 
