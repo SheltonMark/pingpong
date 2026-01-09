@@ -38,6 +38,16 @@ function processDescription(description, req) {
     return `<img src="${baseUrl}${match}" style="max-width:100%">`;
   });
 
+  // 清理img标签中可能导致小程序rich-text解析问题的属性
+  // 只保留src和style属性
+  processed = processed.replace(/<img([^>]*)>/gi, (match, attrs) => {
+    // 提取src
+    const srcMatch = attrs.match(/src="([^"]+)"/);
+    const src = srcMatch ? srcMatch[1] : '';
+    if (!src) return '';
+    return `<img src="${src}" style="max-width:100%;display:block;">`;
+  });
+
   return processed;
 }
 
