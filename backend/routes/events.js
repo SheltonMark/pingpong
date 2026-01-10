@@ -42,23 +42,32 @@ function processDescription(description, req) {
 
   let processed = description;
 
-  // 1. 先处理已有的完整img标签，提取src并重建（简化格式）
-  processed = processed.replace(/<img[^>]*src=["']([^"']+)["'][^>]*\/?>/gi, (match, src) => {
-    if (src.startsWith('/uploads/')) {
-      src = baseUrl + src;
+  // 1. 处理已有的img标签，简化并转换相对路径为绝对路径
+  // 匹配所有 <img ...> 标签
+  processed = processed.replace(/<img\s+([^>]*)>/gi, (match, attrs) => {
+    // 提取 src 属性
+    const srcMatch = attrs.match(/src=["']([^"']+)["']/i);
+    if (srcMatch) {
+      let src = srcMatch[1];
+      // 如果是相对路径，转为绝对路径
+      if (src.startsWith('/uploads/')) {
+        src = baseUrl + src;
+      }
+      // 返回简化的img标签，小程序rich-text只支持基本属性
+      return `<img src="${src}">`;
     }
-    return `<img src="${src}"/>`;
+    return match;
   });
 
-  // 2. 处理纯文本形式的完整图片URL（独立成行或被空白包围）
-  // 匹配 https://xxx/uploads/xxx.jpg 格式的纯文本URL
-  processed = processed.replace(/(^|[\s\n])(https?:\/\/[^\s<>"']+\.(jpg|jpeg|png|gif|webp))(?=[\s\n<]|$)/gim, (match, prefix, url) => {
-    return `${prefix}<img src="${url}"/>`;
+  // 2. 处理纯文本形式的完整图片URL
+  // 匹配独立的 https://xxx.jpg 格式（不在引号或标签内）
+  processed = processed.replace(/(^|>|\s)(https?:\/\/[^\s<>"']+\.(jpg|jpeg|png|gif|webp))(\s|<|$)/gim, (match, before, url, ext, after) => {
+    return `${before}<img src="${url}">${after}`;
   });
 
   // 3. 处理纯文本形式的相对路径
-  processed = processed.replace(/(^|[\s\n])(\/uploads\/[^\s<>"']+\.(jpg|jpeg|png|gif|webp))(?=[\s\n<]|$)/gim, (match, prefix, path) => {
-    return `${prefix}<img src="${baseUrl}${path}"/>`;
+  processed = processed.replace(/(^|>|\s)(\/uploads\/[^\s<>"']+\.(jpg|jpeg|png|gif|webp))(\s|<|$)/gim, (match, before, path, ext, after) => {
+    return `${before}<img src="${baseUrl}${path}">${after}`;
   });
 
   return processed;
