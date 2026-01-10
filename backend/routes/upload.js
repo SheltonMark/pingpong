@@ -66,7 +66,12 @@ router.post('/file', upload.single('file'), (req, res) => {
     if (!baseUrl) {
       const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
       const host = req.headers['x-forwarded-host'] || req.headers.host;
-      baseUrl = `${protocol}://${host}`;
+      if (host) {
+        baseUrl = `${protocol}://${host}`;
+      } else {
+        // 默认值（腾讯云函数部署地址）
+        baseUrl = 'https://express-lksv-207842-4-1391867763.sh.run.tcloudbase.com';
+      }
     }
 
     // 返回完整URL（用于富文本编辑器等需要完整路径的场景）
