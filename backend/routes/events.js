@@ -121,8 +121,8 @@ router.get('/', async (req, res) => {
     const params = [];
 
     if (school_id) {
-      // 校际赛对所有人可见，校内赛只对本校用户可见
-      sql += " AND (e.scope = 'inter_school' OR (e.scope = 'school' AND e.school_id = ?))";
+      // 校际赛、school_id为null的赛事、以及本校校内赛对用户可见
+      sql += " AND (e.scope = 'inter_school' OR e.school_id IS NULL OR (e.scope = 'school' AND e.school_id = ?))";
       params.push(school_id);
     }
     if (status) {
@@ -143,7 +143,7 @@ router.get('/', async (req, res) => {
     let countSql = "SELECT COUNT(*) as total FROM events WHERE status != 'draft'";
     const countParams = [];
     if (school_id) {
-      countSql += " AND (scope = 'inter_school' OR (scope = 'school' AND school_id = ?))";
+      countSql += " AND (scope = 'inter_school' OR school_id IS NULL OR (scope = 'school' AND school_id = ?))";
       countParams.push(school_id);
     }
     if (status) {
