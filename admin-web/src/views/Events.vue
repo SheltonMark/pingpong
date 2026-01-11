@@ -17,6 +17,11 @@
             {{ scopeLabels[row.scope] || row.scope }}
           </template>
         </el-table-column>
+        <el-table-column prop="school_name" label="所属学校" width="120">
+          <template #default="{ row }">
+            {{ row.school_name || '全局' }}
+          </template>
+        </el-table-column>
         <el-table-column prop="event_type" label="类型" width="80">
           <template #default="{ row }">
             {{ typeLabels[row.event_type] || row.event_type }}

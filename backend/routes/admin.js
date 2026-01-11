@@ -159,6 +159,7 @@ router.get('/events', requireAdmin, async (req, res) => {
   try {
     const { status, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
+    const { adminContext } = req;
 
     let sql = `
       SELECT e.*, s.name as school_name, u.name as creator_name,
@@ -168,10 +169,26 @@ router.get('/events', requireAdmin, async (req, res) => {
       LEFT JOIN users u ON e.created_by = u.id
     `;
     const params = [];
+    const whereClauses = [];
+
+    // 权限过滤：学校管理员只能看到校际赛事和自己学校的校内赛事
+    if (!adminContext.isSuperAdmin) {
+      if (adminContext.managedSchoolIds && adminContext.managedSchoolIds.length > 0) {
+        // 学校管理员：可以看到校际赛事 OR 自己学校的校内赛事 OR school_id为NULL的全局赛事
+        whereClauses.push(`(e.scope = 'inter_school' OR e.school_id IS NULL OR e.school_id IN (${adminContext.managedSchoolIds.join(',')}))`);
+      } else {
+        // 没有管理任何学校的管理员（理论上不应该发生，但做保护）
+        whereClauses.push(`(e.scope = 'inter_school' OR e.school_id IS NULL)`);
+      }
+    }
 
     if (status) {
-      sql += ' WHERE e.status = ?';
+      whereClauses.push('e.status = ?');
       params.push(status);
+    }
+
+    if (whereClauses.length > 0) {
+      sql += ' WHERE ' + whereClauses.join(' AND ');
     }
 
     sql += ' ORDER BY e.created_at DESC LIMIT ? OFFSET ?';
