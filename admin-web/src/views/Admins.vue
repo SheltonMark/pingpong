@@ -79,6 +79,16 @@
             />
           </el-select>
         </el-form-item>
+        <el-form-item label="管理赛事" prop="event_id" v-if="addForm.role_code === 'event_manager'">
+          <el-select v-model="addForm.event_id" placeholder="选择赛事" style="width: 100%" filterable>
+            <el-option
+              v-for="event in events"
+              :key="event.id"
+              :label="`${event.title} (${event.school_name || '全局'})`"
+              :value="event.id"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="初始密码" prop="initial_password">
           <el-input v-model="addForm.initial_password" placeholder="设置初始密码（至少6位）" />
         </el-form-item>
@@ -111,6 +121,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 const loading = ref(false)
 const admins = ref([])
 const schools = ref([])
+const events = ref([])
 const showAddDialog = ref(false)
 const showResetDialog = ref(false)
 const addLoading = ref(false)
@@ -125,6 +136,7 @@ const addForm = reactive({
   user_id: '',
   role_code: '',
   school_id: '',
+  event_id: '',
   initial_password: ''
 })
 
@@ -168,9 +180,23 @@ const loadSchools = async () => {
   }
 }
 
-// 角色变更时清空学校选择
+// 加载赛事列表
+const loadEvents = async () => {
+  try {
+    const response = await fetch(`/api/admin/events?user_id=${getUserId()}`)
+    const result = await response.json()
+    if (result.success) {
+      events.value = result.data
+    }
+  } catch (error) {
+    console.error('Load events error:', error)
+  }
+}
+
+// 角色变更时清空学校和赛事选择
 const onRoleChange = () => {
   addForm.school_id = ''
+  addForm.event_id = ''
 }
 
 // 加载管理员列表
@@ -231,6 +257,7 @@ const handleAddAdmin = async () => {
       addForm.user_id = ''
       addForm.role_code = ''
       addForm.school_id = ''
+      addForm.event_id = ''
       addForm.initial_password = ''
       loadAdmins()
     } else {
@@ -314,6 +341,7 @@ const handleRemoveRole = async (admin) => {
 onMounted(() => {
   loadAdmins()
   loadSchools()
+  loadEvents()
 })
 </script>
 
