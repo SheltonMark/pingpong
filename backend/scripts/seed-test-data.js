@@ -28,7 +28,7 @@ async function createTestUsers() {
   if (superAdminRole) {
     // 创建超级管理员
     await pool.execute(`
-      INSERT IGNORE INTO user_roles (user_id, role_id, created_at)
+      INSERT IGNORE INTO user_roles (user_id, role_id, granted_at)
       VALUES (1001, ?, NOW())
     `, [superAdminRole.id]);
   }
@@ -36,7 +36,7 @@ async function createTestUsers() {
   if (schoolAdminRole) {
     // 创建学校管理员
     await pool.execute(`
-      INSERT IGNORE INTO user_roles (user_id, role_id, school_id, created_at)
+      INSERT IGNORE INTO user_roles (user_id, role_id, school_id, granted_at)
       VALUES (1005, ?, 1, NOW())
     `, [schoolAdminRole.id]);
   }
@@ -117,7 +117,7 @@ async function simulateRegistrations(eventIds) {
   const users = [1001, 1002, 1003, 1006];
   for (const userId of users) {
     await pool.execute(`
-      INSERT IGNORE INTO event_registrations (event_id, user_id, status, created_at)
+      INSERT IGNORE INTO event_registrations (event_id, user_id, status, registered_at)
       VALUES (?, ?, 'confirmed', NOW())
     `, [schoolSinglesEventId, userId]);
   }
@@ -127,7 +127,7 @@ async function simulateRegistrations(eventIds) {
   const interSchoolUsers = [1001, 1002, 1004]; // 包含其他学校的学生
   for (const userId of interSchoolUsers) {
     await pool.execute(`
-      INSERT IGNORE INTO event_registrations (event_id, user_id, status, created_at)
+      INSERT IGNORE INTO event_registrations (event_id, user_id, status, registered_at)
       VALUES (?, ?, 'confirmed', NOW())
     `, [interSchoolEventId, userId]);
   }
