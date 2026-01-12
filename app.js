@@ -27,6 +27,7 @@ App({
   // ============================================================
   mockUser: {
     openid: 'mock_openid_004',
+    id: 4,
     user_id: 4,
     name: '张明远',
     gender: 'male',
