@@ -79,7 +79,7 @@ async function runTests() {
     log(1, '用户A发起约球...', 'step');
     const scheduledTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 19).replace('T', ' ');
     const createRes = await request('POST', '/api/invitations', {
-      creator_id: USER_A.id,
+      user_id: USER_A.id,
       title: `自动化测试约球 ${Date.now()}`,
       description: '这是自动化测试创建的约球',
       location: '体育馆3号台',
@@ -88,8 +88,8 @@ async function runTests() {
       school_id: 1
     });
 
-    if (createRes.success && createRes.data?.id) {
-      invitationId = createRes.data.id;
+    if (createRes.success && createRes.data?.invitation_id) {
+      invitationId = createRes.data.invitation_id;
       log(1, `约球创建成功，ID: ${invitationId}`, 'success');
       passed++;
     } else {
