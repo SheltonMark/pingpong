@@ -171,6 +171,160 @@ router.get('/', async (req, res) => {
   }
 });
 
+// ========== 比赛详情相关路由（必须在 /:id 之前定义） ==========
+
+// 获取比赛详情
+router.get('/matches/:matchId', async (req, res) => {
+  try {
+    const { matchId } = req.params;
+
+    const [matches] = await pool.query(
+      `SELECT m.*,
+        u1.name as player1_name,
+        u2.name as player2_name,
+        e.title as event_title
+       FROM matches m
+       LEFT JOIN users u1 ON m.player1_id = u1.id
+       LEFT JOIN users u2 ON m.player2_id = u2.id
+       LEFT JOIN events e ON m.event_id = e.id
+       WHERE m.id = ?`,
+      [matchId]
+    );
+
+    if (matches.length === 0) {
+      return res.status(404).json({ success: false, message: '比赛不存在' });
+    }
+
+    const match = matches[0];
+
+    // 获取比分详情
+    const [scores] = await pool.query(
+      `SELECT game_number, player1_score, player2_score
+       FROM match_scores
+       WHERE match_id = ?
+       ORDER BY game_number`,
+      [matchId]
+    );
+
+    match.scores = scores;
+
+    res.json({ success: true, data: match });
+  } catch (error) {
+    console.error('获取比赛详情失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
+// 录入比分
+router.post('/matches/:matchId/score', async (req, res) => {
+  try {
+    const { matchId } = req.params;
+    const { scores, recorded_by } = req.body;
+    // scores: [{ game_number: 1, player1_score: 11, player2_score: 9 }, ...]
+
+    if (!scores || !Array.isArray(scores)) {
+      return res.status(400).json({ success: false, message: '比分数据格式错误' });
+    }
+
+    // 删除旧比分，插入新比分
+    await pool.execute('DELETE FROM match_scores WHERE match_id = ?', [matchId]);
+
+    for (const score of scores) {
+      await pool.execute(
+        `INSERT INTO match_scores (match_id, game_number, player1_score, player2_score, recorded_by)
+         VALUES (?, ?, ?, ?, ?)`,
+        [matchId, score.game_number, score.player1_score, score.player2_score, recorded_by]
+      );
+    }
+
+    // 计算局数
+    let player1Games = 0, player2Games = 0;
+    for (const score of scores) {
+      if (score.player1_score > score.player2_score) player1Games++;
+      else if (score.player2_score > score.player1_score) player2Games++;
+    }
+
+    // 更新比赛状态
+    await pool.execute(
+      `UPDATE matches SET
+        player1_games = ?, player2_games = ?,
+        status = 'pending_confirm'
+       WHERE id = ?`,
+      [player1Games, player2Games, matchId]
+    );
+
+    res.json({ success: true, message: '比分已录入' });
+  } catch (error) {
+    console.error('录入比分失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
+// 确认比分
+router.post('/matches/:matchId/confirm', async (req, res) => {
+  try {
+    const { matchId } = req.params;
+    const { user_id, is_admin } = req.body;
+
+    const [matches] = await pool.query('SELECT * FROM matches WHERE id = ?', [matchId]);
+    if (matches.length === 0) {
+      return res.status(404).json({ success: false, message: '比赛不存在' });
+    }
+
+    const match = matches[0];
+    let updateField = '';
+
+    if (is_admin) {
+      updateField = 'admin_confirmed = 1';
+    } else if (user_id === match.player1_id) {
+      updateField = 'player1_confirmed = 1';
+    } else if (user_id === match.player2_id) {
+      updateField = 'player2_confirmed = 1';
+    } else {
+      return res.status(403).json({ success: false, message: '无权确认此比赛' });
+    }
+
+    await pool.execute(`UPDATE matches SET ${updateField} WHERE id = ?`, [matchId]);
+
+    // 检查是否双方都确认了
+    const [updated] = await pool.query('SELECT * FROM matches WHERE id = ?', [matchId]);
+    const m = updated[0];
+
+    if ((m.player1_confirmed && m.player2_confirmed) || m.admin_confirmed) {
+      // 确定胜者和败者
+      const winnerId = m.player1_games > m.player2_games ? m.player1_id : m.player2_id;
+      const loserId = winnerId === m.player1_id ? m.player2_id : m.player1_id;
+
+      // 更新比赛状态
+      await pool.execute(
+        `UPDATE matches SET status = 'finished', winner_id = ?, finished_at = NOW() WHERE id = ?`,
+        [winnerId, matchId]
+      );
+
+      // 计算积分变化（仅单打赛事且计入排名时）
+      const [events] = await pool.query(
+        'SELECT * FROM events WHERE id = ?',
+        [m.event_id]
+      );
+
+      if (events.length > 0) {
+        const event = events[0];
+        // 只有单打赛事且 counts_for_ranking = 1 时才计算积分
+        if (event.event_type === 'singles' && event.counts_for_ranking) {
+          await updatePlayerRatings(m.event_id, matchId, winnerId, loserId);
+        }
+      }
+    }
+
+    res.json({ success: true, message: '已确认' });
+  } catch (error) {
+    console.error('确认比分失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
+// ========== 赛事详情相关路由 ==========
+
 // 获取赛事详情
 router.get('/:id', async (req, res) => {
   try {
@@ -341,114 +495,6 @@ router.get('/:id/matches', async (req, res) => {
     res.json({ success: true, data: matches });
   } catch (error) {
     console.error('获取对阵列表失败:', error);
-    res.status(500).json({ success: false, message: '服务器错误' });
-  }
-});
-
-// 录入比分
-router.post('/matches/:matchId/score', async (req, res) => {
-  try {
-    const { matchId } = req.params;
-    const { scores, recorded_by } = req.body;
-    // scores: [{ game_number: 1, player1_score: 11, player2_score: 9 }, ...]
-
-    if (!scores || !Array.isArray(scores)) {
-      return res.status(400).json({ success: false, message: '比分数据格式错误' });
-    }
-
-    // 删除旧比分，插入新比分
-    await pool.execute('DELETE FROM match_scores WHERE match_id = ?', [matchId]);
-
-    for (const score of scores) {
-      await pool.execute(
-        `INSERT INTO match_scores (match_id, game_number, player1_score, player2_score, recorded_by)
-         VALUES (?, ?, ?, ?, ?)`,
-        [matchId, score.game_number, score.player1_score, score.player2_score, recorded_by]
-      );
-    }
-
-    // 计算局数
-    let player1Games = 0, player2Games = 0;
-    for (const score of scores) {
-      if (score.player1_score > score.player2_score) player1Games++;
-      else if (score.player2_score > score.player1_score) player2Games++;
-    }
-
-    // 更新比赛状态
-    await pool.execute(
-      `UPDATE matches SET
-        player1_games = ?, player2_games = ?,
-        status = 'pending_confirm'
-       WHERE id = ?`,
-      [player1Games, player2Games, matchId]
-    );
-
-    res.json({ success: true, message: '比分已录入' });
-  } catch (error) {
-    console.error('录入比分失败:', error);
-    res.status(500).json({ success: false, message: '服务器错误' });
-  }
-});
-
-// 确认比分
-router.post('/matches/:matchId/confirm', async (req, res) => {
-  try {
-    const { matchId } = req.params;
-    const { user_id, is_admin } = req.body;
-
-    const [matches] = await pool.query('SELECT * FROM matches WHERE id = ?', [matchId]);
-    if (matches.length === 0) {
-      return res.status(404).json({ success: false, message: '比赛不存在' });
-    }
-
-    const match = matches[0];
-    let updateField = '';
-
-    if (is_admin) {
-      updateField = 'admin_confirmed = 1';
-    } else if (user_id === match.player1_id) {
-      updateField = 'player1_confirmed = 1';
-    } else if (user_id === match.player2_id) {
-      updateField = 'player2_confirmed = 1';
-    } else {
-      return res.status(403).json({ success: false, message: '无权确认此比赛' });
-    }
-
-    await pool.execute(`UPDATE matches SET ${updateField} WHERE id = ?`, [matchId]);
-
-    // 检查是否双方都确认了
-    const [updated] = await pool.query('SELECT * FROM matches WHERE id = ?', [matchId]);
-    const m = updated[0];
-
-    if ((m.player1_confirmed && m.player2_confirmed) || m.admin_confirmed) {
-      // 确定胜者和败者
-      const winnerId = m.player1_games > m.player2_games ? m.player1_id : m.player2_id;
-      const loserId = winnerId === m.player1_id ? m.player2_id : m.player1_id;
-
-      // 更新比赛状态
-      await pool.execute(
-        `UPDATE matches SET status = 'finished', winner_id = ?, finished_at = NOW() WHERE id = ?`,
-        [winnerId, matchId]
-      );
-
-      // 计算积分变化（仅单打赛事且计入排名时）
-      const [events] = await pool.query(
-        'SELECT * FROM events WHERE id = ?',
-        [m.event_id]
-      );
-
-      if (events.length > 0) {
-        const event = events[0];
-        // 只有单打赛事且 counts_for_ranking = 1 时才计算积分
-        if (event.event_type === 'singles' && event.counts_for_ranking) {
-          await updatePlayerRatings(m.event_id, matchId, winnerId, loserId);
-        }
-      }
-    }
-
-    res.json({ success: true, message: '已确认' });
-  } catch (error) {
-    console.error('确认比分失败:', error);
     res.status(500).json({ success: false, message: '服务器错误' });
   }
 });
