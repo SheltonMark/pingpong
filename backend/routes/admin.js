@@ -316,7 +316,7 @@ router.get('/matches', requireAdmin, async (req, res) => {
       LEFT JOIN users p2 ON m.player2_id = p2.id
       LEFT JOIN users w ON m.winner_id = w.id
       ${whereClause}
-      ORDER BY m.updated_at DESC, m.id DESC
+      ORDER BY m.finished_at DESC, m.id DESC
       LIMIT 100
     `);
 
