@@ -1274,7 +1274,155 @@ router.delete('/schools/:id', requireSuperAdmin, async (req, res) => {
   }
 });
 
-module.exports = router;
+// ============ 学院管理 ============
+
+// 获取某学校的学院列表
+router.get('/schools/:schoolId/colleges', requireAdmin, async (req, res) => {
+  try {
+    const { schoolId } = req.params;
+    const { include_inactive } = req.query;
+
+    let sql = `
+      SELECT c.*,
+             (SELECT COUNT(*) FROM users WHERE college_id = c.id) as user_count
+      FROM colleges c
+      WHERE c.school_id = ?
+    `;
+    const params = [schoolId];
+
+    if (!include_inactive) {
+      sql += ' AND c.is_active = 1';
+    }
+
+    sql += ' ORDER BY c.id ASC';
+
+    const [colleges] = await pool.execute(sql, params);
+    res.json({ success: true, data: colleges });
+  } catch (error) {
+    console.error('Get colleges error:', error);
+    res.json({ success: false, message: '获取学院列表失败' });
+  }
+});
+
+// 添加学院
+router.post('/schools/:schoolId/colleges', requireAdmin, async (req, res) => {
+  try {
+    const { schoolId } = req.params;
+    const { name } = req.body;
+    const adminContext = req.adminContext;
+
+    // 权限检查：学校管理员只能管理自己的学校
+    if (adminContext.role === 'school_admin' && !adminContext.managedSchoolIds.includes(parseInt(schoolId))) {
+      return res.status(403).json({ success: false, message: '无权管理该学校的学院' });
+    }
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: '学院名称不能为空' });
+    }
+
+    // 检查重复
+    const [existing] = await pool.execute(
+      'SELECT id FROM colleges WHERE school_id = ? AND name = ?',
+      [schoolId, name.trim()]
+    );
+
+    if (existing.length > 0) {
+      return res.json({ success: false, message: '该学院已存在' });
+    }
+
+    const [result] = await pool.execute(
+      'INSERT INTO colleges (school_id, name, is_active, created_at) VALUES (?, ?, 1, NOW())',
+      [schoolId, name.trim()]
+    );
+
+    res.json({ success: true, data: { id: result.insertId, name: name.trim() } });
+  } catch (error) {
+    console.error('Add college error:', error);
+    res.json({ success: false, message: '添加学院失败' });
+  }
+});
+
+// 更新学院
+router.put('/colleges/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, is_active } = req.body;
+    const adminContext = req.adminContext;
+
+    // 获取学院信息以检查权限
+    const [[college]] = await pool.execute('SELECT school_id FROM colleges WHERE id = ?', [id]);
+    if (!college) {
+      return res.status(404).json({ success: false, message: '学院不存在' });
+    }
+
+    // 权限检查
+    if (adminContext.role === 'school_admin' && !adminContext.managedSchoolIds.includes(college.school_id)) {
+      return res.status(403).json({ success: false, message: '无权管理该学院' });
+    }
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: '学院名称不能为空' });
+    }
+
+    // 检查名称是否与同校其他学院重复
+    const [duplicate] = await pool.execute(
+      'SELECT id FROM colleges WHERE school_id = ? AND name = ? AND id != ?',
+      [college.school_id, name.trim(), id]
+    );
+
+    if (duplicate.length > 0) {
+      return res.json({ success: false, message: '该学院名称已存在' });
+    }
+
+    await pool.execute(
+      'UPDATE colleges SET name = ?, is_active = ? WHERE id = ?',
+      [name.trim(), is_active !== undefined ? (is_active ? 1 : 0) : 1, id]
+    );
+
+    res.json({ success: true, message: '更新成功' });
+  } catch (error) {
+    console.error('Update college error:', error);
+    res.json({ success: false, message: '更新学院失败' });
+  }
+});
+
+// 删除学院
+router.delete('/colleges/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const adminContext = req.adminContext;
+
+    // 获取学院信息
+    const [[college]] = await pool.execute('SELECT school_id FROM colleges WHERE id = ?', [id]);
+    if (!college) {
+      return res.status(404).json({ success: false, message: '学院不存在' });
+    }
+
+    // 权限检查
+    if (adminContext.role === 'school_admin' && !adminContext.managedSchoolIds.includes(college.school_id)) {
+      return res.status(403).json({ success: false, message: '无权管理该学院' });
+    }
+
+    // 检查是否有关联用户
+    const [[userCount]] = await pool.execute(
+      'SELECT COUNT(*) as count FROM users WHERE college_id = ?',
+      [id]
+    );
+
+    if (userCount.count > 0) {
+      // 有用户，只能禁用
+      await pool.execute('UPDATE colleges SET is_active = 0 WHERE id = ?', [id]);
+      res.json({ success: true, message: '学院已禁用（有关联用户无法删除）' });
+    } else {
+      // 无用户，可以删除
+      await pool.execute('DELETE FROM colleges WHERE id = ?', [id]);
+      res.json({ success: true, message: '学院已删除' });
+    }
+  } catch (error) {
+    console.error('Delete college error:', error);
+    res.json({ success: false, message: '删除学院失败' });
+  }
+});
 
 // 删除赛事
 router.delete('/events/:id', requireAdmin, async (req, res) => {
@@ -1413,3 +1561,5 @@ router.post('/captain-applications/:id/reject', requireAdmin, async (req, res) =
     res.json({ success: false, message: '审批失败' });
   }
 });
+
+module.exports = router;
