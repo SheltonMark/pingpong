@@ -10,8 +10,16 @@
 
     <text class="post-content">{{post.content}}</text>
 
-    <view class="post-images" wx:if="{{post.images.length > 0}}">
-      <image wx:for="{{post.images}}" wx:key="*this" src="{{item}}" mode="aspectFill" bindtap="onPreviewImage" data-current="{{item}}" />
+    <view class="post-images {{post.images.length === 1 ? 'single' : (post.images.length <= 4 ? 'grid-2' : 'grid-3')}}" wx:if="{{post.images.length > 0}}">
+      <image
+        wx:for="{{post.images}}"
+        wx:key="*this"
+        class="post-image"
+        src="{{item}}"
+        mode="aspectFill"
+        bindtap="onPreviewImage"
+        data-current="{{item}}"
+      />
     </view>
 
     <view class="post-stats">

@@ -265,7 +265,7 @@ Page({
 
   // 表单验证
   validateForm() {
-    const { form, selectedType } = this.data;
+    const { form, selectedType, colleges, departments } = this.data;
     const errors = [];
 
     if (!form.name || form.name.trim() === '') {
@@ -281,18 +281,21 @@ Page({
       errors.push('请选择学校');
     }
 
-    // 根据用户类型验证
+    // 根据用户类型验证（只有当学校有学院数据时才要求选择学院）
+    const hasColleges = colleges && colleges.length > 0;
+    const hasDepartments = departments && departments.length > 0;
+
     if (selectedType === 'student') {
-      if (!form.collegeId) errors.push('请选择学院');
+      if (hasColleges && !form.collegeId) errors.push('请选择学院');
       if (!form.className) errors.push('请输入班级');
       if (!form.enrollmentYear) errors.push('请选择入学年份');
     } else if (selectedType === 'graduate') {
-      if (!form.collegeId) errors.push('请选择学院');
+      if (hasColleges && !form.collegeId) errors.push('请选择学院');
       if (!form.enrollmentYear) errors.push('请选择入学年份');
     } else if (selectedType === 'teacher') {
-      if (!form.collegeId) errors.push('请选择学院');
+      if (hasColleges && !form.collegeId) errors.push('请选择学院');
     } else if (selectedType === 'staff') {
-      if (!form.departmentId) errors.push('请选择下属单位');
+      if (hasDepartments && !form.departmentId) errors.push('请选择下属单位');
     }
 
     return errors;

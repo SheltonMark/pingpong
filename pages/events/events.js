@@ -16,10 +16,7 @@ Page({
     events: [],
     loading: false,
     hasMore: true,
-    page: 1,
-
-    // Mock 数据
-    useMock: false
+    page: 1
   },
 
   onLoad() {
@@ -56,23 +53,6 @@ Page({
     if (this.data.loading) return;
     this.setData({ loading: true });
 
-    // Mock 模式
-    if (this.data.useMock) {
-      setTimeout(() => {
-        const mockEvents = this.getMockEvents();
-        const filtered = this.data.currentTab === 'all'
-          ? mockEvents
-          : mockEvents.filter(e => e.status === this.data.currentTab);
-
-        this.setData({
-          events: loadMore ? [...this.data.events, ...filtered] : filtered,
-          loading: false,
-          hasMore: false
-        });
-      }, 500);
-      return;
-    }
-
     // 真实 API 调用
     try {
       const { currentTab, page } = this.data;
@@ -108,46 +88,7 @@ Page({
     }
   },
 
-  // Mock 数据
-  getMockEvents() {
-    return [
-      {
-        id: 1,
-        title: '新生杯乒乓球赛',
-        event_type: 'singles',
-        event_format: 'knockout',
-        status: 'registration',
-        event_start: '2024-12-20 09:00',
-        location: '体育馆一楼',
-        participant_count: 24,
-        max_participants: 32
-      },
-      {
-        id: 2,
-        title: '学院友谊赛',
-        event_type: 'doubles',
-        event_format: 'round_robin',
-        status: 'ongoing',
-        event_start: '2024-12-25 14:00',
-        location: '体育馆二楼',
-        participant_count: 16,
-        max_participants: 16
-      },
-      {
-        id: 3,
-        title: '校际邀请赛',
-        event_type: 'team',
-        event_format: 'knockout',
-        status: 'finished',
-        event_start: '2024-12-10 09:00',
-        location: '主体育馆',
-        participant_count: 8,
-        max_participants: 8
-      }
-    ];
-  },
 
-  
   // 格式化时间
   formatTime(dateStr) {
     if (!dateStr) return '';

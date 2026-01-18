@@ -18,6 +18,7 @@ const rankingsRouter = require('./routes/rankings');
 const adminRouter = require('./routes/admin');
 const adminAuthRouter = require('./routes/adminAuth');
 const uploadRouter = require('./routes/upload');
+const subscriptionRouter = require('./routes/subscription');
 const { autoConfirmScores } = require('./tasks/autoConfirmScores');
 
 const app = express();
@@ -48,6 +49,7 @@ app.use('/api/rankings', rankingsRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/admin/auth', adminAuthRouter);
 app.use('/api/upload', uploadRouter);
+app.use('/api/subscription', subscriptionRouter);
 
 // 定时任务API（可由云函数定时触发）
 app.post('/api/tasks/auto-confirm', async (req, res) => {

@@ -1,4 +1,5 @@
 const app = getApp();
+const subscribe = require('../../utils/subscribe');
 
 Page({
   data: {
@@ -53,6 +54,14 @@ Page({
 
     if (this.data.isSubmitting) return;
     this.setData({ isSubmitting: true });
+
+    // 请求赛事相关订阅消息授权（比赛提醒、比分确认）
+    try {
+      await subscribe.requestEventSubscriptions();
+    } catch (err) {
+      console.log('订阅请求失败或用户拒绝:', err);
+      // 订阅失败不影响报名操作
+    }
 
     try {
       const res = await this.request(`/api/events/${this.data.eventId}/register`, {

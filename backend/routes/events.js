@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
 const { calculateMatchRating } = require('../utils/ratingCalculator');
+const subscribeMessage = require('../utils/subscribeMessage');
 
 // 将相对URL转为完整URL
 function toFullUrl(url, req) {
@@ -252,6 +253,45 @@ router.post('/matches/:matchId/score', async (req, res) => {
        WHERE id = ?`,
       [player1Games, player2Games, matchId]
     );
+
+    // 发送订阅消息通知对手确认比分
+    try {
+      const [matchInfo] = await pool.query(
+        `SELECT m.*, e.name as event_name,
+          u1.name as player1_name, u1.openid as player1_openid,
+          u2.name as player2_name, u2.openid as player2_openid
+         FROM matches m
+         LEFT JOIN events e ON m.event_id = e.id
+         LEFT JOIN users u1 ON m.player1_id = u1.id
+         LEFT JOIN users u2 ON m.player2_id = u2.id
+         WHERE m.id = ?`,
+        [matchId]
+      );
+
+      if (matchInfo.length > 0) {
+        const match = matchInfo[0];
+        // 确定对手和录入者
+        const isPlayer1 = recorded_by === match.player1_id;
+        const opponentOpenid = isPlayer1 ? match.player2_openid : match.player1_openid;
+        const recorderName = isPlayer1 ? match.player1_name : match.player2_name;
+
+        // 构建比分字符串
+        const scoreStr = `${player1Games}:${player2Games}`;
+
+        if (opponentOpenid) {
+          await subscribeMessage.sendScoreConfirmNotice(opponentOpenid, {
+            matchInfo: match.event_name || '友谊赛',
+            opponentName: recorderName || '对手',
+            score: scoreStr,
+            time: subscribeMessage.formatTime(new Date()),
+            page: `pages/score-confirm/score-confirm?matchId=${matchId}`
+          });
+        }
+      }
+    } catch (notifyError) {
+      console.error('发送比分确认通知失败:', notifyError);
+      // 通知失败不影响主流程
+    }
 
     res.json({ success: true, message: '比分已录入' });
   } catch (error) {

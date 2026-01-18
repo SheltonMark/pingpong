@@ -58,13 +58,39 @@ router.post('/wx-login', async (req, res) => {
       user = existing[0];
     }
 
-    // 返回用户状态
+    // 如果用户已注册，返回完整用户信息
+    if (user.is_registered) {
+      const [fullUserData] = await pool.query(`
+        SELECT
+          u.id, u.id as user_id, u.openid, u.name, u.gender, u.phone, u.avatar_url,
+          u.user_type, u.school_id, u.college_id, u.department_id,
+          u.is_registered, u.privacy_agreed, u.created_at,
+          s.name as school_name, s.short_name as school_short_name,
+          c.name as college_name
+        FROM users u
+        LEFT JOIN schools s ON u.school_id = s.id
+        LEFT JOIN colleges c ON u.college_id = c.id
+        WHERE u.id = ?
+      `, [user.id]);
+
+      return res.json({
+        success: true,
+        data: {
+          openid,
+          user: fullUserData[0],
+          is_registered: true,
+          privacy_agreed: !!user.privacy_agreed
+        }
+      });
+    }
+
+    // 未注册用户返回基本状态
     res.json({
       success: true,
       data: {
         openid,
         user_id: user.id,
-        is_registered: !!user.is_registered,
+        is_registered: false,
         privacy_agreed: !!user.privacy_agreed,
         name: user.name || null
       }

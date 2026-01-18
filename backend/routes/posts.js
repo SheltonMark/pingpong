@@ -86,13 +86,24 @@ router.get('/', async (req, res) => {
 
     const [posts] = await pool.query(sql, params);
 
-    // 获取每个帖子的图片
+    // 获取每个帖子的图片和关联的约球信息
     for (const post of posts) {
       const [images] = await pool.query(
         'SELECT image_url FROM post_images WHERE post_id = ? ORDER BY sort_order',
         [post.id]
       );
       post.images = images.map(img => img.image_url);
+
+      // 检查是否有关联的约球
+      const [invitations] = await pool.query(`
+        SELECT mi.id, mi.title, mi.location, mi.scheduled_time, mi.max_participants, mi.status,
+          (SELECT COUNT(*) FROM invitation_participants WHERE invitation_id = mi.id AND status = 'confirmed') as participant_count
+        FROM match_invitations mi
+        WHERE mi.post_id = ?
+      `, [post.id]);
+      if (invitations.length > 0) {
+        post.invitation = invitations[0];
+      }
 
       // 检查当前用户是否已点赞
       if (user_id) {

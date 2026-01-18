@@ -1,5 +1,6 @@
 // pages/event-detail/event-detail.js
 const app = getApp();
+const subscribe = require('../../utils/subscribe');
 
 // 日期格式化工具
 const formatDate = (dateStr) => {
@@ -134,7 +135,7 @@ Page({
   },
 
   // 申请成为领队
-  onApplyCaptain() {
+  async onApplyCaptain() {
     if (!app.globalData.isLoggedIn) {
       wx.showToast({ title: '请先登录', icon: 'none' });
       return;
@@ -145,6 +146,13 @@ Page({
       content: '领队可以组建队伍并管理队员报名。确定申请吗？',
       success: async (res) => {
         if (res.confirm) {
+          // 请求审核结果订阅消息授权
+          try {
+            await subscribe.requestApprovalSubscription();
+          } catch (err) {
+            console.log('订阅请求失败或用户拒绝:', err);
+          }
+
           try {
             const result = await new Promise((resolve, reject) => {
               wx.request({

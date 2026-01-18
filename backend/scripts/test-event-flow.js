@@ -11,7 +11,7 @@
 const { spawn } = require('child_process');
 const path = require('path');
 
-const BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
+const BASE_URL = process.env.API_BASE_URL || 'https://express-lksv-207842-4-1391867763.sh.run.tcloudbase.com';
 
 // 测试用户ID
 const USERS = {

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const { pool } = require('../config/database');
+const subscribeMessage = require('../utils/subscribeMessage');
 // 格式化日期为 MySQL 格式
 function formatDateForMySQL(dateStr) {
   if (!dateStr) return null;
@@ -1557,6 +1558,31 @@ router.post('/captain-applications/:id/approve', requireAdmin, async (req, res) 
       );
     }
 
+    // 发送订阅消息通知申请人
+    try {
+      const [userInfo] = await pool.query(
+        'SELECT openid FROM users WHERE id = ?',
+        [app.user_id]
+      );
+      const [eventInfo] = await pool.query(
+        'SELECT name FROM events WHERE id = ?',
+        [app.event_id]
+      );
+
+      if (userInfo.length > 0 && userInfo[0].openid) {
+        await subscribeMessage.sendApprovalResultNotice(userInfo[0].openid, {
+          content: `领队申请-${eventInfo.length > 0 ? eventInfo[0].name : '赛事'}`,
+          result: '已通过',
+          remark: '您的领队申请已通过审核',
+          time: subscribeMessage.formatTime(new Date()),
+          page: `pages/event-detail/event-detail?id=${app.event_id}`
+        });
+      }
+    } catch (notifyError) {
+      console.error('发送领队审批通知失败:', notifyError);
+      // 通知失败不影响主流程
+    }
+
     res.json({ success: true, message: '已批准' });
   } catch (error) {
     console.error('Approve captain application error:', error);
@@ -1598,6 +1624,31 @@ router.post('/captain-applications/:id/reject', requireAdmin, async (req, res) =
       'UPDATE captain_applications SET status = ?, reviewed_by = ?, reviewed_at = NOW(), reject_reason = ? WHERE id = ?',
       ['rejected', user_id, reject_reason || null, id]
     );
+
+    // 发送订阅消息通知申请人
+    try {
+      const [userInfo] = await pool.query(
+        'SELECT openid FROM users WHERE id = ?',
+        [app.user_id]
+      );
+      const [eventInfo] = await pool.query(
+        'SELECT name FROM events WHERE id = ?',
+        [app.event_id]
+      );
+
+      if (userInfo.length > 0 && userInfo[0].openid) {
+        await subscribeMessage.sendApprovalResultNotice(userInfo[0].openid, {
+          content: `领队申请-${eventInfo.length > 0 ? eventInfo[0].name : '赛事'}`,
+          result: '未通过',
+          remark: reject_reason || '您的领队申请未通过审核',
+          time: subscribeMessage.formatTime(new Date()),
+          page: `pages/event-detail/event-detail?id=${app.event_id}`
+        });
+      }
+    } catch (notifyError) {
+      console.error('发送领队审批通知失败:', notifyError);
+      // 通知失败不影响主流程
+    }
 
     res.json({ success: true, message: '已拒绝' });
   } catch (error) {

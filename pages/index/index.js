@@ -26,46 +26,8 @@ Page({
       { icon: '📚', label: '学习', bgColor: 'bg-blue', url: '/pages/learning/learning' }
     ],
 
-    // ============================================================
-    // 【Mock 排行榜数据】
-    // TODO: 上线后从后端 API 获取真实数据
-    // ============================================================
-    rankingList: [
-      {
-        user_id: 101,
-        name: '张明远',
-        college_name: '体育学院',
-        user_type_label: '在校生',
-        score: 2847,
-        avatar_url: ''
-      },
-      {
-        user_id: 102,
-        name: '李思源',
-        college_name: '计算机学院',
-        user_type_label: '在校生',
-        score: 2634,
-        avatar_url: ''
-      },
-      {
-        user_id: 103,
-        name: '王浩然',
-        college_name: '物理学院',
-        user_type_label: '老师',
-        score: 2518,
-        avatar_url: ''
-      },
-      {
-        user_id: 104,
-        name: '陈雨婷',
-        college_name: '外国语学院',
-        user_type_label: '在校生',
-        score: 2456,
-        avatar_url: ''
-      }
-    ],
-
-    useMock: false
+    // 排行榜数据（从 API 获取）
+    rankingList: []
   },
 
   onLoad() {
@@ -239,13 +201,6 @@ Page({
 
   // 加载公告
   async loadAnnouncements() {
-    if (this.data.useMock) {
-      this.setData({
-        announcements: this.getMockAnnouncements()
-      });
-      return;
-    }
-
     try {
       const res = await new Promise((resolve, reject) => {
         wx.request({
@@ -265,35 +220,6 @@ Page({
     } catch (error) {
       console.error('加载公告失败:', error);
     }
-  },
-
-  // Mock 公告数据
-  getMockAnnouncements() {
-    return [
-      {
-        id: 1,
-        title: '新生杯乒乓球赛报名开始',
-        content: '12月20日开赛，欢迎新生参加',
-        image_url: '',
-        link_type: 'event',
-        link_event_id: 1
-      },
-      {
-        id: 2,
-        title: '体育馆12月25日闭馆通知',
-        content: '因设备维护，当日暂停开放',
-        image_url: '',
-        link_type: 'none'
-      },
-      {
-        id: 3,
-        title: '校队选拔赛即将开始',
-        content: '欢迎有实力的同学报名参加',
-        image_url: '',
-        link_type: 'event',
-        link_event_id: 2
-      }
-    ];
   },
 
   // 点击快捷入口

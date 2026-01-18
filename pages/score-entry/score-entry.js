@@ -1,5 +1,6 @@
 // pages/score-entry/score-entry.js
 const app = getApp();
+const subscribe = require('../../utils/subscribe');
 
 Page({
   data: {
@@ -9,8 +10,7 @@ Page({
     scores: [],
     totalScore: { player1: 0, player2: 0 },
     loading: true,
-    submitting: false,
-    useMock: false
+    submitting: false
   },
 
   onLoad(options) {
@@ -20,20 +20,6 @@ Page({
 
   // 加载比赛详情
   async loadMatchDetail() {
-    if (this.data.useMock) {
-      setTimeout(() => {
-        const match = this.getMockMatch();
-        const scores = this.initScores(5);
-        this.setData({
-          match,
-          bestOf: 5,
-          scores,
-          loading: false
-        });
-      }, 300);
-      return;
-    }
-
     try {
       const res = await new Promise((resolve, reject) => {
         wx.request({
@@ -134,12 +120,12 @@ Page({
 
     this.setData({ submitting: true });
 
-    if (this.data.useMock) {
-      setTimeout(() => {
-        wx.showToast({ title: '提交成功', icon: 'success' });
-        setTimeout(() => wx.navigateBack(), 1500);
-      }, 500);
-      return;
+    // 请求比分确认订阅消息授权（通知对手确认比分）
+    try {
+      await subscribe.requestScoreConfirmSubscription();
+    } catch (err) {
+      console.log('订阅请求失败或用户拒绝:', err);
+      // 订阅失败不影响提交操作
     }
 
     try {
@@ -168,22 +154,5 @@ Page({
     } finally {
       this.setData({ submitting: false });
     }
-  },
-
-  // Mock 数据
-  getMockMatch() {
-    return {
-      id: 1,
-      event_id: 1,
-      round: 1,
-      match_order: 1,
-      player1_id: 101,
-      player2_id: 102,
-      player1_name: '张明远',
-      player2_name: '李思源',
-      player1_avatar: '',
-      player2_avatar: '',
-      status: 'ongoing'
-    };
   }
 });

@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
+const subscribeMessage = require('../utils/subscribeMessage');
 
 // 发起约球
 router.post('/', async (req, res) => {
@@ -241,6 +242,33 @@ router.post('/:id/join', async (req, res) => {
         'UPDATE match_invitations SET status = "full" WHERE id = ?',
         [id]
       );
+    }
+
+    // 发送订阅消息通知邀请创建者
+    try {
+      // 获取创建者的 openid
+      const [creatorInfo] = await pool.query(
+        'SELECT openid FROM users WHERE id = ?',
+        [invitation.creator_id]
+      );
+      // 获取加入者的姓名
+      const [joinerInfo] = await pool.query(
+        'SELECT name FROM users WHERE id = ?',
+        [user_id]
+      );
+
+      if (creatorInfo.length > 0 && creatorInfo[0].openid && joinerInfo.length > 0) {
+        await subscribeMessage.sendInvitationResultNotice(creatorInfo[0].openid, {
+          inviteeName: joinerInfo[0].name || '未知用户',
+          time: subscribeMessage.formatTime(new Date()),
+          location: invitation.location || '线上约球',
+          status: '已加入',
+          page: `pages/invitation-detail/invitation-detail?id=${id}`
+        });
+      }
+    } catch (notifyError) {
+      console.error('发送加入通知失败:', notifyError);
+      // 通知失败不影响主流程
     }
 
     res.json({ success: true, message: '已加入约球' });

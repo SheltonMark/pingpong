@@ -1,6 +1,7 @@
 .square-page {
   min-height: 100vh;
   background: #F5F5F5;
+  overflow-x: hidden;
 }
 
 /* 顶部标题栏 */

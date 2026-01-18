@@ -1,4 +1,5 @@
 const app = getApp();
+const subscribe = require('../../utils/subscribe');
 
 Page({
   data: {
@@ -76,6 +77,14 @@ Page({
     if (!app.globalData.isLoggedIn) {
       wx.showToast({ title: '请先登录', icon: 'none' });
       return;
+    }
+
+    // 先请求订阅消息授权（用于接收约球相关通知）
+    try {
+      await subscribe.requestInvitationSubscription();
+    } catch (err) {
+      console.log('订阅请求失败或用户拒绝:', err);
+      // 订阅失败不影响加入操作
     }
 
     try {
