@@ -506,6 +506,142 @@ router.post('/:id/register', async (req, res) => {
   }
 });
 
+// 双打报名专用端点
+router.post('/:id/register-doubles', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id, partner_mode, partner_id } = req.body;
+
+    if (!user_id) {
+      return res.status(400).json({ success: false, message: '缺少用户ID' });
+    }
+
+    if (!partner_mode || !['select', 'wait'].includes(partner_mode)) {
+      return res.status(400).json({ success: false, message: '请选择报名模式' });
+    }
+
+    // 检查赛事是否存在
+    const [events] = await pool.query(
+      'SELECT e.*, (SELECT COUNT(*) FROM event_registrations WHERE event_id = e.id AND status != "cancelled") as participant_count FROM events e WHERE e.id = ?',
+      [id]
+    );
+
+    if (events.length === 0) {
+      return res.status(400).json({ success: false, message: '赛事不存在' });
+    }
+
+    const event = events[0];
+
+    // 检查是否为双打赛事
+    if (event.event_type !== 'doubles') {
+      return res.status(400).json({ success: false, message: '该赛事不是双打赛事' });
+    }
+
+    // 检查赛事状态
+    if (event.status === 'draft') {
+      return res.status(400).json({ success: false, message: '赛事尚未发布' });
+    }
+    if (event.status === 'cancelled') {
+      return res.status(400).json({ success: false, message: '赛事已取消' });
+    }
+    if (event.status === 'finished') {
+      return res.status(400).json({ success: false, message: '赛事已结束' });
+    }
+
+    // 检查报名截止时间
+    if (event.registration_end && new Date() > new Date(event.registration_end)) {
+      return res.status(400).json({ success: false, message: '报名已截止' });
+    }
+
+    // 检查人数限制
+    if (event.max_participants && event.participant_count >= event.max_participants) {
+      return res.status(400).json({ success: false, message: '报名人数已满' });
+    }
+
+    // 检查是否已报名
+    const [existing] = await pool.query(
+      'SELECT * FROM event_registrations WHERE event_id = ? AND user_id = ? AND status != "cancelled"',
+      [id, user_id]
+    );
+
+    if (existing.length > 0) {
+      return res.status(400).json({ success: false, message: '已报名该赛事' });
+    }
+
+    let status, partnerStatus;
+
+    if (partner_mode === 'select') {
+      // 指定搭档模式
+      if (!partner_id) {
+        return res.status(400).json({ success: false, message: '请选择搭档' });
+      }
+
+      // 检查搭档是否存在且处于等待配对状态
+      const [partnerReg] = await pool.query(
+        'SELECT * FROM event_registrations WHERE event_id = ? AND user_id = ? AND status = "waiting_partner"',
+        [id, partner_id]
+      );
+
+      if (partnerReg.length === 0) {
+        return res.status(400).json({ success: false, message: '所选搭档不在配对队列中' });
+      }
+
+      // 创建报名记录，状态为 pending（等待搭档确认）
+      status = 'pending';
+      partnerStatus = 'pending';
+
+      await pool.execute(
+        `INSERT INTO event_registrations
+          (event_id, user_id, partner_id, partner_status, status)
+         VALUES (?, ?, ?, ?, ?)`,
+        [id, user_id, partner_id, partnerStatus, status]
+      );
+
+      // 更新搭档的记录，关联到当前用户
+      await pool.execute(
+        `UPDATE event_registrations
+         SET partner_id = ?, partner_status = 'pending', status = 'pending'
+         WHERE event_id = ? AND user_id = ? AND status = 'waiting_partner'`,
+        [user_id, id, partner_id]
+      );
+
+      // 创建组队邀请记录
+      await pool.execute(
+        `INSERT INTO team_invitations (event_id, inviter_id, invitee_id, type, status)
+         VALUES (?, ?, ?, 'doubles', 'pending')`,
+        [id, user_id, partner_id]
+      );
+
+      res.json({
+        success: true,
+        message: '已向搭档发送组队邀请',
+        data: { status: 'pending' }
+      });
+
+    } else {
+      // 等待配对模式
+      status = 'waiting_partner';
+
+      await pool.execute(
+        `INSERT INTO event_registrations
+          (event_id, user_id, status)
+         VALUES (?, ?, ?)`,
+        [id, user_id, status]
+      );
+
+      res.json({
+        success: true,
+        message: '已加入配对队列',
+        data: { status: 'waiting_partner' }
+      });
+    }
+
+  } catch (error) {
+    console.error('双打报名失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
 // 取消报名
 router.post('/:id/cancel', async (req, res) => {
   try {
