@@ -171,15 +171,35 @@ router.post('/register', async (req, res) => {
 
     // 为新用户分配普通用户角色
     const [roles] = await pool.query('SELECT id FROM roles WHERE code = ?', ['user']);
+    const [userRows] = await pool.query('SELECT id FROM users WHERE openid = ?', [openid]);
+    const userId = userRows[0].id;
+
     if (roles.length > 0) {
-      const [userRows] = await pool.query('SELECT id FROM users WHERE openid = ?', [openid]);
       await pool.execute(
         'INSERT IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)',
-        [userRows[0].id, roles[0].id]
+        [userId, roles[0].id]
       );
     }
 
-    res.json({ success: true, message: '注册成功' });
+    // 获取注册后的完整用户信息
+    const [users] = await pool.query(`
+      SELECT
+        u.id, u.id as user_id, u.openid, u.name, u.gender, u.phone, u.avatar_url,
+        u.user_type, u.school_id, u.college_id, u.department_id,
+        u.class_name, u.enrollment_year,
+        u.points, u.wins, u.losses,
+        u.is_registered, u.privacy_agreed,
+        s.name as school_name,
+        c.name as college_name,
+        d.name as department_name
+      FROM users u
+      LEFT JOIN schools s ON u.school_id = s.id
+      LEFT JOIN colleges c ON u.college_id = c.id
+      LEFT JOIN departments d ON u.department_id = d.id
+      WHERE u.id = ?
+    `, [userId]);
+
+    res.json({ success: true, message: '注册成功', data: users[0] });
   } catch (error) {
     console.error('用户注册失败:', error);
     res.status(500).json({ success: false, message: '服务器错误' });
