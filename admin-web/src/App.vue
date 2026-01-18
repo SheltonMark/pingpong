@@ -35,6 +35,18 @@
             <el-icon><UserFilled /></el-icon>
             <span>领队审批</span>
           </el-menu-item>
+          <el-menu-item v-if="hasPermission('events')" index="/doubles-pairs">
+            <el-icon><Connection /></el-icon>
+            <span>双打配对</span>
+          </el-menu-item>
+          <el-menu-item v-if="hasPermission('events')" index="/team-management">
+            <el-icon><Avatar /></el-icon>
+            <span>团队管理</span>
+          </el-menu-item>
+          <el-menu-item v-if="hasPermission('events')" index="/invitations">
+            <el-icon><Message /></el-icon>
+            <span>邀请管理</span>
+          </el-menu-item>
           <el-menu-item v-if="hasPermission('users') || hasPermission('users_readonly')" index="/users">
             <el-icon><User /></el-icon>
             <span>用户管理</span>

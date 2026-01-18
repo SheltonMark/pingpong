@@ -1606,4 +1606,365 @@ router.post('/captain-applications/:id/reject', requireAdmin, async (req, res) =
   }
 });
 
+// ============ 双打配对管理 ============
+
+// 获取双打配对列表
+router.get('/doubles-pairs', requireAdmin, async (req, res) => {
+  try {
+    const { event_id, page = 1, limit = 20 } = req.query;
+    const offset = (page - 1) * limit;
+
+    if (!event_id) {
+      return res.json({ success: true, data: [], total: 0 });
+    }
+
+    const sql = `
+      SELECT
+        er.id,
+        er.event_id,
+        er.user_id as player1_id,
+        er.partner_id as player2_id,
+        er.team_name,
+        er.status,
+        er.created_at,
+        u1.name as player1_name,
+        u1.phone as player1_phone,
+        u1.avatar_url as player1_avatar,
+        u2.name as player2_name,
+        u2.phone as player2_phone,
+        u2.avatar_url as player2_avatar
+      FROM event_registrations er
+      JOIN users u1 ON er.user_id = u1.id
+      LEFT JOIN users u2 ON er.partner_id = u2.id
+      WHERE er.event_id = ? AND er.partner_id IS NOT NULL
+      ORDER BY er.created_at DESC
+      LIMIT ? OFFSET ?
+    `;
+
+    const [pairs] = await pool.execute(sql, [event_id, parseInt(limit), parseInt(offset)]);
+
+    // 获取总数
+    const [[{ total }]] = await pool.execute(
+      'SELECT COUNT(*) as total FROM event_registrations WHERE event_id = ? AND partner_id IS NOT NULL',
+      [event_id]
+    );
+
+    res.json({ success: true, data: pairs, total });
+  } catch (error) {
+    console.error('Get doubles pairs error:', error);
+    res.json({ success: false, message: '获取双打配对列表失败' });
+  }
+});
+
+// 取消双打配对
+router.post('/doubles-pairs/:id/cancel', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 更新报名状态为已取消
+    await pool.execute(
+      "UPDATE event_registrations SET status = 'cancelled', partner_id = NULL WHERE id = ?",
+      [id]
+    );
+
+    res.json({ success: true, message: '配对已取消' });
+  } catch (error) {
+    console.error('Cancel doubles pair error:', error);
+    res.json({ success: false, message: '取消配对失败' });
+  }
+});
+
+// ============ 团体赛队伍管理 ============
+
+// 获取团体赛队伍列表
+router.get('/teams', requireAdmin, async (req, res) => {
+  try {
+    const { event_id, page = 1, limit = 20 } = req.query;
+    const offset = (page - 1) * limit;
+
+    if (!event_id) {
+      return res.json({ success: true, data: [], total: 0 });
+    }
+
+    // 获取队伍列表（通过 is_team_leader 标识队长/领队）
+    const sql = `
+      SELECT
+        er.id,
+        er.event_id,
+        er.team_name,
+        er.status,
+        er.created_at,
+        u.id as captain_id,
+        u.name as captain_name,
+        u.phone as captain_phone,
+        u.avatar_url as captain_avatar,
+        (SELECT COUNT(*) FROM event_registrations
+         WHERE team_name = er.team_name AND event_id = er.event_id AND status = 'confirmed') as confirmed_count,
+        (SELECT COUNT(*) FROM event_registrations
+         WHERE team_name = er.team_name AND event_id = er.event_id) as total_slots
+      FROM event_registrations er
+      JOIN users u ON er.user_id = u.id
+      WHERE er.event_id = ? AND er.is_team_leader = 1
+      ORDER BY er.created_at DESC
+      LIMIT ? OFFSET ?
+    `;
+
+    const [teams] = await pool.execute(sql, [event_id, parseInt(limit), parseInt(offset)]);
+
+    // 获取每个队伍的成员
+    for (const team of teams) {
+      const [members] = await pool.execute(`
+        SELECT
+          er.id, er.status,
+          u.id as user_id, u.name, u.phone, u.avatar_url
+        FROM event_registrations er
+        JOIN users u ON er.user_id = u.id
+        WHERE er.team_name = ? AND er.event_id = ? AND er.is_team_leader = 0
+      `, [team.team_name, team.event_id]);
+      team.members = members;
+    }
+
+    // 获取总数
+    const [[{ total }]] = await pool.execute(
+      'SELECT COUNT(*) as total FROM event_registrations WHERE event_id = ? AND is_team_leader = 1',
+      [event_id]
+    );
+
+    res.json({ success: true, data: teams, total });
+  } catch (error) {
+    console.error('Get teams error:', error);
+    res.json({ success: false, message: '获取队伍列表失败' });
+  }
+});
+
+// 获取队伍详情
+router.get('/teams/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 获取队伍信息（通过领队报名记录）
+    const [[team]] = await pool.execute(`
+      SELECT
+        er.id,
+        er.event_id,
+        er.team_name,
+        er.status,
+        er.created_at,
+        u.id as captain_id,
+        u.name as captain_name,
+        u.phone as captain_phone,
+        u.avatar_url as captain_avatar
+      FROM event_registrations er
+      JOIN users u ON er.user_id = u.id
+      WHERE er.id = ?
+    `, [id]);
+
+    if (!team) {
+      return res.json({ success: false, message: '队伍不存在' });
+    }
+
+    // 获取队员列表
+    const [members] = await pool.execute(`
+      SELECT
+        er.id, er.status,
+        u.id as user_id, u.name, u.phone, u.avatar_url
+      FROM event_registrations er
+      JOIN users u ON er.user_id = u.id
+      WHERE er.team_name = ? AND er.event_id = ?
+    `, [team.team_name, team.event_id]);
+
+    team.members = members;
+
+    res.json({ success: true, data: team });
+  } catch (error) {
+    console.error('Get team detail error:', error);
+    res.json({ success: false, message: '获取队伍详情失败' });
+  }
+});
+
+// 解散队伍
+router.post('/teams/:id/cancel', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 获取队伍信息
+    const [[team]] = await pool.execute(
+      'SELECT team_name, event_id FROM event_registrations WHERE id = ?',
+      [id]
+    );
+
+    if (!team) {
+      return res.json({ success: false, message: '队伍不存在' });
+    }
+
+    // 取消该队伍所有成员的报名
+    await pool.execute(
+      "UPDATE event_registrations SET status = 'cancelled' WHERE team_name = ? AND event_id = ?",
+      [team.team_name, team.event_id]
+    );
+
+    res.json({ success: true, message: '队伍已解散' });
+  } catch (error) {
+    console.error('Cancel team error:', error);
+    res.json({ success: false, message: '解散队伍失败' });
+  }
+});
+
+// ============ 邀请管理 ============
+
+// 获取邀请列表
+router.get('/invitations', requireAdmin, async (req, res) => {
+  try {
+    const { event_id, type, status, page = 1, limit = 20 } = req.query;
+    const offset = (page - 1) * limit;
+
+    let sql = `
+      SELECT
+        i.id,
+        i.event_id,
+        i.type,
+        i.status,
+        i.message,
+        i.created_at,
+        i.responded_at,
+        e.title as event_title,
+        u1.id as inviter_id,
+        u1.name as inviter_name,
+        u1.phone as inviter_phone,
+        u1.avatar_url as inviter_avatar,
+        u2.id as invitee_id,
+        u2.name as invitee_name,
+        u2.phone as invitee_phone,
+        u2.avatar_url as invitee_avatar
+      FROM invitations i
+      JOIN events e ON i.event_id = e.id
+      JOIN users u1 ON i.inviter_id = u1.id
+      JOIN users u2 ON i.invitee_id = u2.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (event_id) {
+      sql += ' AND i.event_id = ?';
+      params.push(event_id);
+    }
+    if (type) {
+      sql += ' AND i.type = ?';
+      params.push(type);
+    }
+    if (status) {
+      sql += ' AND i.status = ?';
+      params.push(status);
+    }
+
+    sql += ' ORDER BY i.created_at DESC LIMIT ? OFFSET ?';
+    params.push(parseInt(limit), parseInt(offset));
+
+    const [invitations] = await pool.execute(sql, params);
+
+    // 获取总数
+    let countSql = 'SELECT COUNT(*) as total FROM invitations i WHERE 1=1';
+    const countParams = [];
+    if (event_id) {
+      countSql += ' AND i.event_id = ?';
+      countParams.push(event_id);
+    }
+    if (type) {
+      countSql += ' AND i.type = ?';
+      countParams.push(type);
+    }
+    if (status) {
+      countSql += ' AND i.status = ?';
+      countParams.push(status);
+    }
+    const [[{ total }]] = await pool.execute(countSql, countParams);
+
+    res.json({ success: true, data: invitations, total });
+  } catch (error) {
+    console.error('Get invitations error:', error);
+    res.json({ success: false, message: '获取邀请列表失败' });
+  }
+});
+
+// 代为接受邀请
+router.post('/invitations/:id/accept', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 获取邀请信息
+    const [[invitation]] = await pool.execute(
+      'SELECT * FROM invitations WHERE id = ?',
+      [id]
+    );
+
+    if (!invitation) {
+      return res.json({ success: false, message: '邀请不存在' });
+    }
+
+    if (invitation.status !== 'pending') {
+      return res.json({ success: false, message: '该邀请已被处理' });
+    }
+
+    // 更新邀请状态
+    await pool.execute(
+      "UPDATE invitations SET status = 'accepted', responded_at = NOW() WHERE id = ?",
+      [id]
+    );
+
+    // 如果是双打邀请，更新报名记录
+    if (invitation.type === 'doubles') {
+      // 检查邀请人是否已报名
+      const [inviterReg] = await pool.execute(
+        'SELECT id FROM event_registrations WHERE event_id = ? AND user_id = ?',
+        [invitation.event_id, invitation.inviter_id]
+      );
+
+      if (inviterReg.length > 0) {
+        // 更新邀请人的报名记录，添加搭档
+        await pool.execute(
+          "UPDATE event_registrations SET partner_id = ?, status = 'confirmed' WHERE event_id = ? AND user_id = ?",
+          [invitation.invitee_id, invitation.event_id, invitation.inviter_id]
+        );
+      }
+    }
+
+    res.json({ success: true, message: '已接受邀请' });
+  } catch (error) {
+    console.error('Accept invitation error:', error);
+    res.json({ success: false, message: '接受邀请失败' });
+  }
+});
+
+// 代为拒绝邀请
+router.post('/invitations/:id/reject', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 获取邀请信息
+    const [[invitation]] = await pool.execute(
+      'SELECT * FROM invitations WHERE id = ?',
+      [id]
+    );
+
+    if (!invitation) {
+      return res.json({ success: false, message: '邀请不存在' });
+    }
+
+    if (invitation.status !== 'pending') {
+      return res.json({ success: false, message: '该邀请已被处理' });
+    }
+
+    // 更新邀请状态
+    await pool.execute(
+      "UPDATE invitations SET status = 'rejected', responded_at = NOW() WHERE id = ?",
+      [id]
+    );
+
+    res.json({ success: true, message: '已拒绝邀请' });
+  } catch (error) {
+    console.error('Reject invitation error:', error);
+    res.json({ success: false, message: '拒绝邀请失败' });
+  }
+});
+
 module.exports = router;

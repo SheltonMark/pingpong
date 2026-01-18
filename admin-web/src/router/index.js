@@ -76,6 +76,24 @@ const routes = [
     name: 'CaptainApprovals',
     component: () => import('../views/CaptainApprovals.vue'),
     meta: { requiresAuth: true, permission: 'events' }
+  },
+  {
+    path: '/doubles-pairs',
+    name: 'DoublesPairs',
+    component: () => import('../views/DoublesPairs.vue'),
+    meta: { requiresAuth: true, permission: 'events' }
+  },
+  {
+    path: '/team-management',
+    name: 'TeamManagement',
+    component: () => import('../views/TeamManagement.vue'),
+    meta: { requiresAuth: true, permission: 'events' }
+  },
+  {
+    path: '/invitations',
+    name: 'Invitations',
+    component: () => import('../views/Invitations.vue'),
+    meta: { requiresAuth: true, permission: 'events' }
   }
 ]
 
