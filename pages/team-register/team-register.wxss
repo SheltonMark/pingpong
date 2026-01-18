@@ -46,6 +46,14 @@
   color: #374151;
 }
 
+.team-name-input {
+  width: 100%;
+  padding: 24rpx 36rpx;
+  font-size: 28rpx;
+  color: #1A1A1A;
+  box-sizing: border-box;
+}
+
 .team-list {
   padding: 0 36rpx 36rpx;
 }

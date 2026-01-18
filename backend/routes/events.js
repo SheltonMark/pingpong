@@ -912,6 +912,66 @@ router.get('/:id/captain-status', async (req, res) => {
 
 // ============ 团体赛报名 ============
 
+// 团体赛邀请队员（领队发送邀请）
+router.post('/team/invite', async (req, res) => {
+  try {
+    const { event_id, inviter_id, invitee_id, position } = req.body;
+
+    if (!event_id || !inviter_id || !invitee_id) {
+      return res.status(400).json({ success: false, message: '缺少必要参数' });
+    }
+
+    // 检查赛事是否存在且是团体赛
+    const [events] = await pool.query('SELECT * FROM events WHERE id = ?', [event_id]);
+    if (events.length === 0) {
+      return res.status(404).json({ success: false, message: '赛事不存在' });
+    }
+
+    const event = events[0];
+    if (event.event_type !== 'team') {
+      return res.status(400).json({ success: false, message: '该赛事不是团体赛' });
+    }
+
+    // 检查邀请者是否是已审批的领队
+    const [captainApp] = await pool.query(
+      'SELECT * FROM captain_applications WHERE event_id = ? AND user_id = ? AND status = "approved"',
+      [event_id, inviter_id]
+    );
+    if (captainApp.length === 0) {
+      return res.status(400).json({ success: false, message: '只有已审批的领队才能邀请队员' });
+    }
+
+    // 检查被邀请者是否已被邀请或已报名
+    const [existingInvite] = await pool.query(
+      'SELECT * FROM team_invitations WHERE event_id = ? AND invitee_id = ? AND status = "pending"',
+      [event_id, invitee_id]
+    );
+    if (existingInvite.length > 0) {
+      return res.status(400).json({ success: false, message: '该用户已有待处理的邀请' });
+    }
+
+    const [existingReg] = await pool.query(
+      'SELECT * FROM event_registrations WHERE event_id = ? AND user_id = ? AND status != "cancelled"',
+      [event_id, invitee_id]
+    );
+    if (existingReg.length > 0) {
+      return res.status(400).json({ success: false, message: '该用户已报名此赛事' });
+    }
+
+    // 创建邀请记录
+    await pool.query(
+      `INSERT INTO team_invitations (event_id, inviter_id, invitee_id, type, status, message)
+       VALUES (?, ?, ?, 'team', 'pending', ?)`,
+      [event_id, inviter_id, invitee_id, position ? `位置: ${position}` : null]
+    );
+
+    res.json({ success: true, message: '邀请已发送' });
+  } catch (error) {
+    console.error('发送团队邀请失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
 // 团体赛报名（领队组建队伍）
 router.post('/:id/register-team', async (req, res) => {
   try {

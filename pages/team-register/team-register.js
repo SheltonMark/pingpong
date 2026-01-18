@@ -5,6 +5,7 @@ Page({
     eventId: null,
     event: null,
     user: null,
+    teamName: '',
     teamSlots: [],
     availableUsers: [],
     isLoading: true,
@@ -136,7 +137,7 @@ Page({
 
   async sendInvitation(userId, position) {
     try {
-      await this.request('/api/team/invite', {
+      await this.request('/api/events/team/invite', {
         event_id: this.data.eventId,
         inviter_id: app.globalData.userInfo.id,
         invitee_id: userId,
@@ -155,7 +156,16 @@ Page({
     });
   },
 
+  onTeamNameInput(e) {
+    this.setData({ teamName: e.detail.value });
+  },
+
   async onSubmit() {
+    if (!this.data.teamName.trim()) {
+      wx.showToast({ title: '请输入队伍名称', icon: 'none' });
+      return;
+    }
+
     const allConfirmed = this.data.teamSlots.every(slot => slot.status === 'confirmed');
     if (!allConfirmed) {
       wx.showToast({ title: '需全员确认后才能提交', icon: 'none' });
@@ -166,14 +176,15 @@ Page({
     this.setData({ isSubmitting: true });
 
     try {
-      const members = this.data.teamSlots.map(slot => ({
-        user_id: slot.user?.id,
-        position: slot.position
-      }));
+      // 提取队员ID（不包含领队自己）
+      const member_ids = this.data.teamSlots
+        .filter(slot => slot.user && !slot.isLeader)
+        .map(slot => slot.user.id);
 
       const res = await this.request(`/api/events/${this.data.eventId}/register-team`, {
-        leader_id: app.globalData.userInfo.id,
-        members: members
+        user_id: app.globalData.userInfo.id,
+        team_name: this.data.teamName.trim(),
+        member_ids: member_ids
       }, 'POST');
 
       if (res.success) {

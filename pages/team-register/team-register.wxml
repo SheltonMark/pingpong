@@ -5,6 +5,19 @@
     <text class="event-info">团体赛 · {{event.format_label}}</text>
   </view>
 
+  <!-- 队伍名称 -->
+  <view class="team-card">
+    <view class="card-header">
+      <text class="card-title">队伍名称</text>
+    </view>
+    <input
+      class="team-name-input"
+      placeholder="请输入队伍名称"
+      value="{{teamName}}"
+      bindinput="onTeamNameInput"
+    />
+  </view>
+
   <!-- 队员配置 -->
   <view class="team-card">
     <view class="card-header">
