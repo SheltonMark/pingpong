@@ -305,7 +305,7 @@ router.get('/matches', requireAdmin, async (req, res) => {
       whereClause = "WHERE m.status = 'disputed'";
     }
 
-    const [matches] = await pool.execute(`
+    const [matches] = await pool.query(`
       SELECT m.*,
              e.title as event_title,
              p1.name as player1_name, p2.name as player2_name,
