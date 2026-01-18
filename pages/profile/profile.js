@@ -15,21 +15,18 @@ Page({
     userInfo: null,
     userTypeLabel: '',
 
-    // ============================================================
-    // 【Mock 用户统计数据】
-    // TODO: 上线后从后端 API 获取真实数据
-    // ============================================================
+    // 用户统计数据（从 API 获取）
     stats: {
-      score: 2847,
-      rank: 1,
-      winRate: 78
+      score: 0,
+      rank: '-',
+      winRate: 0
     },
 
     // 菜单列表（匹配设计稿）
     menuItems: [
       { icon: '📊', label: '交手记录', url: '/pages/match-history/match-history' },
       { icon: '🏆', label: '我的赛事', url: '/pages/my-events/my-events' },
-      { icon: '✉️', label: '邀请管理', url: '/pages/invitations/invitations', badge: 2 },
+      { icon: '✉️', label: '邀请管理', url: '/pages/invitations/invitations', badge: 0 },
       { icon: '⚙️', label: '设置', url: '/pages/settings/settings' }
     ]
   },
@@ -40,9 +37,42 @@ Page({
 
   onShow() {
     this.updateUserInfo();
+    this.loadPendingInvitationCount();
     // 更新自定义 tabBar 选中状态
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 3 });
+    }
+  },
+
+  // 加载待处理邀请数量
+  async loadPendingInvitationCount() {
+    const { isLoggedIn, isRegistered, userInfo } = app.globalData;
+    if (!isLoggedIn || !isRegistered || !userInfo) {
+      return;
+    }
+
+    try {
+      const res = await new Promise((resolve, reject) => {
+        wx.request({
+          url: `${app.globalData.baseUrl}/api/user/${userInfo.id}/invitations?status=pending`,
+          success: (res) => resolve(res.data),
+          fail: reject
+        });
+      });
+
+      if (res.success && res.data) {
+        const count = res.data.length;
+        // 更新菜单项的 badge
+        const menuItems = this.data.menuItems.map(item => {
+          if (item.label === '邀请管理') {
+            return { ...item, badge: count };
+          }
+          return item;
+        });
+        this.setData({ menuItems });
+      }
+    } catch (error) {
+      console.error('加载邀请数量失败:', error);
     }
   },
 

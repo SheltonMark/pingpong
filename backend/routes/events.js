@@ -445,6 +445,15 @@ router.post('/:id/register', async (req, res) => {
       [id, user_id, partner_id || null, partnerStatus, team_name || null, status]
     );
 
+    // 如果是双打且有搭档，创建组队邀请记录
+    if (event.event_type === 'doubles' && partner_id) {
+      await pool.execute(
+        `INSERT INTO team_invitations (event_id, inviter_id, invitee_id, type, status)
+         VALUES (?, ?, ?, 'doubles', 'pending')`,
+        [id, user_id, partner_id]
+      );
+    }
+
     res.json({
       success: true,
       data: {

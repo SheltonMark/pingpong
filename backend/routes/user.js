@@ -220,7 +220,8 @@ router.post('/update', async (req, res) => {
       college_id,
       department_id,
       class_name,
-      enrollment_year
+      enrollment_year,
+      avatar_url
     } = req.body;
 
     // 验证必填字段
@@ -262,6 +263,7 @@ router.post('/update', async (req, res) => {
         department_id = ?,
         class_name = ?,
         enrollment_year = ?,
+        avatar_url = ?,
         updated_at = NOW()
       WHERE id = ?
     `, [
@@ -274,6 +276,7 @@ router.post('/update', async (req, res) => {
       department_id || null,
       class_name || null,
       enrollment_year || null,
+      avatar_url || null,
       user_id
     ]);
 
@@ -480,12 +483,41 @@ router.post('/invitations/:invitationId/respond', async (req, res) => {
       return res.status(404).json({ success: false, message: '邀请不存在或已处理' });
     }
 
+    const invitation = invitations[0];
     const newStatus = action === 'accept' ? 'accepted' : 'rejected';
 
     await pool.query(
       'UPDATE team_invitations SET status = ?, responded_at = NOW() WHERE id = ?',
       [newStatus, invitationId]
     );
+
+    // 更新报名状态
+    if (invitation.type === 'doubles') {
+      if (action === 'accept') {
+        // 接受邀请：双方报名状态都变为 confirmed
+        await pool.query(
+          `UPDATE event_registrations
+           SET status = 'confirmed', partner_status = 'confirmed'
+           WHERE event_id = ? AND user_id = ? AND partner_id = ?`,
+          [invitation.event_id, invitation.inviter_id, user_id]
+        );
+        // 为被邀请者也创建报名记录
+        await pool.execute(
+          `INSERT INTO event_registrations (event_id, user_id, partner_id, partner_status, status)
+           VALUES (?, ?, ?, 'confirmed', 'confirmed')
+           ON DUPLICATE KEY UPDATE status = 'confirmed', partner_status = 'confirmed'`,
+          [invitation.event_id, user_id, invitation.inviter_id]
+        );
+      } else {
+        // 拒绝邀请：邀请者报名状态变为 waiting_partner
+        await pool.query(
+          `UPDATE event_registrations
+           SET status = 'waiting_partner', partner_id = NULL, partner_status = NULL
+           WHERE event_id = ? AND user_id = ? AND partner_id = ?`,
+          [invitation.event_id, invitation.inviter_id, user_id]
+        );
+      }
+    }
 
     res.json({ success: true, message: action === 'accept' ? '已同意' : '已拒绝' });
   } catch (error) {
