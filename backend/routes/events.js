@@ -512,10 +512,41 @@ router.post('/:id/cancel', async (req, res) => {
     const { id } = req.params;
     const { user_id } = req.body;
 
+    // 获取当前报名记录，检查是否有搭档
+    const [registrations] = await pool.query(
+      'SELECT * FROM event_registrations WHERE event_id = ? AND user_id = ? AND status != "cancelled"',
+      [id, user_id]
+    );
+
+    if (registrations.length === 0) {
+      return res.status(400).json({ success: false, message: '未找到报名记录' });
+    }
+
+    const registration = registrations[0];
+    const partnerId = registration.partner_id;
+
+    // 取消自己的报名
     await pool.execute(
       'UPDATE event_registrations SET status = "cancelled" WHERE event_id = ? AND user_id = ?',
       [id, user_id]
     );
+
+    // 如果有搭档，重置搭档状态为 waiting_partner 并清除搭档关联
+    if (partnerId) {
+      await pool.execute(
+        `UPDATE event_registrations
+         SET status = "waiting_partner", partner_id = NULL, partner_status = NULL
+         WHERE event_id = ? AND user_id = ? AND status != "cancelled"`,
+        [id, partnerId]
+      );
+
+      // 同时取消相关的组队邀请
+      await pool.execute(
+        `UPDATE team_invitations SET status = "expired"
+         WHERE event_id = ? AND ((inviter_id = ? AND invitee_id = ?) OR (inviter_id = ? AND invitee_id = ?)) AND status = "pending"`,
+        [id, user_id, partnerId, partnerId, user_id]
+      );
+    }
 
     res.json({ success: true, message: '已取消报名' });
   } catch (error) {
