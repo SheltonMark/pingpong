@@ -74,7 +74,7 @@
           <span>{{ ratingForm.currentRating }}</span>
         </el-form-item>
         <el-form-item label="调整值">
-          <el-input-number v-model="ratingForm.adjustment" :min="-1000" :max="1000" />
+          <el-input-number v-model="ratingForm.adjustment" :min="-10000" :max="10000" />
           <span style="margin-left: 10px; color: #999">正数增加，负数减少</span>
         </el-form-item>
         <el-form-item label="备注">
