@@ -1515,26 +1515,46 @@ router.post('/captain-applications/:id/approve', requireAdmin, async (req, res) 
     const { id } = req.params;
     const { user_id } = req.body;
 
+    // 获取申请信息以验证权限
+    const [[app]] = await pool.execute(`
+      SELECT ca.*, e.school_id as event_school_id
+      FROM captain_applications ca
+      JOIN events e ON ca.event_id = e.id
+      WHERE ca.id = ?
+    `, [id]);
+
+    if (!app) {
+      return res.json({ success: false, message: '申请不存在' });
+    }
+
+    // 检查权限：只有超级管理员或该赛事所属学校的学校管理员可以审批
+    const context = req.adminContext;
+    if (!context.isSuperAdmin) {
+      if (!context.isSchoolAdmin) {
+        return res.json({ success: false, message: '只有学校管理员可以审批领队申请' });
+      }
+      // 检查是否是该赛事所属学校的管理员
+      if (context.managedSchoolIds && !context.managedSchoolIds.includes(app.event_school_id)) {
+        return res.json({ success: false, message: '您只能审批本校赛事的领队申请' });
+      }
+    }
+
     // 更新申请状态
     await pool.execute(
       'UPDATE captain_applications SET status = ?, reviewed_by = ?, reviewed_at = NOW() WHERE id = ?',
       ['approved', user_id, id]
     );
 
-    // 获取申请信息，更新报名表中的领队标记
-    const [[app]] = await pool.execute('SELECT * FROM captain_applications WHERE id = ?', [id]);
-    if (app) {
-      // 检查是否已报名，如果已报名则更新为领队
-      const [regs] = await pool.execute(
-        'SELECT * FROM event_registrations WHERE event_id = ? AND user_id = ?',
+    // 检查是否已报名，如果已报名则更新为领队
+    const [regs] = await pool.execute(
+      'SELECT * FROM event_registrations WHERE event_id = ? AND user_id = ?',
+      [app.event_id, app.user_id]
+    );
+    if (regs.length > 0) {
+      await pool.execute(
+        'UPDATE event_registrations SET is_team_leader = 1 WHERE event_id = ? AND user_id = ?',
         [app.event_id, app.user_id]
       );
-      if (regs.length > 0) {
-        await pool.execute(
-          'UPDATE event_registrations SET is_team_leader = 1 WHERE event_id = ? AND user_id = ?',
-          [app.event_id, app.user_id]
-        );
-      }
     }
 
     res.json({ success: true, message: '已批准' });
@@ -1549,6 +1569,30 @@ router.post('/captain-applications/:id/reject', requireAdmin, async (req, res) =
   try {
     const { id } = req.params;
     const { user_id, reject_reason } = req.body;
+
+    // 获取申请信息以验证权限
+    const [[app]] = await pool.execute(`
+      SELECT ca.*, e.school_id as event_school_id
+      FROM captain_applications ca
+      JOIN events e ON ca.event_id = e.id
+      WHERE ca.id = ?
+    `, [id]);
+
+    if (!app) {
+      return res.json({ success: false, message: '申请不存在' });
+    }
+
+    // 检查权限：只有超级管理员或该赛事所属学校的学校管理员可以审批
+    const context = req.adminContext;
+    if (!context.isSuperAdmin) {
+      if (!context.isSchoolAdmin) {
+        return res.json({ success: false, message: '只有学校管理员可以审批领队申请' });
+      }
+      // 检查是否是该赛事所属学校的管理员
+      if (context.managedSchoolIds && !context.managedSchoolIds.includes(app.event_school_id)) {
+        return res.json({ success: false, message: '您只能审批本校赛事的领队申请' });
+      }
+    }
 
     await pool.execute(
       'UPDATE captain_applications SET status = ?, reviewed_by = ?, reviewed_at = NOW(), reject_reason = ? WHERE id = ?',

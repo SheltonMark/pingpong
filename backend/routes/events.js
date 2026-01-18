@@ -1004,12 +1004,19 @@ router.post('/:id/register-team', async (req, res) => {
         [id, user_id, team_name]
       );
 
-      // 插入队员报名记录
+      // 插入队员报名记录（pending 状态，等待确认）
       for (const memberId of member_ids) {
         await connection.execute(
           `INSERT INTO event_registrations (event_id, user_id, team_name, is_team_leader, team_leader_id, status)
-           VALUES (?, ?, ?, 0, ?, 'confirmed')`,
+           VALUES (?, ?, ?, 0, ?, 'pending')`,
           [id, memberId, team_name, user_id]
+        );
+
+        // 创建团体赛邀请记录
+        await connection.execute(
+          `INSERT INTO team_invitations (event_id, inviter_id, invitee_id, type, status)
+           VALUES (?, ?, ?, 'team', 'pending')`,
+          [id, user_id, memberId]
         );
       }
 
@@ -1017,7 +1024,7 @@ router.post('/:id/register-team', async (req, res) => {
 
       res.json({
         success: true,
-        message: '队伍报名成功',
+        message: '队伍创建成功，已向队员发送邀请',
         data: {
           team_name,
           leader_id: user_id,

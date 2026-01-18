@@ -501,11 +501,11 @@ router.post('/invitations/:invitationId/respond', async (req, res) => {
            WHERE event_id = ? AND user_id = ? AND partner_id = ?`,
           [invitation.event_id, invitation.inviter_id, user_id]
         );
-        // 为被邀请者也创建报名记录
+        // 更新被邀请者的报名记录
         await pool.execute(
-          `INSERT INTO event_registrations (event_id, user_id, partner_id, partner_status, status)
-           VALUES (?, ?, ?, 'confirmed', 'confirmed')
-           ON DUPLICATE KEY UPDATE status = 'confirmed', partner_status = 'confirmed'`,
+          `UPDATE event_registrations
+           SET status = 'confirmed', partner_status = 'confirmed'
+           WHERE event_id = ? AND user_id = ? AND partner_id = ?`,
           [invitation.event_id, user_id, invitation.inviter_id]
         );
       } else {
@@ -515,6 +515,31 @@ router.post('/invitations/:invitationId/respond', async (req, res) => {
            SET status = 'waiting_partner', partner_id = NULL, partner_status = NULL
            WHERE event_id = ? AND user_id = ? AND partner_id = ?`,
           [invitation.event_id, invitation.inviter_id, user_id]
+        );
+        // 删除被邀请者的报名记录（恢复到未报名状态）
+        await pool.query(
+          `UPDATE event_registrations
+           SET status = 'cancelled'
+           WHERE event_id = ? AND user_id = ? AND partner_id = ?`,
+          [invitation.event_id, user_id, invitation.inviter_id]
+        );
+      }
+    } else if (invitation.type === 'team') {
+      if (action === 'accept') {
+        // 接受团体赛邀请：队员状态变为 confirmed
+        await pool.query(
+          `UPDATE event_registrations
+           SET status = 'confirmed'
+           WHERE event_id = ? AND user_id = ? AND team_leader_id = ? AND status = 'pending'`,
+          [invitation.event_id, user_id, invitation.inviter_id]
+        );
+      } else {
+        // 拒绝团体赛邀请：删除队员的报名记录
+        await pool.query(
+          `UPDATE event_registrations
+           SET status = 'cancelled'
+           WHERE event_id = ? AND user_id = ? AND team_leader_id = ? AND status = 'pending'`,
+          [invitation.event_id, user_id, invitation.inviter_id]
         );
       }
     }
