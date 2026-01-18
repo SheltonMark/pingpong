@@ -372,6 +372,45 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// 获取可选搭档列表（双打赛事）
+router.get('/:id/available-partners', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id } = req.query;
+
+    // 检查赛事是否存在且是双打
+    const [events] = await pool.query('SELECT * FROM events WHERE id = ?', [id]);
+    if (events.length === 0) {
+      return res.status(404).json({ success: false, message: '赛事不存在' });
+    }
+
+    const event = events[0];
+    if (event.event_type !== 'doubles') {
+      return res.status(400).json({ success: false, message: '该赛事不是双打赛事' });
+    }
+
+    // 获取等待配对的用户（status = 'waiting_partner' 且没有搭档）
+    const [partners] = await pool.query(`
+      SELECT u.id, u.name, u.avatar_url, u.points, u.gender,
+             s.name as school_name, c.name as college_name
+      FROM event_registrations er
+      JOIN users u ON er.user_id = u.id
+      LEFT JOIN schools s ON u.school_id = s.id
+      LEFT JOIN colleges c ON u.college_id = c.id
+      WHERE er.event_id = ?
+        AND er.status = 'waiting_partner'
+        AND er.partner_id IS NULL
+        AND er.user_id != ?
+      ORDER BY u.points DESC, u.name
+    `, [id, user_id || 0]);
+
+    res.json({ success: true, data: partners });
+  } catch (error) {
+    console.error('获取可选搭档失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
 // 报名赛事
 router.post('/:id/register', async (req, res) => {
   try {
