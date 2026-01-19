@@ -39,6 +39,11 @@
   <scroll-view
     class="post-list"
     scroll-y
+    scroll-top="{{scrollTop}}"
+    scroll-with-animation="{{true}}"
+    enhanced="{{true}}"
+    bounces="{{true}}"
+    show-scrollbar="{{true}}"
     bindscrolltolower="onLoadMore"
     refresher-enabled
     bindrefresherrefresh="onRefresh"
@@ -46,7 +51,7 @@
   >
     <view class="post-item" wx:for="{{posts}}" wx:key="id" bindtap="onTapPost" data-id="{{item.id}}">
       <view class="post-header">
-        <image class="author-avatar" src="{{item.author_avatar || '/images/default-avatar.png'}}" mode="aspectFill" />
+        <image class="author-avatar" src="{{item.author_avatar || '/images/default-avatar.png'}}" mode="aspectFill" catchtap="onTapUserAvatar" data-id="{{item.author_id}}" />
         <view class="author-info">
           <text class="author-name">{{item.author_name}}</text>
           <text class="post-meta">{{item.time_label}} · {{item.college_name || item.school_name || ''}}</text>
@@ -96,7 +101,7 @@
     <block wx:for="{{standaloneInvitations}}" wx:key="id">
       <view class="post-item invitation-card" bindtap="onTapInvitation" data-id="{{item.id}}">
         <view class="post-header">
-          <image class="author-avatar" src="{{item.creator_avatar || '/images/default-avatar.png'}}" mode="aspectFill" />
+          <image class="author-avatar" src="{{item.creator_avatar || '/images/default-avatar.png'}}" mode="aspectFill" catchtap="onTapUserAvatar" data-id="{{item.creator_id}}" />
           <view class="author-info">
             <text class="author-name">{{item.creator_name}}</text>
             <text class="post-meta">{{item.time_label}} · {{item.school_name || ''}}</text>

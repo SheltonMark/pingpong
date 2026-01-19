@@ -38,6 +38,7 @@ Page({
   onShow() {
     this.updateUserInfo();
     this.loadPendingInvitationCount();
+    this.loadUserProfile();  // 从服务器刷新用户数据
     // 更新自定义 tabBar 选中状态
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 3 });
@@ -96,6 +97,54 @@ Page({
   // 去登录
   goToLogin() {
     wx.switchTab({ url: '/pages/index/index' });
+  },
+
+  // 从服务器加载最新用户数据
+  async loadUserProfile() {
+    const { isLoggedIn, isRegistered, userInfo } = app.globalData;
+    if (!isLoggedIn || !isRegistered || !userInfo) {
+      return;
+    }
+
+    try {
+      // 获取用户详细信息（包含排名）
+      const res = await new Promise((resolve, reject) => {
+        wx.request({
+          url: `${app.globalData.baseUrl}/api/user/${userInfo.id}/profile`,
+          success: (res) => resolve(res.data),
+          fail: reject
+        });
+      });
+
+      if (res.success && res.data) {
+        const userData = res.data;
+
+        // 更新全局用户数据
+        app.globalData.userInfo = {
+          ...app.globalData.userInfo,
+          points: userData.points,
+          wins: userData.wins,
+          losses: userData.losses,
+          avatar_url: userData.avatar_url
+        };
+
+        // 计算胜率
+        const totalGames = (userData.wins || 0) + (userData.losses || 0);
+        const winRate = totalGames > 0 ? Math.round((userData.wins / totalGames) * 100) : 0;
+
+        // 更新页面数据
+        this.setData({
+          userInfo: app.globalData.userInfo,
+          stats: {
+            score: userData.points || 0,
+            rank: userData.rank || '-',
+            winRate: winRate
+          }
+        });
+      }
+    } catch (error) {
+      console.error('加载用户数据失败:', error);
+    }
   },
 
   // 去完善信息

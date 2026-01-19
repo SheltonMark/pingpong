@@ -21,7 +21,7 @@
         data-id="{{item.id}}"
       >
         <view class="rank-badge {{item.badge_class}}">{{item.rank}}</view>
-        <view class="rank-avatar">🧑</view>
+        <image class="rank-avatar" src="{{item.avatar_url || '/images/default-avatar.png'}}" mode="aspectFill" />
         <view class="rank-info">
           <text class="rank-name">{{item.name}}</text>
           <text class="rank-dept">{{item.school_short_name || item.school_name}} · {{item.college_name}}</text>

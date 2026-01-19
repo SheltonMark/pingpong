@@ -131,7 +131,7 @@
   color: #EF4444;
 }
 
-.loading, .empty {
+.loading, .empty, .error {
   text-align: center;
   padding: 60rpx;
   font-size: 28rpx;

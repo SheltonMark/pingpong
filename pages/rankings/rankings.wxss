@@ -1,6 +1,7 @@
 .rankings-page {
   min-height: 100vh;
   background: #F5F5F5;
+  overflow-x: hidden;
 }
 
 .tabs {
@@ -20,20 +21,21 @@
 }
 
 .tab.active {
-  background: #1A1A1A;
+  background: linear-gradient(135deg, #FF6B00, #E55D00);
   color: #FFFFFF;
 }
 
 .rank-list-scroll {
   height: calc(100vh - 120rpx);
   padding: 24rpx;
+  box-sizing: border-box;
 }
 
 .rank-card {
   background: #FFFFFF;
   border-radius: 24rpx;
-  overflow: hidden;
   box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+  margin-right: 0;
 }
 
 .rank-item {
@@ -81,10 +83,6 @@
   height: 88rpx;
   border-radius: 28rpx;
   background: #F5F5F5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 40rpx;
   margin-left: 24rpx;
 }
 

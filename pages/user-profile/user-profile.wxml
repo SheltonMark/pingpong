@@ -1,7 +1,7 @@
 <view class="user-profile-page" wx:if="{{user}}">
   <!-- 用户信息 -->
   <view class="profile-card">
-    <view class="user-avatar">🧑</view>
+    <image class="user-avatar" src="{{user.avatar_url || '/images/default-avatar.png'}}" mode="aspectFill" />
     <text class="user-name">{{user.name}}</text>
     <text class="user-info">{{user.school_name}} · {{user.college_name}}</text>
 
@@ -40,3 +40,7 @@
 </view>
 
 <view class="loading" wx:if="{{isLoading}}">加载中...</view>
+
+<view class="error" wx:if="{{!isLoading && !user}}">
+  <text>用户不存在</text>
+</view>

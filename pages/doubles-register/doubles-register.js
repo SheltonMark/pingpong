@@ -31,8 +31,9 @@ Page({
       ]);
 
       if (eventRes.success) {
-        const event = eventRes.data;
-        event.date_label = this.formatDate(event.start_date);
+        const event = eventRes.data.event;
+        event.name = event.title;
+        event.date_label = this.formatDate(event.event_start);
         this.setData({ event });
       }
 
@@ -120,7 +121,9 @@ Page({
   },
 
   formatDate(dateStr) {
+    if (!dateStr) return '';
     const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '';
     return `${date.getMonth() + 1}月${date.getDate()}日`;
   },
 

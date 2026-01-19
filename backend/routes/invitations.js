@@ -79,7 +79,7 @@ router.post('/', async (req, res) => {
 // 获取约球列表
 router.get('/', async (req, res) => {
   try {
-    const { school_id, status, user_id, page = 1, limit = 20 } = req.query;
+    const { school_id, status, user_id, standalone, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
 
     let sql = `
@@ -96,8 +96,14 @@ router.get('/', async (req, res) => {
     `;
     const params = [];
 
+    // 只显示没有关联帖子的独立约球
+    if (standalone === 'true') {
+      sql += ' AND mi.post_id IS NULL';
+    }
+
     if (school_id) {
-      sql += ' AND (mi.school_id = ? OR mi.allow_cross_school = 1)';
+      // 学校筛选：只显示该学校的约球（不再根据 allow_cross_school 显示跨校约球）
+      sql += ' AND mi.school_id = ?';
       params.push(school_id);
     }
     if (status) {

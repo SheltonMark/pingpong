@@ -100,6 +100,13 @@ Page({
     });
   },
 
+  // 点击用户头像，查看他人主页
+  onTapUserAvatar(e) {
+    const { id } = e.currentTarget.dataset;
+    if (!id) return;
+    wx.navigateTo({ url: `/pages/user-profile/user-profile?id=${id}` });
+  },
+
   formatTime(dateStr) {
     if (!dateStr) return '';
     const date = new Date(dateStr);

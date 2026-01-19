@@ -391,10 +391,11 @@ router.get('/:id', async (req, res) => {
 
     // 获取报名列表
     const [registrations] = await pool.query(`
-      SELECT er.*, u.name, u.avatar_url, u.college_id, c.name as college_name
+      SELECT er.*, u.name, u.avatar_url, u.college_id, c.name as college_name, s.name as school_name
       FROM event_registrations er
       JOIN users u ON er.user_id = u.id
       LEFT JOIN colleges c ON u.college_id = c.id
+      LEFT JOIN schools s ON u.school_id = s.id
       WHERE er.event_id = ? AND er.status != 'cancelled'
       ORDER BY er.registered_at
     `, [id]);

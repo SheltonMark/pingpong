@@ -17,7 +17,10 @@ Page({
     noMore: false,
 
     // 独立约球（没有关联帖子的）
-    standaloneInvitations: []
+    standaloneInvitations: [],
+
+    // 滚动位置
+    scrollTop: 0
   },
 
   onLoad() {
@@ -338,6 +341,13 @@ Page({
   onTapPost(e) {
     const { id } = e.currentTarget.dataset;
     wx.navigateTo({ url: `/pages/post-detail/post-detail?id=${id}` });
+  },
+
+  // 点击用户头像，查看他人主页
+  onTapUserAvatar(e) {
+    const { id } = e.currentTarget.dataset;
+    if (!id) return;
+    wx.navigateTo({ url: `/pages/user-profile/user-profile?id=${id}` });
   },
 
   // 点击约球

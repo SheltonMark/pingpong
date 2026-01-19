@@ -1,7 +1,9 @@
 .square-page {
   min-height: 100vh;
-  background: #F5F5F5;
+  background: #FFFFFF;
   overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* 顶部标题栏 */
@@ -124,10 +126,12 @@
 
 /* 帖子列表 */
 .post-list {
-  height: calc(100vh - 280rpx);
+  flex: 1;
+  height: 0;
   padding-top: 16rpx;
-  padding-bottom: 180rpx;
+  padding-bottom: 200rpx;
   box-sizing: border-box;
+  background: #FFFFFF;
 }
 
 .post-item {
@@ -135,7 +139,8 @@
   margin: 0 24rpx 20rpx;
   border-radius: 20rpx;
   padding: 28rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
+  border: 1rpx solid #F0F0F0;
 }
 
 .post-header {

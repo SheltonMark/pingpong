@@ -20,7 +20,7 @@
 }
 
 .tab.active {
-  background: #1A1A1A;
+  background: linear-gradient(135deg, #FF6B00, #E55D00);
   color: #FFFFFF;
 }
 

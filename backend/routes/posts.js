@@ -64,7 +64,7 @@ router.get('/', async (req, res) => {
     const offset = (page - 1) * limit;
 
     let sql = `
-      SELECT p.*,
+      SELECT p.*, p.user_id as author_id,
         u.name as author_name, u.avatar_url as author_avatar,
         s.name as school_name,
         (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as like_count,
@@ -167,7 +167,7 @@ router.get('/:id', async (req, res) => {
     const { user_id } = req.query;
 
     const [posts] = await pool.query(`
-      SELECT p.*,
+      SELECT p.*, p.user_id as author_id,
         u.name as author_name, u.avatar_url as author_avatar,
         s.name as school_name
       FROM posts p
@@ -254,7 +254,7 @@ router.get('/:id/comments', async (req, res) => {
     const offset = (page - 1) * limit;
 
     const [comments] = await pool.query(`
-      SELECT c.*,
+      SELECT c.*, c.user_id as author_id,
         u.name as author_name, u.avatar_url as author_avatar,
         pu.name as reply_to_name
       FROM comments c

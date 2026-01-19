@@ -90,7 +90,7 @@
         <image class="player-avatar" src="{{item.avatar_url || '/images/default-avatar.png'}}" mode="aspectFill" />
         <view class="player-info">
           <text class="player-name">{{item.name}}</text>
-          <text class="player-college">{{item.college_name}}</text>
+          <text class="player-college">{{item.school_name}}{{item.college_name ? ' · ' + item.college_name : ''}}</text>
         </view>
       </view>
     </view>

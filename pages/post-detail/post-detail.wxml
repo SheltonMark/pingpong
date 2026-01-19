@@ -1,7 +1,7 @@
 <view class="detail-page">
   <view class="post-card" wx:if="{{post}}">
     <view class="post-header">
-      <image class="author-avatar" src="{{post.author_avatar || '/images/default-avatar.png'}}" />
+      <image class="author-avatar" src="{{post.author_avatar || '/images/default-avatar.png'}}" bindtap="onTapUserAvatar" data-id="{{post.author_id}}" />
       <view class="author-info">
         <text class="author-name">{{post.author_name}}</text>
         <text class="post-time">{{post.time_label}}</text>
@@ -38,7 +38,7 @@
     <view class="section-title">评论 ({{comments.length}})</view>
     <view class="comment-list">
       <view class="comment-item" wx:for="{{comments}}" wx:key="id">
-        <image class="comment-avatar" src="{{item.author_avatar || '/images/default-avatar.png'}}" />
+        <image class="comment-avatar" src="{{item.author_avatar || '/images/default-avatar.png'}}" bindtap="onTapUserAvatar" data-id="{{item.author_id}}" />
         <view class="comment-body">
           <view class="comment-header">
             <text class="comment-author">{{item.author_name}}</text>

@@ -220,6 +220,7 @@
   left: 24rpx;
   right: 24rpx;
   height: 96rpx;
+  line-height: 96rpx;
   background: linear-gradient(135deg, #FF6B00, #E55D00);
   color: #FFFFFF;
   font-size: 32rpx;
@@ -227,6 +228,7 @@
   border: none;
   border-radius: 24rpx;
   box-shadow: 0 8rpx 24rpx rgba(255, 107, 0, 0.35);
+  text-align: center;
 }
 
 .submit-btn[disabled] {
