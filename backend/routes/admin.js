@@ -1916,19 +1916,11 @@ router.get('/posts', requireAdmin, async (req, res) => {
 
     const [posts] = await pool.execute(sql, params);
 
-    // 获取每个帖子的图片
-    const list = [];
-    for (const p of posts) {
-      const [images] = await pool.query(
-        'SELECT image_url FROM post_images WHERE post_id = ? ORDER BY sort_order',
-        [p.id]
-      );
-      list.push({
-        ...p,
-        images: images.map(img => toFullUrl(img.image_url, req)),
-        author_avatar: toFullUrl(p.author_avatar, req)
-      });
-    }
+    // 转换头像URL
+    const list = posts.map(p => ({
+      ...p,
+      author_avatar: toFullUrl(p.author_avatar, req)
+    }));
 
     res.json({
       success: true,
