@@ -122,4 +122,65 @@ router.post('/update-wx-info', async (req, res) => {
   }
 });
 
+// 获取微信手机号
+router.post('/get-phone', async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) {
+      return res.status(400).json({ success: false, message: '缺少 code' });
+    }
+
+    // 开发模式：返回模拟手机号
+    if (!WX_SECRET || WX_SECRET === 'your_app_secret_here') {
+      console.log('⚠️ 开发模式：返回模拟手机号');
+      return res.json({
+        success: true,
+        data: { phone: '13800138000' }
+      });
+    }
+
+    // 生产模式：先获取 access_token，再获取手机号
+    const tokenUrl = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${WX_APPID}&secret=${WX_SECRET}`;
+    const tokenRes = await axios.get(tokenUrl);
+
+    if (tokenRes.data.errcode) {
+      console.error('获取 access_token 失败:', tokenRes.data);
+      return res.status(400).json({
+        success: false,
+        message: '获取手机号失败'
+      });
+    }
+
+    const accessToken = tokenRes.data.access_token;
+
+    // 调用微信接口获取手机号
+    const phoneUrl = `https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=${accessToken}`;
+    const phoneRes = await axios.post(phoneUrl, { code });
+
+    if (phoneRes.data.errcode !== 0) {
+      console.error('获取手机号失败:', phoneRes.data);
+      return res.status(400).json({
+        success: false,
+        message: '获取手机号失败'
+      });
+    }
+
+    const phoneNumber = phoneRes.data.phone_info?.phoneNumber;
+    if (!phoneNumber) {
+      return res.status(400).json({
+        success: false,
+        message: '未获取到手机号'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: { phone: phoneNumber }
+    });
+  } catch (error) {
+    console.error('获取手机号错误:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
 module.exports = router;

@@ -23,7 +23,7 @@ Page({
       collegeId: null,
       departmentId: null,
       className: '',
-      enrollmentYear: null,
+      enrollmentYear: '',
       avatarUrl: ''
     },
 
@@ -84,7 +84,7 @@ Page({
           'form.phone': userInfo.phone || '',
           'form.schoolId': userInfo.school_id || null,
           'form.className': userInfo.class_name || '',
-          'form.enrollmentYear': userInfo.enrollment_year || null,
+          'form.enrollmentYear': userInfo.enrollment_year ? String(userInfo.enrollment_year) : '',
           'form.avatarUrl': userInfo.avatar_url || ''
         });
 
@@ -113,7 +113,7 @@ Page({
           'form.phone': userInfo.phone || '',
           'form.schoolId': userInfo.school_id || null,
           'form.className': userInfo.class_name || '',
-          'form.enrollmentYear': userInfo.enrollment_year || null,
+          'form.enrollmentYear': userInfo.enrollment_year ? String(userInfo.enrollment_year) : '',
           'form.avatarUrl': userInfo.avatar_url || ''
         });
       }
@@ -220,7 +220,7 @@ Page({
       'form.collegeId': null,
       'form.departmentId': null,
       'form.className': '',
-      'form.enrollmentYear': null
+      'form.enrollmentYear': ''
     });
 
     // 教职工需要加载下属单位
@@ -263,6 +263,46 @@ Page({
     }
   },
 
+  // 微信一键获取手机号
+  async onGetPhoneNumber(e) {
+    if (e.detail.errMsg !== 'getPhoneNumber:ok') {
+      // 用户拒绝授权
+      return;
+    }
+
+    const { code } = e.detail;
+    if (!code) {
+      wx.showToast({ title: '获取手机号失败', icon: 'none' });
+      return;
+    }
+
+    wx.showLoading({ title: '获取中...' });
+
+    try {
+      const res = await new Promise((resolve, reject) => {
+        wx.request({
+          url: `${app.globalData.baseUrl}/api/auth/get-phone`,
+          method: 'POST',
+          data: { code },
+          success: (res) => resolve(res.data),
+          fail: reject
+        });
+      });
+
+      if (res.success && res.data?.phone) {
+        this.setData({ 'form.phone': res.data.phone });
+        wx.showToast({ title: '获取成功', icon: 'success' });
+      } else {
+        throw new Error(res.message || '获取手机号失败');
+      }
+    } catch (error) {
+      console.error('获取手机号失败:', error);
+      wx.showToast({ title: '获取失败，请手动输入', icon: 'none' });
+    } finally {
+      wx.hideLoading();
+    }
+  },
+
   // 表单验证
   validateForm() {
     const { form, selectedType, colleges, departments } = this.data;
@@ -288,10 +328,10 @@ Page({
     if (selectedType === 'student') {
       if (hasColleges && !form.collegeId) errors.push('请选择学院');
       if (!form.className) errors.push('请输入班级');
-      if (!form.enrollmentYear) errors.push('请选择入学年份');
+      if (!form.enrollmentYear || !/^\d{4}$/.test(form.enrollmentYear)) errors.push('请输入正确的入学年份');
     } else if (selectedType === 'graduate') {
       if (hasColleges && !form.collegeId) errors.push('请选择学院');
-      if (!form.enrollmentYear) errors.push('请选择入学年份');
+      if (!form.enrollmentYear || !/^\d{4}$/.test(form.enrollmentYear)) errors.push('请输入正确的入学年份');
     } else if (selectedType === 'teacher') {
       if (hasColleges && !form.collegeId) errors.push('请选择学院');
     } else if (selectedType === 'staff') {
