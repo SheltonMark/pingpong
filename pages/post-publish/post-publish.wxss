@@ -200,12 +200,16 @@
 .submit-btn {
   width: 100%;
   height: 96rpx;
+  line-height: 96rpx;
   background: linear-gradient(135deg, #FF6B00, #E55D00);
   color: #FFFFFF;
   font-size: 34rpx;
   font-weight: 600;
   border-radius: 48rpx;
   border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .submit-btn[disabled] { background: #D1D5DB; }
