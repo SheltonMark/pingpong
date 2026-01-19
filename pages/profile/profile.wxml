@@ -1,4 +1,10 @@
-<view class="profile-page">
+<scroll-view
+  class="profile-page"
+  scroll-y
+  refresher-enabled
+  refresher-triggered="{{isRefreshing}}"
+  bindrefresherrefresh="onPullDownRefresh"
+>
   <!-- 头部区域（包含用户信息和统计卡片） -->
   <view class="header-wrapper">
     <!-- 橙色背景 -->
@@ -68,4 +74,4 @@
       <text class="menu-arrow">›</text>
     </view>
   </view>
-</view>
+</scroll-view>

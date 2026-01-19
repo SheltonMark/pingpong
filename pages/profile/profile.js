@@ -14,6 +14,7 @@ Page({
     isRegistered: false,
     userInfo: null,
     userTypeLabel: '',
+    isRefreshing: false,
 
     // 用户统计数据（从 API 获取）
     stats: {
@@ -42,6 +43,21 @@ Page({
     // 更新自定义 tabBar 选中状态
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 3 });
+    }
+  },
+
+  // 下拉刷新
+  async onPullDownRefresh() {
+    this.setData({ isRefreshing: true });
+    try {
+      await Promise.all([
+        this.loadUserProfile(),
+        this.loadPendingInvitationCount()
+      ]);
+    } catch (error) {
+      console.error('刷新失败:', error);
+    } finally {
+      this.setData({ isRefreshing: false });
     }
   },
 

@@ -85,7 +85,8 @@ router.post('/register', async (req, res) => {
       college_id,
       department_id,
       class_name,
-      enrollment_year
+      enrollment_year,
+      avatar_url
     } = req.body;
 
     // 验证必填字段
@@ -153,6 +154,7 @@ router.post('/register', async (req, res) => {
         department_id = ?,
         class_name = ?,
         enrollment_year = ?,
+        avatar_url = ?,
         is_registered = 1,
         updated_at = NOW()
       WHERE openid = ?
@@ -166,6 +168,7 @@ router.post('/register', async (req, res) => {
       department_id || null,
       class_name || null,
       enrollment_year || null,
+      avatar_url || null,
       openid
     ]);
 

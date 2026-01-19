@@ -42,5 +42,6 @@
 <view class="loading" wx:if="{{isLoading}}">加载中...</view>
 
 <view class="error" wx:if="{{!isLoading && !user}}">
-  <text>用户不存在</text>
+  <text class="error-icon">😔</text>
+  <text class="error-text">该用户已注销或不存在</text>
 </view>

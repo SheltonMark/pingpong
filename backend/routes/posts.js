@@ -65,13 +65,14 @@ router.get('/', async (req, res) => {
 
     let sql = `
       SELECT p.*, p.user_id as author_id,
-        u.name as author_name, u.avatar_url as author_avatar,
+        COALESCE(u.name, '已注销用户') as author_name,
+        u.avatar_url as author_avatar,
         s.name as school_name,
         (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as like_count,
         (SELECT COUNT(*) FROM comments WHERE post_id = p.id AND status = 'active') as comment_count,
         mi.id as invitation_id
       FROM posts p
-      JOIN users u ON p.user_id = u.id
+      LEFT JOIN users u ON p.user_id = u.id
       LEFT JOIN schools s ON p.school_id = s.id
       LEFT JOIN match_invitations mi ON mi.post_id = p.id
       WHERE p.status = 'active'
@@ -168,10 +169,11 @@ router.get('/:id', async (req, res) => {
 
     const [posts] = await pool.query(`
       SELECT p.*, p.user_id as author_id,
-        u.name as author_name, u.avatar_url as author_avatar,
+        COALESCE(u.name, '已注销用户') as author_name,
+        u.avatar_url as author_avatar,
         s.name as school_name
       FROM posts p
-      JOIN users u ON p.user_id = u.id
+      LEFT JOIN users u ON p.user_id = u.id
       LEFT JOIN schools s ON p.school_id = s.id
       WHERE p.id = ? AND p.status = 'active'
     `, [id]);
@@ -255,10 +257,11 @@ router.get('/:id/comments', async (req, res) => {
 
     const [comments] = await pool.query(`
       SELECT c.*, c.user_id as author_id,
-        u.name as author_name, u.avatar_url as author_avatar,
+        COALESCE(u.name, '已注销用户') as author_name,
+        u.avatar_url as author_avatar,
         pu.name as reply_to_name
       FROM comments c
-      JOIN users u ON c.user_id = u.id
+      LEFT JOIN users u ON c.user_id = u.id
       LEFT JOIN comments pc ON c.parent_id = pc.id
       LEFT JOIN users pu ON pc.user_id = pu.id
       WHERE c.post_id = ? AND c.status = 'active'

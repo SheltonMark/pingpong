@@ -1,8 +1,9 @@
 .profile-page {
-  min-height: 100vh;
+  height: 100vh;
   background: var(--gray-50);
   padding-bottom: 140rpx;
   overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 /* 头部区域包装器 */

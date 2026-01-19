@@ -136,4 +136,19 @@
   padding: 60rpx;
   font-size: 28rpx;
   color: #9CA3AF;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+}
+
+.error-icon {
+  font-size: 80rpx;
+  margin-bottom: 24rpx;
+}
+
+.error-text {
+  font-size: 32rpx;
+  color: #6B7280;
 }

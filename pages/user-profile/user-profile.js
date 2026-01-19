@@ -17,7 +17,9 @@ Page({
 
   async loadProfile() {
     try {
+      console.log('加载用户主页, userId:', this.data.userId);
       const res = await this.request(`/api/user/${this.data.userId}/profile`);
+      console.log('用户主页响应:', res);
 
       if (res.success) {
         const user = res.data;
@@ -34,6 +36,8 @@ Page({
         }));
 
         this.setData({ user, recentMatches });
+      } else {
+        console.error('加载用户主页失败:', res.message);
       }
     } catch (error) {
       console.error('获取用户主页失败:', error);
