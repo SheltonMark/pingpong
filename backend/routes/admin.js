@@ -94,42 +94,6 @@ router.get('/init-super-admin', async (req, res) => {
   }
 });
 
-// [临时] 清理测试数据 - 用完后删除此接口
-router.post('/cleanup-test-data', requireSuperAdmin, async (req, res) => {
-  try {
-    const results = {};
-
-    const [p1] = await pool.query('SELECT COUNT(*) as count FROM invitation_participants');
-    await pool.query('DELETE FROM invitation_participants');
-    results.invitation_participants = p1[0].count;
-
-    const [p2] = await pool.query('SELECT COUNT(*) as count FROM match_invitations');
-    await pool.query('DELETE FROM match_invitations');
-    results.match_invitations = p2[0].count;
-
-    const [p3] = await pool.query('SELECT COUNT(*) as count FROM comments');
-    await pool.query('DELETE FROM comments');
-    results.comments = p3[0].count;
-
-    const [p4] = await pool.query('SELECT COUNT(*) as count FROM likes');
-    await pool.query('DELETE FROM likes');
-    results.likes = p4[0].count;
-
-    const [p5] = await pool.query('SELECT COUNT(*) as count FROM post_images');
-    await pool.query('DELETE FROM post_images');
-    results.post_images = p5[0].count;
-
-    const [p6] = await pool.query('SELECT COUNT(*) as count FROM posts');
-    await pool.query('DELETE FROM posts');
-    results.posts = p6[0].count;
-
-    res.json({ success: true, message: '清理完成', data: results });
-  } catch (error) {
-    console.error('Cleanup error:', error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
 // 检查管理员权限
 router.get('/check', async (req, res) => {
   try {

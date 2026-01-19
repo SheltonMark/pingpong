@@ -61,8 +61,7 @@
       "Bash(git -C D:/mast/pingpong log -3 --oneline)",
       "Bash(git -C D:/mast/pingpong diff --cached --stat)",
       "Bash(git -C D:/mast/pingpong commit -m \"$\\(cat <<''EOF''\nfeat: add post type filtering for plaza and admin panel\n\n- Add two-dimensional filtering \\(school + post type\\) on plaza page\n- Change selected tab color to brand orange on plaza\n- Add post type filter \\(posts/invitations\\) to admin posts management\n- Fix school filter dropdown positioning with teleported prop\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(git -C D:/mast/pingpong push)",
-      "Bash(git -C D:mastpingpong push)"
+      "Bash(git -C D:/mast/pingpong push)"
     ],
     "deny": [],
     "ask": []
