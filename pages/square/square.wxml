@@ -8,10 +8,12 @@
     <!-- 筛选行 -->
     <view class="filter-row">
       <!-- 学校下拉选择器 -->
-      <view class="school-selector" bindtap="onTapSchoolSelector">
-        <text class="selector-text">{{currentSchoolName || '全部学校'}}</text>
-        <text class="selector-arrow">▼</text>
-      </view>
+      <picker mode="selector" range="{{schoolPickerList}}" value="{{schoolPickerIndex}}" bindchange="onSchoolPickerChange">
+        <view class="school-selector">
+          <text class="selector-text">{{currentSchoolName || '全部学校'}}</text>
+          <text class="selector-arrow">▼</text>
+        </view>
+      </picker>
       <!-- 类型标签 -->
       <view class="type-tabs">
         <view

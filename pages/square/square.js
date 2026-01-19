@@ -6,6 +6,8 @@ Page({
     currentSchoolName: '',
     currentPostType: '', // '' | 'post' | 'invitation'
     schools: [],
+    schoolPickerList: [],  // picker显示列表
+    schoolPickerIndex: 0,  // picker当前选中索引
 
     // 帖子
     posts: [],
@@ -38,7 +40,45 @@ Page({
     try {
       const res = await this.request('/api/common/schools');
       if (res.success) {
-        this.setData({ schools: res.data });
+        const schools = res.data;
+        // 构建picker列表：全部学校 + 各学校名称
+        const schoolPickerList = ['全部学校', ...schools.map(s => s.short_name || s.name)];
+
+        // 获取用户默认学校
+        const userInfo = app.globalData.userInfo;
+        let currentSchoolId = null;
+        let currentSchoolName = '';
+        let schoolPickerIndex = 0;
+
+        if (userInfo && userInfo.school_id) {
+          currentSchoolId = userInfo.school_id;
+          // 找到用户学校在列表中的索引
+          const userSchoolIndex = schools.findIndex(s => s.id === userInfo.school_id);
+          if (userSchoolIndex !== -1) {
+            currentSchoolName = schools[userSchoolIndex].short_name || schools[userSchoolIndex].name;
+            schoolPickerIndex = userSchoolIndex + 1; // +1 因为第一个是"全部学校"
+          }
+        }
+
+        this.setData({
+          schools,
+          schoolPickerList,
+          schoolPickerIndex,
+          currentSchoolId,
+          currentSchoolName
+        });
+
+        // 如果有默认学校，重新加载数据
+        if (currentSchoolId) {
+          this.setData({
+            posts: [],
+            postsPage: 1,
+            noMore: false,
+            standaloneInvitations: []
+          });
+          this.loadPosts();
+          this.loadStandaloneInvitations();
+        }
       } else {
         console.error('加载学校列表失败:', res.message);
         wx.showToast({ title: '加载学校列表失败', icon: 'none' });
@@ -49,53 +89,43 @@ Page({
     }
   },
 
-  // 点击学校选择器（弹出下拉菜单）
-  onTapSchoolSelector() {
+  // 学校选择器变化
+  onSchoolPickerChange(e) {
+    const index = parseInt(e.detail.value);
     const { schools, currentSchoolId } = this.data;
 
-    if (schools.length === 0) {
-      wx.showToast({ title: '暂无学校数据', icon: 'none' });
-      return;
-    }
-
-    // 构建选项列表，添加"全部学校"
-    const itemList = ['全部学校', ...schools.map(s => s.short_name || s.name)];
-
-    wx.showActionSheet({
-      itemList,
-      success: (res) => {
-        if (res.tapIndex === 0) {
-          // 选择"全部学校"
-          if (currentSchoolId !== null) {
-            this.setData({
-              currentSchoolId: null,
-              currentSchoolName: '',
-              posts: [],
-              postsPage: 1,
-              noMore: false,
-              standaloneInvitations: []
-            });
-            this.loadPosts();
-            this.loadStandaloneInvitations();
-          }
-        } else {
-          // 选择具体学校
-          const selected = schools[res.tapIndex - 1];
-          if (selected && selected.id !== currentSchoolId) {
-            this.setData({
-              currentSchoolId: selected.id,
-              currentSchoolName: selected.short_name || selected.name,
-              posts: [],
-              postsPage: 1,
-              noMore: false,
-              standaloneInvitations: []
-            });
-            this.loadPosts();
-            this.loadStandaloneInvitations();
-          }
-        }
+    if (index === 0) {
+      // 选择"全部学校"
+      if (currentSchoolId !== null) {
+        this.setData({
+          schoolPickerIndex: 0,
+          currentSchoolId: null,
+          currentSchoolName: '',
+          posts: [],
+          postsPage: 1,
+          noMore: false,
+          standaloneInvitations: []
+        });
+        this.loadPosts();
+        this.loadStandaloneInvitations();
       }
-    });
+    } else {
+      // 选择具体学校
+      const selected = schools[index - 1];
+      if (selected && selected.id !== currentSchoolId) {
+        this.setData({
+          schoolPickerIndex: index,
+          currentSchoolId: selected.id,
+          currentSchoolName: selected.short_name || selected.name,
+          posts: [],
+          postsPage: 1,
+          noMore: false,
+          standaloneInvitations: []
+        });
+        this.loadPosts();
+        this.loadStandaloneInvitations();
+      }
+    }
   },
 
   // 选择学校筛选（保留兼容旧接口）
