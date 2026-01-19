@@ -2,22 +2,22 @@
   <div class="page">
     <div class="page-header">
       <h2>帖子管理</h2>
-      <div class="filters">
-        <el-select v-model="filters.post_type" placeholder="类型筛选" clearable @change="loadPosts">
-          <el-option label="全部类型" value="" />
-          <el-option label="普通帖子" value="post" />
-          <el-option label="约球帖子" value="invitation" />
-        </el-select>
-        <el-select v-model="filters.status" placeholder="状态筛选" clearable @change="loadPosts">
-          <el-option label="全部状态" value="" />
-          <el-option label="启用" value="active" />
-          <el-option label="隐藏" value="hidden" />
-          <el-option label="已删除" value="deleted" />
-        </el-select>
-        <el-select v-model="filters.school_id" placeholder="学校筛选" clearable filterable @change="loadPosts" :teleported="true">
-          <el-option v-for="s in schools" :key="s.id" :label="s.name" :value="s.id" />
-        </el-select>
-      </div>
+    </div>
+    <div class="filter-row">
+      <el-select v-model="filters.post_type" placeholder="类型筛选" clearable @change="loadPosts" style="width: 150px;">
+        <el-option label="全部类型" value="" />
+        <el-option label="普通帖子" value="post" />
+        <el-option label="约球帖子" value="invitation" />
+      </el-select>
+      <el-select v-model="filters.status" placeholder="状态筛选" clearable @change="loadPosts" style="width: 150px;">
+        <el-option label="全部状态" value="" />
+        <el-option label="启用" value="active" />
+        <el-option label="隐藏" value="hidden" />
+        <el-option label="已删除" value="deleted" />
+      </el-select>
+      <el-select v-model="filters.school_id" placeholder="学校筛选" clearable filterable @change="loadPosts" style="width: 200px;">
+        <el-option v-for="s in schools" :key="s.id" :label="s.name" :value="s.id" />
+      </el-select>
     </div>
 
     <el-card>
@@ -232,20 +232,15 @@ onMounted(() => {
   padding: 20px;
 }
 .page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-  gap: 12px;
+  margin-bottom: 16px;
 }
 .page-header h2 {
   margin: 0;
 }
-.filters {
+.filter-row {
   display: flex;
   gap: 12px;
-  flex-wrap: wrap;
+  margin-bottom: 20px;
 }
 .author-cell {
   display: flex;
