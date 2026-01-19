@@ -46,7 +46,7 @@
         <input class="form-input" placeholder="比赛地点" bindinput="onLocationInput" value="{{location}}" />
       </view>
       <view class="form-item">
-        <text class="form-label">🕐 日期</text>
+        <text class="form-label">📅 日期</text>
         <picker mode="date" bindchange="onDateChange" value="{{date}}">
           <view class="picker-value">{{date || '选择日期'}}</view>
         </picker>
@@ -58,7 +58,7 @@
         </picker>
       </view>
       <view class="form-item">
-        <text class="form-label">👥 人数</text>
+        <text class="form-label">🎯 人数</text>
         <view class="number-picker">
           <view class="num-btn" bindtap="onDecrease">-</view>
           <text class="num-value">{{maxParticipants}}</text>

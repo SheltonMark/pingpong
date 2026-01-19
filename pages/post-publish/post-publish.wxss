@@ -155,9 +155,9 @@
 }
 
 .picker-value {
+  flex: 1;
   font-size: 30rpx;
   color: #666;
-  padding: 0 24rpx;
 }
 
 .number-picker {
