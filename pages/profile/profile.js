@@ -106,11 +106,18 @@ Page({
       return;
     }
 
+    // 确保有有效的用户ID
+    const userId = userInfo.id || userInfo.user_id;
+    if (!userId) {
+      console.error('无法获取用户ID');
+      return;
+    }
+
     try {
       // 获取用户详细信息（包含排名）
       const res = await new Promise((resolve, reject) => {
         wx.request({
-          url: `${app.globalData.baseUrl}/api/user/${userInfo.id}/profile`,
+          url: `${app.globalData.baseUrl}/api/user/${userId}/profile`,
           success: (res) => resolve(res.data),
           fail: reject
         });
@@ -127,6 +134,9 @@ Page({
           losses: userData.losses,
           avatar_url: userData.avatar_url
         };
+
+        // 同步更新本地存储
+        wx.setStorageSync('userInfo', app.globalData.userInfo);
 
         // 计算胜率
         const totalGames = (userData.wins || 0) + (userData.losses || 0);

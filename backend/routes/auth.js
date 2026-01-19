@@ -65,6 +65,7 @@ router.post('/wx-login', async (req, res) => {
           u.id, u.id as user_id, u.openid, u.name, u.gender, u.phone, u.avatar_url,
           u.user_type, u.school_id, u.college_id, u.department_id,
           u.is_registered, u.privacy_agreed, u.created_at,
+          u.points, u.wins, u.losses,
           s.name as school_name, s.short_name as school_short_name,
           c.name as college_name
         FROM users u
