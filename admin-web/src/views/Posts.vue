@@ -45,8 +45,8 @@
         <el-table-column prop="school_name" label="学校" width="120" />
         <el-table-column label="类型" width="90">
           <template #default="{ row }">
-            <el-tag :type="row.post_type === 'invitation' ? 'warning' : 'primary'" size="small">
-              {{ row.post_type === 'invitation' ? '约球' : '帖子' }}
+            <el-tag :type="row.is_invitation ? 'warning' : 'primary'" size="small">
+              {{ row.is_invitation ? '约球' : '帖子' }}
             </el-tag>
           </template>
         </el-table-column>

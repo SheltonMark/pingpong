@@ -1874,11 +1874,10 @@ router.get('/posts', requireAdmin, async (req, res) => {
       SELECT p.*,
              u.name as author_name, u.avatar_url as author_avatar,
              s.name as school_name,
-             CASE WHEN mi.id IS NOT NULL THEN 'invitation' ELSE 'post' END as post_type
+             (SELECT COUNT(*) FROM match_invitations mi WHERE mi.post_id = p.id) > 0 as is_invitation
       FROM posts p
       LEFT JOIN users u ON p.user_id = u.id
       LEFT JOIN schools s ON p.school_id = s.id
-      LEFT JOIN match_invitations mi ON mi.post_id = p.id
       WHERE 1=1
     `;
     const params = [];
@@ -1902,16 +1901,16 @@ router.get('/posts', requireAdmin, async (req, res) => {
       params.push(school_id);
     }
     if (post_type === 'invitation') {
-      sql += ' AND mi.id IS NOT NULL';
+      sql += ' AND EXISTS (SELECT 1 FROM match_invitations mi WHERE mi.post_id = p.id)';
     } else if (post_type === 'post') {
-      sql += ' AND mi.id IS NULL';
+      sql += ' AND NOT EXISTS (SELECT 1 FROM match_invitations mi WHERE mi.post_id = p.id)';
     }
 
     // 获取总数
-    let countSql = sql.replace(/SELECT p\.\*,[\s\S]*?FROM posts p/, 'SELECT COUNT(DISTINCT p.id) as total FROM posts p');
+    let countSql = sql.replace(/SELECT p\.\*,[\s\S]*?FROM posts p/, 'SELECT COUNT(*) as total FROM posts p');
     const [[{ total }]] = await pool.execute(countSql, params);
 
-    sql += ' GROUP BY p.id ORDER BY p.created_at DESC LIMIT ? OFFSET ?';
+    sql += ' ORDER BY p.created_at DESC LIMIT ? OFFSET ?';
     params.push(parseInt(limit), parseInt(offset));
 
     const [posts] = await pool.execute(sql, params);
