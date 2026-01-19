@@ -24,9 +24,8 @@ Page({
   },
 
   onLoad() {
+    // 先加载学校列表，完成后会自动加载帖子
     this.loadSchools();
-    this.loadPosts();
-    this.loadStandaloneInvitations();
   },
 
   onShow() {
@@ -71,17 +70,9 @@ Page({
           currentSchoolName
         });
 
-        // 如果有默认学校，重新加载数据
-        if (currentSchoolId) {
-          this.setData({
-            posts: [],
-            postsPage: 1,
-            noMore: false,
-            standaloneInvitations: []
-          });
-          this.loadPosts();
-          this.loadStandaloneInvitations();
-        }
+        // 加载帖子和约球数据
+        this.loadPosts();
+        this.loadStandaloneInvitations();
       } else {
         console.error('加载学校列表失败:', res.message);
         wx.showToast({ title: '加载学校列表失败', icon: 'none' });

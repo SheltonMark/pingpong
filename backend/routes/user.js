@@ -575,11 +575,18 @@ router.get('/:id/profile', async (req, res) => {
 
     const user = users[0];
 
-    // 计算排名
-    const [ranking] = await pool.query(
-      'SELECT COUNT(*) + 1 as rank FROM users WHERE points > ? AND school_id = (SELECT school_id FROM users WHERE id = ?)',
-      [user.points, id]
-    );
+    // 计算排名（处理 points 为 null 的情况）
+    const userPoints = user.points || 0;
+    let rank = 1;
+    try {
+      const [ranking] = await pool.query(
+        'SELECT COUNT(*) + 1 as user_rank FROM users WHERE points > ? AND school_id = (SELECT school_id FROM users WHERE id = ?)',
+        [userPoints, id]
+      );
+      rank = ranking[0].user_rank;
+    } catch (e) {
+      console.error('计算排名失败:', e);
+    }
 
     // 最近3场比赛
     const [recentMatches] = await pool.query(`
@@ -600,7 +607,7 @@ router.get('/:id/profile', async (req, res) => {
       success: true,
       data: {
         ...user,
-        rank: ranking[0].rank,
+        rank: rank,
         recent_matches: recentMatches
       }
     });
