@@ -3,13 +3,18 @@
     <div class="page-header">
       <h2>帖子管理</h2>
       <div class="filters">
+        <el-select v-model="filters.post_type" placeholder="类型筛选" clearable @change="loadPosts">
+          <el-option label="全部类型" value="" />
+          <el-option label="普通帖子" value="post" />
+          <el-option label="约球帖子" value="invitation" />
+        </el-select>
         <el-select v-model="filters.status" placeholder="状态筛选" clearable @change="loadPosts">
-          <el-option label="全部" value="" />
+          <el-option label="全部状态" value="" />
           <el-option label="启用" value="active" />
           <el-option label="隐藏" value="hidden" />
           <el-option label="已删除" value="deleted" />
         </el-select>
-        <el-select v-model="filters.school_id" placeholder="学校筛选" clearable @change="loadPosts">
+        <el-select v-model="filters.school_id" placeholder="学校筛选" clearable filterable @change="loadPosts" :teleported="true">
           <el-option v-for="s in schools" :key="s.id" :label="s.name" :value="s.id" />
         </el-select>
       </div>
@@ -38,6 +43,13 @@
           </template>
         </el-table-column>
         <el-table-column prop="school_name" label="学校" width="120" />
+        <el-table-column label="类型" width="90">
+          <template #default="{ row }">
+            <el-tag :type="row.post_type === 'invitation' ? 'warning' : 'primary'" size="small">
+              {{ row.post_type === 'invitation' ? '约球' : '帖子' }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="status" label="状态" width="80">
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.status)">
@@ -107,6 +119,7 @@ const posts = ref([])
 const schools = ref([])
 
 const filters = reactive({
+  post_type: '',
   status: '',
   school_id: ''
 })
@@ -130,6 +143,7 @@ const loadPosts = async () => {
       page: pagination.page,
       limit: pagination.limit
     })
+    if (filters.post_type) params.append('post_type', filters.post_type)
     if (filters.status) params.append('status', filters.status)
     if (filters.school_id) params.append('school_id', filters.school_id)
 

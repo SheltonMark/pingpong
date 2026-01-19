@@ -60,7 +60,7 @@ router.post('/', async (req, res) => {
 // 获取帖子列表
 router.get('/', async (req, res) => {
   try {
-    const { school_id, user_id, page = 1, limit = 20 } = req.query;
+    const { school_id, user_id, post_type, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
 
     let sql = `
@@ -68,10 +68,12 @@ router.get('/', async (req, res) => {
         u.name as author_name, u.avatar_url as author_avatar,
         s.name as school_name,
         (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as like_count,
-        (SELECT COUNT(*) FROM comments WHERE post_id = p.id AND status = 'active') as comment_count
+        (SELECT COUNT(*) FROM comments WHERE post_id = p.id AND status = 'active') as comment_count,
+        mi.id as invitation_id
       FROM posts p
       JOIN users u ON p.user_id = u.id
       LEFT JOIN schools s ON p.school_id = s.id
+      LEFT JOIN match_invitations mi ON mi.post_id = p.id
       WHERE p.status = 'active'
     `;
     const params = [];
@@ -79,6 +81,13 @@ router.get('/', async (req, res) => {
     if (school_id) {
       sql += ' AND p.school_id = ?';
       params.push(school_id);
+    }
+
+    // 帖子类型筛选
+    if (post_type === 'invitation') {
+      sql += ' AND mi.id IS NOT NULL';
+    } else if (post_type === 'post') {
+      sql += ' AND mi.id IS NULL';
     }
 
     sql += ' ORDER BY p.created_at DESC LIMIT ? OFFSET ?';
@@ -118,11 +127,21 @@ router.get('/', async (req, res) => {
     }
 
     // 获取总数
-    let countSql = 'SELECT COUNT(*) as total FROM posts WHERE status = "active"';
+    let countSql = `
+      SELECT COUNT(DISTINCT p.id) as total
+      FROM posts p
+      LEFT JOIN match_invitations mi ON mi.post_id = p.id
+      WHERE p.status = 'active'
+    `;
     const countParams = [];
     if (school_id) {
-      countSql += ' AND school_id = ?';
+      countSql += ' AND p.school_id = ?';
       countParams.push(school_id);
+    }
+    if (post_type === 'invitation') {
+      countSql += ' AND mi.id IS NOT NULL';
+    } else if (post_type === 'post') {
+      countSql += ' AND mi.id IS NULL';
     }
     const [countResult] = await pool.query(countSql, countParams);
 

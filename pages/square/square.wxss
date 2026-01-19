@@ -62,9 +62,37 @@
 }
 
 .school-tab.active {
-  background: #1A1A1A;
+  background: linear-gradient(135deg, #FF6B00, #E55D00);
   color: #FFFFFF;
   font-weight: 500;
+}
+
+/* 内容类型标签 */
+.type-tabs {
+  white-space: nowrap;
+  padding: 0 32rpx 16rpx;
+}
+
+.type-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.type-tab {
+  display: inline-block;
+  padding: 10rpx 24rpx;
+  margin-right: 12rpx;
+  border-radius: 24rpx;
+  font-size: 24rpx;
+  color: #666;
+  background: transparent;
+  border: 1rpx solid #E0E0E0;
+}
+
+.type-tab.active {
+  background: linear-gradient(135deg, #FF6B00, #E55D00);
+  color: #FFFFFF;
+  font-weight: 500;
+  border-color: transparent;
 }
 
 /* 帖子列表 */

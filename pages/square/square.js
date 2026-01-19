@@ -3,6 +3,7 @@ const app = getApp();
 Page({
   data: {
     currentSchoolId: null,
+    currentPostType: '', // '' | 'post' | 'invitation'
     schools: [],
 
     // 帖子
@@ -66,6 +67,27 @@ Page({
     this.loadStandaloneInvitations();
   },
 
+  // 选择类型筛选
+  onSelectType(e) {
+    const postType = e.currentTarget.dataset.type || '';
+
+    if (postType === this.data.currentPostType) return;
+
+    this.setData({
+      currentPostType: postType,
+      posts: [],
+      postsPage: 1,
+      noMore: false,
+      standaloneInvitations: []
+    });
+
+    this.loadPosts();
+    // 只有选择全部或约球类型时才加载独立约球
+    if (postType === '' || postType === 'invitation') {
+      this.loadStandaloneInvitations();
+    }
+  },
+
   // 加载帖子
   async loadPosts(refresh = false) {
     if (this.data.isLoading) return;
@@ -80,6 +102,9 @@ Page({
       };
       if (this.data.currentSchoolId) {
         params.school_id = this.data.currentSchoolId;
+      }
+      if (this.data.currentPostType) {
+        params.post_type = this.data.currentPostType;
       }
       if (app.globalData.userInfo?.id) {
         params.user_id = app.globalData.userInfo.id;

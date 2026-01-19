@@ -1866,17 +1866,19 @@ router.post('/teams/:id/cancel', requireAdmin, async (req, res) => {
 // 获取帖子列表
 router.get('/posts', requireAdmin, async (req, res) => {
   try {
-    const { status, school_id, page = 1, limit = 20 } = req.query;
+    const { status, school_id, post_type, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
     const { adminContext } = req;
 
     let sql = `
       SELECT p.*,
              u.name as author_name, u.avatar_url as author_avatar,
-             s.name as school_name
+             s.name as school_name,
+             CASE WHEN mi.id IS NOT NULL THEN 'invitation' ELSE 'post' END as post_type
       FROM posts p
       LEFT JOIN users u ON p.user_id = u.id
       LEFT JOIN schools s ON p.school_id = s.id
+      LEFT JOIN match_invitations mi ON mi.post_id = p.id
       WHERE 1=1
     `;
     const params = [];
@@ -1899,12 +1901,17 @@ router.get('/posts', requireAdmin, async (req, res) => {
       sql += ' AND p.school_id = ?';
       params.push(school_id);
     }
+    if (post_type === 'invitation') {
+      sql += ' AND mi.id IS NOT NULL';
+    } else if (post_type === 'post') {
+      sql += ' AND mi.id IS NULL';
+    }
 
     // 获取总数
-    let countSql = sql.replace('SELECT p.*, \n             u.name as author_name, u.avatar_url as author_avatar,\n             s.name as school_name', 'SELECT COUNT(*) as total');
+    let countSql = sql.replace(/SELECT p\.\*,[\s\S]*?FROM posts p/, 'SELECT COUNT(DISTINCT p.id) as total FROM posts p');
     const [[{ total }]] = await pool.execute(countSql, params);
 
-    sql += ' ORDER BY p.created_at DESC LIMIT ? OFFSET ?';
+    sql += ' GROUP BY p.id ORDER BY p.created_at DESC LIMIT ? OFFSET ?';
     params.push(parseInt(limit), parseInt(offset));
 
     const [posts] = await pool.execute(sql, params);

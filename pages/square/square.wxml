@@ -20,6 +20,24 @@
         data-id="{{item.id}}"
       >{{item.short_name || item.name}}</view>
     </scroll-view>
+    <!-- 类型标签 -->
+    <scroll-view class="type-tabs" scroll-x enable-flex>
+      <view
+        class="type-tab {{currentPostType === '' ? 'active' : ''}}"
+        bindtap="onSelectType"
+        data-type=""
+      >全部</view>
+      <view
+        class="type-tab {{currentPostType === 'post' ? 'active' : ''}}"
+        bindtap="onSelectType"
+        data-type="post"
+      >帖子</view>
+      <view
+        class="type-tab {{currentPostType === 'invitation' ? 'active' : ''}}"
+        bindtap="onSelectType"
+        data-type="invitation"
+      >约球</view>
+    </scroll-view>
   </view>
 
   <!-- 帖子列表 -->
