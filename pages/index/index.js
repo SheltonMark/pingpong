@@ -11,6 +11,8 @@ Page({
 
     // 学校列表
     schools: [],
+    schoolPickerList: [],  // picker显示列表
+    schoolPickerIndex: 0,  // picker当前选中索引
     currentSchoolId: null,
     currentSchoolName: '',
 
@@ -35,6 +37,7 @@ Page({
     this.updateGreeting();
     this.loadSchools();
     this.loadAnnouncements();
+    this.loadRankings();
   },
 
   onShow() {
@@ -119,27 +122,16 @@ Page({
     });
   },
 
-  // 点击学校选择器
-  onTapSchoolSelector() {
+  // 学校选择器变化
+  onSchoolPickerChange(e) {
+    const index = parseInt(e.detail.value);
     const { schools, currentSchoolId } = this.data;
 
-    if (schools.length === 0) {
-      wx.showToast({ title: '暂无学校数据', icon: 'none' });
-      return;
+    const selected = schools[index];
+    if (selected && selected.id !== currentSchoolId) {
+      this.setData({ schoolPickerIndex: index });
+      this.switchSchool(selected);
     }
-
-    // 构建选项列表
-    const itemList = schools.map(s => s.short_name || s.name);
-
-    wx.showActionSheet({
-      itemList,
-      success: (res) => {
-        const selected = schools[res.tapIndex];
-        if (selected && selected.id !== currentSchoolId) {
-          this.switchSchool(selected);
-        }
-      }
-    });
   },
 
   // 切换学校
@@ -151,7 +143,7 @@ Page({
 
     // 刷新公告和排行榜
     this.loadAnnouncements();
-    // TODO: 刷新排行榜数据
+    this.loadRankings();
 
     wx.showToast({
       title: `已切换到${school.short_name || school.name}`,
@@ -171,7 +163,25 @@ Page({
       });
 
       if (res.success && res.data) {
-        this.setData({ schools: res.data });
+        const schools = res.data;
+        // 构建picker列表
+        const schoolPickerList = schools.map(s => s.short_name || s.name);
+
+        // 查找用户学校在列表中的索引
+        let schoolPickerIndex = 0;
+        const userSchoolId = app.globalData.userInfo?.school_id;
+        if (userSchoolId) {
+          const idx = schools.findIndex(s => s.id === userSchoolId);
+          if (idx !== -1) {
+            schoolPickerIndex = idx;
+          }
+        }
+
+        this.setData({
+          schools,
+          schoolPickerList,
+          schoolPickerIndex
+        });
       }
     } catch (error) {
       console.error('加载学校列表失败:', error);
@@ -219,6 +229,40 @@ Page({
       }
     } catch (error) {
       console.error('加载公告失败:', error);
+    }
+  },
+
+  // 加载排行榜
+  async loadRankings() {
+    try {
+      const params = { limit: 5 };
+      if (this.data.currentSchoolId) {
+        params.school_id = this.data.currentSchoolId;
+      }
+
+      const res = await new Promise((resolve, reject) => {
+        wx.request({
+          url: `${app.globalData.baseUrl}/api/rankings`,
+          data: params,
+          success: (res) => resolve(res.data),
+          fail: reject
+        });
+      });
+
+      if (res.success && res.data && res.data.list) {
+        // 格式化排行榜数据
+        const rankingList = res.data.list.map(user => ({
+          user_id: user.id,
+          name: user.name,
+          avatar_url: user.avatar_url,
+          score: user.points || 0,
+          college_name: user.college_name || user.school_short_name || user.school_name || '',
+          user_type_label: user.wins > 0 ? `${user.wins}胜${user.losses}负` : '暂无战绩'
+        }));
+        this.setData({ rankingList });
+      }
+    } catch (error) {
+      console.error('加载排行榜失败:', error);
     }
   },
 

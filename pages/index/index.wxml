@@ -4,10 +4,12 @@
     <view class="header-bg"></view>
     <view class="header-content">
       <!-- 学校选择器 -->
-      <view class="school-selector" bindtap="onTapSchoolSelector">
-        <text class="school-name">{{currentSchoolName || userInfo.school_name || '选择学校'}}</text>
-        <text class="selector-arrow">▼</text>
-      </view>
+      <picker mode="selector" range="{{schoolPickerList}}" value="{{schoolPickerIndex}}" bindchange="onSchoolPickerChange">
+        <view class="school-selector">
+          <text class="school-name">{{currentSchoolName || userInfo.school_name || '选择学校'}}</text>
+          <text class="selector-arrow">▼</text>
+        </view>
+      </picker>
 
       <!-- 问候语 -->
       <view class="greeting-section">

@@ -1882,10 +1882,10 @@ router.get('/posts', requireAdmin, async (req, res) => {
     `;
     const params = [];
 
-    // 权限过滤：学校管理员只能看到自己学校的帖子
+    // 权限过滤：学校管理员只能看到自己学校的帖子（或发帖用户属于自己学校的帖子）
     if (!adminContext.isSuperAdmin) {
       if (adminContext.managedSchoolIds && adminContext.managedSchoolIds.length > 0) {
-        sql += ` AND p.school_id IN (${adminContext.managedSchoolIds.join(',')})`;
+        sql += ` AND (p.school_id IN (${adminContext.managedSchoolIds.join(',')}) OR u.school_id IN (${adminContext.managedSchoolIds.join(',')}) OR p.school_id IS NULL)`;
       } else {
         // 没有管理任何学校，返回空列表
         return res.json({ success: true, data: { list: [], total: 0, page: parseInt(page), limit: parseInt(limit) } });
@@ -1949,14 +1949,24 @@ router.put('/posts/:id/status', requireAdmin, async (req, res) => {
     }
 
     // 获取帖子信息以检查权限
-    const [[post]] = await pool.execute('SELECT school_id FROM posts WHERE id = ?', [id]);
+    const [[post]] = await pool.execute(`
+      SELECT p.school_id as post_school_id, u.school_id as user_school_id
+      FROM posts p
+      LEFT JOIN users u ON p.user_id = u.id
+      WHERE p.id = ?
+    `, [id]);
     if (!post) {
       return res.json({ success: false, message: '帖子不存在' });
     }
 
-    // 权限检查：学校管理员只能管理自己学校的帖子
+    // 权限检查：学校管理员只能管理自己学校的帖子（或发帖用户属于自己学校的帖子）
     if (!adminContext.isSuperAdmin) {
-      if (!adminContext.managedSchoolIds || !adminContext.managedSchoolIds.includes(post.school_id)) {
+      const canManage = adminContext.managedSchoolIds && (
+        adminContext.managedSchoolIds.includes(post.post_school_id) ||
+        adminContext.managedSchoolIds.includes(post.user_school_id) ||
+        post.post_school_id === null
+      );
+      if (!canManage) {
         return res.status(403).json({ success: false, message: '无权管理该帖子' });
       }
     }
