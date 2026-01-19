@@ -3,6 +3,7 @@ const app = getApp();
 Page({
   data: {
     currentSchoolId: null,
+    currentSchoolName: '',
     currentPostType: '', // '' | 'post' | 'invitation'
     schools: [],
 
@@ -48,7 +49,56 @@ Page({
     }
   },
 
-  // 选择学校筛选
+  // 点击学校选择器（弹出下拉菜单）
+  onTapSchoolSelector() {
+    const { schools, currentSchoolId } = this.data;
+
+    if (schools.length === 0) {
+      wx.showToast({ title: '暂无学校数据', icon: 'none' });
+      return;
+    }
+
+    // 构建选项列表，添加"全部学校"
+    const itemList = ['全部学校', ...schools.map(s => s.short_name || s.name)];
+
+    wx.showActionSheet({
+      itemList,
+      success: (res) => {
+        if (res.tapIndex === 0) {
+          // 选择"全部学校"
+          if (currentSchoolId !== null) {
+            this.setData({
+              currentSchoolId: null,
+              currentSchoolName: '',
+              posts: [],
+              postsPage: 1,
+              noMore: false,
+              standaloneInvitations: []
+            });
+            this.loadPosts();
+            this.loadStandaloneInvitations();
+          }
+        } else {
+          // 选择具体学校
+          const selected = schools[res.tapIndex - 1];
+          if (selected && selected.id !== currentSchoolId) {
+            this.setData({
+              currentSchoolId: selected.id,
+              currentSchoolName: selected.short_name || selected.name,
+              posts: [],
+              postsPage: 1,
+              noMore: false,
+              standaloneInvitations: []
+            });
+            this.loadPosts();
+            this.loadStandaloneInvitations();
+          }
+        }
+      }
+    });
+  },
+
+  // 选择学校筛选（保留兼容旧接口）
   onSelectSchool(e) {
     const id = e.currentTarget.dataset.id;
     const schoolId = id ? parseInt(id) : null;

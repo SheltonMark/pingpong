@@ -1966,9 +1966,145 @@ router.put('/posts/:id/status', requireAdmin, async (req, res) => {
       [status, id]
     );
 
+    // 如果帖子有关联的约球，同步更新约球状态
+    if (status === 'deleted' || status === 'hidden') {
+      // 将关联的约球设为取消状态
+      await pool.execute(
+        'UPDATE match_invitations SET status = ?, updated_at = NOW() WHERE post_id = ?',
+        ['cancelled', id]
+      );
+    } else if (status === 'active') {
+      // 恢复关联的约球为开放状态（如果之前被取消了）
+      await pool.execute(
+        'UPDATE match_invitations SET status = ?, updated_at = NOW() WHERE post_id = ? AND status = ?',
+        ['open', id, 'cancelled']
+      );
+    }
+
     res.json({ success: true, message: '状态已更新' });
   } catch (error) {
     console.error('Update post status error:', error);
+    res.json({ success: false, message: '更新状态失败' });
+  }
+});
+
+// ============ 约球管理 ============
+
+// 获取约球列表（包括独立约球和关联帖子的约球）
+router.get('/match-invitations', requireAdmin, async (req, res) => {
+  try {
+    const { status, school_id, standalone, page = 1, limit = 20 } = req.query;
+    const offset = (page - 1) * limit;
+    const { adminContext } = req;
+
+    let sql = `
+      SELECT mi.*,
+             u.name as creator_name, u.avatar_url as creator_avatar,
+             s.name as school_name,
+             p.content as post_content, p.status as post_status,
+             (SELECT COUNT(*) FROM invitation_participants ip WHERE ip.invitation_id = mi.id AND ip.status = 'confirmed') as participant_count
+      FROM match_invitations mi
+      LEFT JOIN users u ON mi.creator_id = u.id
+      LEFT JOIN schools s ON mi.school_id = s.id
+      LEFT JOIN posts p ON mi.post_id = p.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    // 权限过滤：学校管理员只能看到自己学校的约球
+    if (!adminContext.isSuperAdmin) {
+      if (adminContext.managedSchoolIds && adminContext.managedSchoolIds.length > 0) {
+        sql += ` AND mi.school_id IN (${adminContext.managedSchoolIds.join(',')})`;
+      } else {
+        return res.json({ success: true, data: { list: [], total: 0, page: parseInt(page), limit: parseInt(limit) } });
+      }
+    }
+
+    if (status) {
+      sql += ' AND mi.status = ?';
+      params.push(status);
+    }
+    if (school_id) {
+      sql += ' AND mi.school_id = ?';
+      params.push(school_id);
+    }
+    if (standalone === 'true') {
+      sql += ' AND mi.post_id IS NULL';
+    } else if (standalone === 'false') {
+      sql += ' AND mi.post_id IS NOT NULL';
+    }
+
+    // 获取总数
+    let countSql = sql.replace(/SELECT mi\.\*,[\s\S]*?FROM match_invitations mi/, 'SELECT COUNT(*) as total FROM match_invitations mi');
+    const [[{ total }]] = await pool.execute(countSql, params);
+
+    sql += ' ORDER BY mi.created_at DESC LIMIT ? OFFSET ?';
+    params.push(parseInt(limit), parseInt(offset));
+
+    const [invitations] = await pool.execute(sql, params);
+
+    // 转换头像URL
+    const list = invitations.map(inv => ({
+      ...inv,
+      creator_avatar: toFullUrl(inv.creator_avatar, req)
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        list,
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit)
+      }
+    });
+  } catch (error) {
+    console.error('Get match invitations error:', error);
+    res.json({ success: false, message: '获取约球列表失败' });
+  }
+});
+
+// 更新约球状态
+router.put('/match-invitations/:id/status', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const { adminContext } = req;
+
+    // 验证状态值
+    if (!['open', 'full', 'ongoing', 'finished', 'cancelled'].includes(status)) {
+      return res.json({ success: false, message: '无效的状态值' });
+    }
+
+    // 获取约球信息以检查权限
+    const [[invitation]] = await pool.execute('SELECT school_id, post_id FROM match_invitations WHERE id = ?', [id]);
+    if (!invitation) {
+      return res.json({ success: false, message: '约球不存在' });
+    }
+
+    // 权限检查：学校管理员只能管理自己学校的约球
+    if (!adminContext.isSuperAdmin) {
+      if (!adminContext.managedSchoolIds || !adminContext.managedSchoolIds.includes(invitation.school_id)) {
+        return res.status(403).json({ success: false, message: '无权管理该约球' });
+      }
+    }
+
+    await pool.execute(
+      'UPDATE match_invitations SET status = ?, updated_at = NOW() WHERE id = ?',
+      [status, id]
+    );
+
+    // 如果约球有关联的帖子，且状态变为取消，同时隐藏帖子
+    if (invitation.post_id && status === 'cancelled') {
+      await pool.execute(
+        'UPDATE posts SET status = ?, updated_at = NOW() WHERE id = ?',
+        ['hidden', invitation.post_id]
+      );
+    }
+
+    res.json({ success: true, message: '状态已更新' });
+  } catch (error) {
+    console.error('Update match invitation status error:', error);
     res.json({ success: false, message: '更新状态失败' });
   }
 });

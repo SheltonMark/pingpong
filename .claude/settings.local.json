@@ -51,7 +51,17 @@
       "Bash(git -C \"D:/mast/pingpong\" add backend/routes/events.js)",
       "Bash(git -C \"D:/mast/pingpong\" commit:*)",
       "Bash(git -C \"D:/mast/pingpong\" push origin main)",
-      "Bash(npx vue-tsc:*)"
+      "Bash(npx vue-tsc:*)",
+      "WebFetch(domain:developers.weixin.qq.com)",
+      "Bash(cmd /c:*)",
+      "Bash(powershell -Command \"Set-Location ''D:\\\\mast\\\\pingpong\\\\admin-web''; npm run build\")",
+      "Bash(powershell -Command:*)",
+      "Bash(git -C D:/mast/pingpong status)",
+      "Bash(git -C D:/mast/pingpong add admin-web/src/views/Posts.vue backend/routes/admin.js backend/routes/posts.js pages/square/square.js pages/square/square.wxml pages/square/square.wxss backend/public/admin/)",
+      "Bash(git -C D:/mast/pingpong log -3 --oneline)",
+      "Bash(git -C D:/mast/pingpong diff --cached --stat)",
+      "Bash(git -C D:/mast/pingpong commit -m \"$\\(cat <<''EOF''\nfeat: add post type filtering for plaza and admin panel\n\n- Add two-dimensional filtering \\(school + post type\\) on plaza page\n- Change selected tab color to brand orange on plaza\n- Add post type filter \\(posts/invitations\\) to admin posts management\n- Fix school filter dropdown positioning with teleported prop\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git -C D:/mast/pingpong push)"
     ],
     "deny": [],
     "ask": []

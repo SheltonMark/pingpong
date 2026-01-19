@@ -5,39 +5,32 @@
       <text class="page-title">广场</text>
       <view class="add-btn" bindtap="onTapPublish">+</view>
     </view>
-    <!-- 学校标签滚动 -->
-    <scroll-view class="school-tabs" scroll-x enable-flex>
-      <view
-        class="school-tab {{currentSchoolId === null ? 'active' : ''}}"
-        bindtap="onSelectSchool"
-        data-id=""
-      >全部</view>
-      <view
-        wx:for="{{schools}}"
-        wx:key="id"
-        class="school-tab {{currentSchoolId === item.id ? 'active' : ''}}"
-        bindtap="onSelectSchool"
-        data-id="{{item.id}}"
-      >{{item.short_name || item.name}}</view>
-    </scroll-view>
-    <!-- 类型标签 -->
-    <scroll-view class="type-tabs" scroll-x enable-flex>
-      <view
-        class="type-tab {{currentPostType === '' ? 'active' : ''}}"
-        bindtap="onSelectType"
-        data-type=""
-      >全部</view>
-      <view
-        class="type-tab {{currentPostType === 'post' ? 'active' : ''}}"
-        bindtap="onSelectType"
-        data-type="post"
-      >帖子</view>
-      <view
-        class="type-tab {{currentPostType === 'invitation' ? 'active' : ''}}"
-        bindtap="onSelectType"
-        data-type="invitation"
-      >约球</view>
-    </scroll-view>
+    <!-- 筛选行 -->
+    <view class="filter-row">
+      <!-- 学校下拉选择器 -->
+      <view class="school-selector" bindtap="onTapSchoolSelector">
+        <text class="selector-text">{{currentSchoolName || '全部学校'}}</text>
+        <text class="selector-arrow">▼</text>
+      </view>
+      <!-- 类型标签 -->
+      <view class="type-tabs">
+        <view
+          class="type-tab {{currentPostType === '' ? 'active' : ''}}"
+          bindtap="onSelectType"
+          data-type=""
+        >全部</view>
+        <view
+          class="type-tab {{currentPostType === 'post' ? 'active' : ''}}"
+          bindtap="onSelectType"
+          data-type="post"
+        >帖子</view>
+        <view
+          class="type-tab {{currentPostType === 'invitation' ? 'active' : ''}}"
+          bindtap="onSelectType"
+          data-type="invitation"
+        >约球</view>
+      </view>
+    </view>
   </view>
 
   <!-- 帖子列表 -->

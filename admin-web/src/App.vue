@@ -67,6 +67,10 @@
             <el-icon><ChatDotSquare /></el-icon>
             <span>帖子管理</span>
           </el-menu-item>
+          <el-menu-item v-if="hasPermission('posts')" index="/match-invitations">
+            <el-icon><Guide /></el-icon>
+            <span>约球管理</span>
+          </el-menu-item>
           <el-menu-item v-if="hasPermission('checkin')" index="/checkin">
             <el-icon><Location /></el-icon>
             <span>签到点管理</span>

@@ -90,7 +90,9 @@ router.get('/', async (req, res) => {
       FROM match_invitations mi
       JOIN users u ON mi.creator_id = u.id
       LEFT JOIN schools s ON mi.school_id = s.id
+      LEFT JOIN posts p ON mi.post_id = p.id
       WHERE mi.status != 'cancelled'
+        AND (mi.post_id IS NULL OR p.status = 'active')
     `;
     const params = [];
 
