@@ -159,6 +159,11 @@
   color: var(--white);
 }
 
+.greeting-name.login-link {
+  text-decoration: underline;
+  opacity: 0.9;
+}
+
 /* ============ 公告轮播图 ============ */
 .announcement-swiper-wrapper {
   position: relative;

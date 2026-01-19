@@ -1,37 +1,26 @@
 <view class="home-page">
-  <!-- 未登录状态 -->
-  <block wx:if="{{!isLoggedIn}}">
-    <view class="welcome-section full-height">
-      <view class="welcome-bg"></view>
-      <view class="welcome-content">
-        <text class="welcome-icon">🏓</text>
-        <text class="welcome-title">校乒网</text>
-        <text class="welcome-subtitle">校园乒乓球爱好者社区</text>
-        <text class="welcome-desc">约球、赛事、排行、签到，一站搞定</text>
-        <button class="login-btn" bindtap="onTapLogin">微信登录</button>
+  <!-- 头部区域 -->
+  <view class="header-section">
+    <view class="header-bg"></view>
+    <view class="header-content">
+      <!-- 学校选择器 -->
+      <view class="school-selector" bindtap="onTapSchoolSelector">
+        <text class="school-name">{{currentSchoolName || userInfo.school_name || '选择学校'}}</text>
+        <text class="selector-arrow">▼</text>
       </view>
-    </view>
-  </block>
 
-  <!-- 已登录状态 -->
-  <block wx:else>
-    <!-- 头部区域 -->
-    <view class="header-section">
-      <view class="header-bg"></view>
-      <view class="header-content">
-        <!-- 学校选择器 -->
-        <view class="school-selector" bindtap="onTapSchoolSelector">
-          <text class="school-name">{{currentSchoolName || userInfo.school_name || '选择学校'}}</text>
-          <text class="selector-arrow">▼</text>
-        </view>
-
-        <!-- 问候语 -->
-        <view class="greeting-section">
-          <text class="greeting-time">{{greeting}}</text>
+      <!-- 问候语 -->
+      <view class="greeting-section">
+        <text class="greeting-time">{{greeting}}</text>
+        <block wx:if="{{isLoggedIn}}">
           <text class="greeting-name">{{userInfo.name || '球友'}}</text>
-        </view>
+        </block>
+        <block wx:else>
+          <text class="greeting-name login-link" bindtap="onTapLogin">点击登录</text>
+        </block>
       </view>
     </view>
+  </view>
 
     <!-- 公告轮播图 -->
     <view class="announcement-swiper-wrapper" wx:if="{{announcements.length > 0}}">
@@ -116,7 +105,7 @@
         </view>
       </view>
     </view>
-  </block>
+  </view>
 
   <!-- 隐私政策弹窗 -->
   <privacy-modal
