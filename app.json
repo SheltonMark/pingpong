@@ -77,5 +77,8 @@
     "scope.userLocation": {
       "desc": "你的位置信息将用于签到功能，确认你在签到点范围内"
     }
-  }
+  },
+  "requiredPrivateInfos": [
+    "getLocation"
+  ]
 }
