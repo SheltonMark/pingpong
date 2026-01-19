@@ -105,7 +105,6 @@
         </view>
       </view>
     </view>
-  </view>
 
   <!-- 隐私政策弹窗 -->
   <privacy-modal
