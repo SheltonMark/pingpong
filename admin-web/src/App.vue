@@ -63,6 +63,10 @@
             <el-icon><Reading /></el-icon>
             <span>学习资料</span>
           </el-menu-item>
+          <el-menu-item v-if="hasPermission('posts')" index="/posts">
+            <el-icon><ChatDotSquare /></el-icon>
+            <span>帖子管理</span>
+          </el-menu-item>
           <el-menu-item v-if="hasPermission('checkin')" index="/checkin">
             <el-icon><Location /></el-icon>
             <span>签到点管理</span>

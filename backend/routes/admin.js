@@ -1861,6 +1861,113 @@ router.post('/teams/:id/cancel', requireAdmin, async (req, res) => {
   }
 });
 
+// ============ 帖子管理 ============
+
+// 获取帖子列表
+router.get('/posts', requireAdmin, async (req, res) => {
+  try {
+    const { status, school_id, page = 1, limit = 20 } = req.query;
+    const offset = (page - 1) * limit;
+    const { adminContext } = req;
+
+    let sql = `
+      SELECT p.*,
+             u.name as author_name, u.avatar_url as author_avatar,
+             s.name as school_name
+      FROM posts p
+      LEFT JOIN users u ON p.user_id = u.id
+      LEFT JOIN schools s ON p.school_id = s.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    // 权限过滤：学校管理员只能看到自己学校的帖子
+    if (!adminContext.isSuperAdmin) {
+      if (adminContext.managedSchoolIds && adminContext.managedSchoolIds.length > 0) {
+        sql += ` AND p.school_id IN (${adminContext.managedSchoolIds.join(',')})`;
+      } else {
+        // 没有管理任何学校，返回空列表
+        return res.json({ success: true, data: { list: [], total: 0, page: parseInt(page), limit: parseInt(limit) } });
+      }
+    }
+
+    if (status) {
+      sql += ' AND p.status = ?';
+      params.push(status);
+    }
+    if (school_id) {
+      sql += ' AND p.school_id = ?';
+      params.push(school_id);
+    }
+
+    // 获取总数
+    let countSql = sql.replace('SELECT p.*, \n             u.name as author_name, u.avatar_url as author_avatar,\n             s.name as school_name', 'SELECT COUNT(*) as total');
+    const [[{ total }]] = await pool.execute(countSql, params);
+
+    sql += ' ORDER BY p.created_at DESC LIMIT ? OFFSET ?';
+    params.push(parseInt(limit), parseInt(offset));
+
+    const [posts] = await pool.execute(sql, params);
+
+    // 转换图片URL为完整路径
+    const list = posts.map(p => ({
+      ...p,
+      images: p.images ? JSON.parse(p.images).map(img => toFullUrl(img, req)) : [],
+      author_avatar: toFullUrl(p.author_avatar, req)
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        list,
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit)
+      }
+    });
+  } catch (error) {
+    console.error('Get posts error:', error);
+    res.json({ success: false, message: '获取帖子列表失败' });
+  }
+});
+
+// 更新帖子状态
+router.put('/posts/:id/status', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const { adminContext } = req;
+
+    // 验证状态值
+    if (!['active', 'hidden', 'deleted'].includes(status)) {
+      return res.json({ success: false, message: '无效的状态值' });
+    }
+
+    // 获取帖子信息以检查权限
+    const [[post]] = await pool.execute('SELECT school_id FROM posts WHERE id = ?', [id]);
+    if (!post) {
+      return res.json({ success: false, message: '帖子不存在' });
+    }
+
+    // 权限检查：学校管理员只能管理自己学校的帖子
+    if (!adminContext.isSuperAdmin) {
+      if (!adminContext.managedSchoolIds || !adminContext.managedSchoolIds.includes(post.school_id)) {
+        return res.status(403).json({ success: false, message: '无权管理该帖子' });
+      }
+    }
+
+    await pool.execute(
+      'UPDATE posts SET status = ?, updated_at = NOW() WHERE id = ?',
+      [status, id]
+    );
+
+    res.json({ success: true, message: '状态已更新' });
+  } catch (error) {
+    console.error('Update post status error:', error);
+    res.json({ success: false, message: '更新状态失败' });
+  }
+});
+
 // ============ 邀请管理 ============
 
 // 获取邀请列表

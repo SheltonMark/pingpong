@@ -255,6 +255,7 @@ function getPermissions(roles) {
         permissions.add('admins');
         permissions.add('schools');
         permissions.add('stats');
+        permissions.add('posts');
         break;
       case 'school_admin':
         // 学校管理员
@@ -265,6 +266,7 @@ function getPermissions(roles) {
         permissions.add('learning');
         permissions.add('checkin');
         permissions.add('stats');
+        permissions.add('posts');
         break;
       case 'event_manager':
         // 赛事管理员

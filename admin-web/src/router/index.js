@@ -94,6 +94,12 @@ const routes = [
     name: 'Invitations',
     component: () => import('../views/Invitations.vue'),
     meta: { requiresAuth: true, permission: 'events' }
+  },
+  {
+    path: '/posts',
+    name: 'Posts',
+    component: () => import('../views/Posts.vue'),
+    meta: { requiresAuth: true, permission: 'posts' }
   }
 ]
 
