@@ -197,10 +197,15 @@ Page({
           return mapped;
         });
 
+        console.log('【调试】处理后的帖子数量:', posts.length);
+        console.log('【调试】处理后的帖子:', JSON.stringify(posts).substring(0, 300));
+
         this.setData({
           posts: refresh ? posts : [...this.data.posts, ...posts],
           postsPage: page + 1,
           noMore: posts.length < 20
+        }, () => {
+          console.log('【调试】setData 完成，当前 posts.length:', this.data.posts.length);
         });
       } else {
         console.error('加载帖子失败:', res.message);
