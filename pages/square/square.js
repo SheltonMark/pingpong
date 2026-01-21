@@ -46,10 +46,20 @@ Page({
         // 构建picker列表：全部学校 + 各学校名称
         const schoolPickerList = ['全部学校', ...schools.map(s => s.short_name || s.name)];
 
-        // 默认显示全部学校的帖子，不按用户学校筛选
+        // 默认显示用户自己学校的帖子
+        const userInfo = app.globalData.userInfo;
         let currentSchoolId = null;
         let currentSchoolName = '';
         let schoolPickerIndex = 0;
+
+        if (userInfo && userInfo.school_id) {
+          currentSchoolId = userInfo.school_id;
+          const userSchoolIndex = schools.findIndex(s => s.id === userInfo.school_id);
+          if (userSchoolIndex !== -1) {
+            currentSchoolName = schools[userSchoolIndex].short_name || schools[userSchoolIndex].name;
+            schoolPickerIndex = userSchoolIndex + 1;
+          }
+        }
 
         this.setData({
           schools,
