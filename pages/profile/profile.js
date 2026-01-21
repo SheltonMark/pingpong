@@ -130,43 +130,51 @@ Page({
     }
 
     try {
-      // 获取用户详细信息（包含排名）
+      // 直接调用排行榜接口获取积分和排名（与积分榜使用相同逻辑）
       const res = await new Promise((resolve, reject) => {
         wx.request({
-          url: `${app.globalData.baseUrl}/api/user/${userId}/profile`,
+          url: `${app.globalData.baseUrl}/api/rankings`,
+          data: { limit: 1000 },  // 获取足够多的用户来找到当前用户的排名
           success: (res) => resolve(res.data),
           fail: reject
         });
       });
 
-      if (res.success && res.data) {
-        const userData = res.data;
+      if (res.success && res.data && res.data.list) {
+        // 在排行榜中找到当前用户
+        const myRanking = res.data.list.find(r => r.id === userId);
 
-        // 更新全局用户数据
-        app.globalData.userInfo = {
-          ...app.globalData.userInfo,
-          points: userData.points,
-          wins: userData.wins,
-          losses: userData.losses,
-          avatar_url: userData.avatar_url
-        };
+        if (myRanking) {
+          // 更新全局用户数据
+          app.globalData.userInfo = {
+            ...app.globalData.userInfo,
+            points: myRanking.points,
+            wins: myRanking.wins,
+            losses: myRanking.losses
+          };
 
-        // 同步更新本地存储
-        wx.setStorageSync('userInfo', app.globalData.userInfo);
+          // 同步更新本地存储
+          wx.setStorageSync('userInfo', app.globalData.userInfo);
 
-        // 计算胜率
-        const totalGames = (userData.wins || 0) + (userData.losses || 0);
-        const winRate = totalGames > 0 ? Math.round((userData.wins / totalGames) * 100) : 0;
-
-        // 更新页面数据
-        this.setData({
-          userInfo: app.globalData.userInfo,
-          stats: {
-            score: userData.points || 0,
-            rank: userData.rank || '-',
-            winRate: winRate
-          }
-        });
+          // 更新页面数据
+          this.setData({
+            userInfo: app.globalData.userInfo,
+            stats: {
+              score: myRanking.points || 0,
+              rank: myRanking.rank || '-',
+              winRate: myRanking.win_rate || 0
+            }
+          });
+        } else {
+          // 用户不在排行榜中，显示默认值
+          this.setData({
+            stats: {
+              score: userInfo.points || 0,
+              rank: '-',
+              winRate: 0
+            }
+          });
+        }
       }
     } catch (error) {
       console.error('加载用户数据失败:', error);

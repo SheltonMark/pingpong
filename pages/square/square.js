@@ -173,7 +173,12 @@ Page({
         params.user_id = app.globalData.userInfo.id;
       }
 
+      console.log('【调试】loadPosts 请求参数:', params);
+      console.log('【调试】baseUrl:', app.globalData.baseUrl);
+
       const res = await this.request('/api/posts', params);
+
+      console.log('【调试】loadPosts 响应:', JSON.stringify(res).substring(0, 500));
 
       if (res.success) {
         const posts = res.data.list.map(post => {
