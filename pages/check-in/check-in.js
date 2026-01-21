@@ -27,16 +27,37 @@ Page({
   // 获取位置（会自动弹出授权弹窗）
   async getLocation() {
     try {
+      // 先检查权限状态
+      const setting = await wx.getSetting();
+      if (setting.authSetting['scope.userLocation'] === false) {
+        // 用户之前拒绝过，引导去设置页开启
+        wx.showModal({
+          title: '需要位置权限',
+          content: '签到功能需要获取您的位置，请在设置中开启位置权限',
+          confirmText: '去设置',
+          success: (res) => {
+            if (res.confirm) {
+              wx.openSetting();
+            }
+          }
+        });
+        this.setData({ isLoading: false });
+        return;
+      }
+
       const res = await wx.getLocation({
         type: 'gcj02',
         isHighAccuracy: true
       });
 
-      this.setData({
-        location: { lat: res.latitude, lng: res.longitude }
-      });
-
-      this.loadNearestPoint();
+      if (res && res.latitude && res.longitude) {
+        this.setData({
+          location: { lat: res.latitude, lng: res.longitude }
+        });
+        this.loadNearestPoint();
+      } else {
+        throw new Error('获取位置数据无效');
+      }
     } catch (error) {
       console.error('获取位置失败:', error);
       wx.showToast({ title: '需要位置权限才能签到', icon: 'none' });
