@@ -2,6 +2,9 @@
   <div class="page">
     <div class="page-header">
       <h2>用户管理</h2>
+      <el-button type="danger" size="small" @click="cleanupUnregistered" :loading="cleaningUp">
+        清理未注册用户 <span v-if="unregisteredCount > 0">({{ unregisteredCount }})</span>
+      </el-button>
     </div>
 
     <el-card>
@@ -91,7 +94,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { formatDateTime } from '../utils/format'
 
 const loading = ref(false)
@@ -100,6 +103,8 @@ const page = ref(1)
 const total = ref(0)
 const searchKeyword = ref('')
 const submitting = ref(false)
+const cleaningUp = ref(false)
+const unregisteredCount = ref(0)
 
 const ratingDialogVisible = ref(false)
 
@@ -200,7 +205,60 @@ const submitRating = async () => {
 
 onMounted(() => {
   loadUsers()
+  loadUnregisteredCount()
 })
+
+// 获取未注册用户数量
+const loadUnregisteredCount = async () => {
+  try {
+    const res = await fetch(`/api/admin/users/unregistered/count?user_id=${getUserId()}`)
+    const data = await res.json()
+    if (data.success) {
+      unregisteredCount.value = data.data.count
+    }
+  } catch (error) {
+    console.error('获取未注册用户数量失败:', error)
+  }
+}
+
+// 清理未注册用户
+const cleanupUnregistered = async () => {
+  if (unregisteredCount.value === 0) {
+    ElMessage.info('没有需要清理的未注册用户')
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `确定要清理 ${unregisteredCount.value} 个未注册用户吗？这些用户只有openid，没有填写任何资料。`,
+      '清理确认',
+      { confirmButtonText: '确定清理', cancelButtonText: '取消', type: 'warning' }
+    )
+  } catch {
+    return
+  }
+
+  cleaningUp.value = true
+  try {
+    const res = await fetch(`/api/admin/users/unregistered?user_id=${getUserId()}`, {
+      method: 'DELETE'
+    })
+    const data = await res.json()
+
+    if (data.success) {
+      ElMessage.success(data.message)
+      unregisteredCount.value = 0
+      loadUsers()
+    } else {
+      ElMessage.error(data.message || '清理失败')
+    }
+  } catch (error) {
+    console.error('清理未注册用户失败:', error)
+    ElMessage.error('清理失败')
+  } finally {
+    cleaningUp.value = false
+  }
+}
 </script>
 
 <style scoped>
