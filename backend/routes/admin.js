@@ -584,9 +584,7 @@ router.get('/users/unregistered/count', requireSuperAdmin, async (req, res) => {
   try {
     const [[result]] = await pool.execute(`
       SELECT COUNT(*) as count FROM users
-      WHERE (nickname IS NULL OR nickname = '')
-      AND (name IS NULL OR name = '')
-      AND (phone IS NULL OR phone = '')
+      WHERE phone IS NULL OR phone = ''
     `);
 
     res.json({ success: true, data: { count: result.count } });
@@ -596,15 +594,13 @@ router.get('/users/unregistered/count', requireSuperAdmin, async (req, res) => {
   }
 });
 
-// 清理未注册用户（只删除没有任何资料的用户）
+// 清理未注册用户（删除手机号为空的用户）
 router.delete('/users/unregistered', requireSuperAdmin, async (req, res) => {
   try {
     // 先查询要删除的用户
     const [toDelete] = await pool.execute(`
       SELECT id, openid, created_at FROM users
-      WHERE (nickname IS NULL OR nickname = '')
-      AND (name IS NULL OR name = '')
-      AND (phone IS NULL OR phone = '')
+      WHERE phone IS NULL OR phone = ''
     `);
 
     if (toDelete.length === 0) {
@@ -613,12 +609,10 @@ router.delete('/users/unregistered', requireSuperAdmin, async (req, res) => {
 
     const userIds = toDelete.map(u => u.id);
 
-    // 删除这些用户（级联删除相关数据）
+    // 删除这些用户
     const [result] = await pool.execute(`
       DELETE FROM users
-      WHERE (nickname IS NULL OR nickname = '')
-      AND (name IS NULL OR name = '')
-      AND (phone IS NULL OR phone = '')
+      WHERE phone IS NULL OR phone = ''
     `);
 
     console.log(`清理了 ${result.affectedRows} 个未注册用户:`, userIds);
