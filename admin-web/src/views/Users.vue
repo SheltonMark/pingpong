@@ -2,9 +2,7 @@
   <div class="page">
     <div class="page-header">
       <h2>用户管理</h2>
-      <el-button type="danger" size="small" @click="cleanupUnregistered" :loading="cleaningUp">
-        清理未注册用户 <span v-if="unregisteredCount > 0">({{ unregisteredCount }})</span>
-      </el-button>
+      <!-- 清理按钮已隐藏，登录逻辑已修改为未注册不写入数据库 -->
     </div>
 
     <el-card>

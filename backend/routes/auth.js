@@ -38,25 +38,23 @@ router.post('/wx-login', async (req, res) => {
       }
     }
 
-    // 查找或创建用户
+    // 查找用户（不再自动创建）
     const [existing] = await pool.query('SELECT * FROM users WHERE openid = ?', [openid]);
 
-    let user;
+    // 如果用户不存在，返回未注册状态（不写入数据库）
     if (existing.length === 0) {
-      // 新用户，只创建基本记录
-      const [result] = await pool.execute(
-        'INSERT INTO users (openid, union_id) VALUES (?, ?)',
-        [openid, unionid || null]
-      );
-      user = {
-        id: result.insertId,
-        openid,
-        is_registered: false,
-        privacy_agreed: false
-      };
-    } else {
-      user = existing[0];
+      return res.json({
+        success: true,
+        data: {
+          openid,
+          unionid: unionid || null,
+          is_registered: false,
+          privacy_agreed: false
+        }
+      });
     }
+
+    const user = existing[0];
 
     // 如果用户已注册，返回完整用户信息
     if (user.is_registered) {
@@ -85,15 +83,14 @@ router.post('/wx-login', async (req, res) => {
       });
     }
 
-    // 未注册用户返回基本状态
+    // 用户存在但未完成注册（旧数据兼容）
     res.json({
       success: true,
       data: {
         openid,
         user_id: user.id,
         is_registered: false,
-        privacy_agreed: !!user.privacy_agreed,
-        name: user.name || null
+        privacy_agreed: !!user.privacy_agreed
       }
     });
   } catch (error) {

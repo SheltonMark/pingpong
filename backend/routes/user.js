@@ -132,50 +132,42 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // 检查用户是否存在
+    // 检查用户是否存在，不存在则创建
     const [existing] = await pool.query('SELECT id FROM users WHERE openid = ?', [openid]);
 
+    let userId;
     if (existing.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: '用户不存在，请先同意隐私政策'
-      });
+      // 新用户，直接创建完整记录
+      const [result] = await pool.execute(`
+        INSERT INTO users (
+          openid, name, gender, phone, user_type, school_id,
+          college_id, department_id, class_name, enrollment_year,
+          avatar_url, is_registered, privacy_agreed, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, NOW())
+      `, [
+        openid, name, gender, phone, user_type, school_id,
+        college_id || null, department_id || null, class_name || null,
+        enrollment_year || null, avatar_url || null
+      ]);
+      userId = result.insertId;
+    } else {
+      // 已存在，更新信息
+      userId = existing[0].id;
+      await pool.execute(`
+        UPDATE users SET
+          name = ?, gender = ?, phone = ?, user_type = ?, school_id = ?,
+          college_id = ?, department_id = ?, class_name = ?, enrollment_year = ?,
+          avatar_url = ?, is_registered = 1, updated_at = NOW()
+        WHERE openid = ?
+      `, [
+        name, gender, phone, user_type, school_id,
+        college_id || null, department_id || null, class_name || null,
+        enrollment_year || null, avatar_url || null, openid
+      ]);
     }
 
-    // 更新用户信息
-    await pool.execute(`
-      UPDATE users SET
-        name = ?,
-        gender = ?,
-        phone = ?,
-        user_type = ?,
-        school_id = ?,
-        college_id = ?,
-        department_id = ?,
-        class_name = ?,
-        enrollment_year = ?,
-        avatar_url = ?,
-        is_registered = 1,
-        updated_at = NOW()
-      WHERE openid = ?
-    `, [
-      name,
-      gender,
-      phone,
-      user_type,
-      school_id,
-      college_id || null,
-      department_id || null,
-      class_name || null,
-      enrollment_year || null,
-      avatar_url || null,
-      openid
-    ]);
-
-    // 为新用户分配普通用户角色
+    // 为用户分配普通用户角色
     const [roles] = await pool.query('SELECT id FROM roles WHERE code = ?', ['user']);
-    const [userRows] = await pool.query('SELECT id FROM users WHERE openid = ?', [openid]);
-    const userId = userRows[0].id;
 
     if (roles.length > 0) {
       await pool.execute(
