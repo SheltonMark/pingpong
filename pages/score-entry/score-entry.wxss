@@ -159,6 +159,9 @@
   background: linear-gradient(135deg, var(--orange), var(--orange-dark));
   border-radius: 48rpx;
   border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .submit-btn[disabled] {

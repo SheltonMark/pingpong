@@ -9,9 +9,13 @@ Page({
   },
 
   onLoad(options) {
+    console.log('user-profile onLoad options:', options);
     if (options.id) {
-      this.setData({ userId: options.id });
+      this.setData({ userId: parseInt(options.id) });
       this.loadProfile();
+    } else {
+      console.error('未传入用户ID');
+      this.setData({ isLoading: false });
     }
   },
 

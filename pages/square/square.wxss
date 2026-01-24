@@ -224,6 +224,10 @@
   border-radius: 24rpx;
   border: none;
   width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.2;
 }
 
 .match-join::after {

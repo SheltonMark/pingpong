@@ -300,6 +300,11 @@ Page({
   // 点击排行榜用户
   onTapRankingUser(e) {
     const { id } = e.currentTarget.dataset;
+    console.log('点击排行榜用户, id:', id, 'dataset:', e.currentTarget.dataset);
+    if (!id) {
+      wx.showToast({ title: '用户ID无效', icon: 'none' });
+      return;
+    }
     wx.navigateTo({ url: `/pages/user-profile/user-profile?id=${id}` });
   }
 });

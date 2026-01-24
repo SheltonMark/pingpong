@@ -231,6 +231,9 @@
   font-size: 34rpx;
   font-weight: 600;
   border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .action-btn.primary {

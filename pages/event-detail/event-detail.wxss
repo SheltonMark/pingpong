@@ -277,6 +277,9 @@
   background: linear-gradient(135deg, var(--orange), var(--orange-dark));
   border-radius: 48rpx;
   border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .cancel-btn {
@@ -288,6 +291,9 @@
   background: var(--gray-100);
   border-radius: 48rpx;
   border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .empty-tip, .loading {
@@ -351,7 +357,9 @@
 }
 
 .apply-btn {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 20rpx 48rpx;
   font-size: 28rpx;
   font-weight: 500;

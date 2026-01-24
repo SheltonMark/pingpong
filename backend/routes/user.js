@@ -585,12 +585,12 @@ router.get('/:id/profile', async (req, res) => {
       SELECT
         m.id, m.player1_id, m.player2_id, m.player1_games, m.player2_games, m.created_at,
         u1.name as player1_name, u2.name as player2_name,
-        e.name as event_name
+        e.title as event_name
       FROM matches m
       LEFT JOIN users u1 ON m.player1_id = u1.id
       LEFT JOIN users u2 ON m.player2_id = u2.id
       LEFT JOIN events e ON m.event_id = e.id
-      WHERE (m.player1_id = ? OR m.player2_id = ?) AND m.status = 'confirmed'
+      WHERE (m.player1_id = ? OR m.player2_id = ?) AND m.status IN ('confirmed', 'finished')
       ORDER BY m.created_at DESC
       LIMIT 3
     `, [id, id]);

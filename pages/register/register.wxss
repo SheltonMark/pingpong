@@ -185,6 +185,9 @@
   border-radius: 48rpx;
   border: none;
   margin-top: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .submit-btn:active {
