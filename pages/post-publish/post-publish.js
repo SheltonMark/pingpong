@@ -2,6 +2,7 @@ const app = getApp();
 
 Page({
   data: {
+    reviewMode: false,
     postType: 'post',
     content: '',
     images: [],
@@ -10,6 +11,15 @@ Page({
     time: '',
     maxParticipants: 2,
     isSubmitting: false
+  },
+
+  onLoad() {
+    // 审核模式下返回上一页
+    if (app.globalData.reviewMode) {
+      wx.showToast({ title: '功能开发中', icon: 'none' });
+      setTimeout(() => wx.navigateBack(), 500);
+      return;
+    }
   },
 
   onSelectType(e) {
