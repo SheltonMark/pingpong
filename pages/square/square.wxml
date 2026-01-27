@@ -1,9 +1,41 @@
 <view class="square-page">
-  <!-- 审核模式：功能开发中 -->
-  <view class="coming-soon" wx:if="{{reviewMode}}">
-    <text class="coming-soon-icon">🚧</text>
-    <text class="coming-soon-title">功能开发中</text>
-    <text class="coming-soon-desc">广场功能即将上线，敬请期待</text>
+  <!-- 审核模式：显示乒乓球规则 -->
+  <view class="review-content" wx:if="{{reviewMode}}">
+    <view class="rule-header">
+      <text class="rule-title">🏓 乒乓球规则简介</text>
+    </view>
+
+    <view class="rule-card">
+      <text class="rule-subtitle">基本规则</text>
+      <text class="rule-text">1. 比赛采用11分制，先得11分者获胜</text>
+      <text class="rule-text">2. 10平后需连续得2分才能获胜</text>
+      <text class="rule-text">3. 每局比赛每方各发2球后交换发球权</text>
+      <text class="rule-text">4. 决胜局中任何一方先得5分时交换场地</text>
+    </view>
+
+    <view class="rule-card">
+      <text class="rule-subtitle">发球规则</text>
+      <text class="rule-text">1. 发球时球需放在非执拍手的手掌上</text>
+      <text class="rule-text">2. 发球时需将球垂直向上抛起至少16厘米</text>
+      <text class="rule-text">3. 球下降时才能击球，且需先触及本方台面</text>
+      <text class="rule-text">4. 发球时球和球拍需在台面水平面之上</text>
+    </view>
+
+    <view class="rule-card">
+      <text class="rule-subtitle">比赛礼仪</text>
+      <text class="rule-text">1. 比赛前后双方应握手致意</text>
+      <text class="rule-text">2. 对方失误得分时不宜过度庆祝</text>
+      <text class="rule-text">3. 擦网、擦边球得分应向对方示意</text>
+      <text class="rule-text">4. 尊重裁判判罚，保持良好体育精神</text>
+    </view>
+
+    <view class="rule-card">
+      <text class="rule-subtitle">常见术语</text>
+      <text class="rule-text">• 正手：执拍手同侧的击球方式</text>
+      <text class="rule-text">• 反手：执拍手异侧的击球方式</text>
+      <text class="rule-text">• 弧圈球：带有强烈上旋的进攻球</text>
+      <text class="rule-text">• 削球：带有下旋的防守球</text>
+    </view>
   </view>
 
   <!-- 正常模式 -->
