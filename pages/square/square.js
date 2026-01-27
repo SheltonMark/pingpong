@@ -2,6 +2,7 @@ const app = getApp();
 
 Page({
   data: {
+    reviewMode: false,  // 审核模式标志
     currentSchoolId: null,
     currentSchoolName: '',
     currentPostType: '', // '' | 'post' | 'invitation'
@@ -24,6 +25,10 @@ Page({
   },
 
   onLoad() {
+    // 检查审核模式
+    this.setData({ reviewMode: app.globalData.reviewMode });
+    if (app.globalData.reviewMode) return;
+
     // 先加载学校列表，完成后会自动加载帖子
     this.loadSchools();
   },
