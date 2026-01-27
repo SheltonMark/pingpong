@@ -34,6 +34,9 @@ Page({
   },
 
   onShow() {
+    // 审核模式不加载数据
+    if (app.globalData.reviewMode) return;
+
     this.loadPosts(true);
     this.loadStandaloneInvitations();
     // 更新自定义 tabBar 选中状态
