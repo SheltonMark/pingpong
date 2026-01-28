@@ -2,10 +2,9 @@ const app = getApp();
 
 Page({
   data: {
-    reviewMode: false,
     currentTab: 'video',
     tabs: [
-      { key: 'video', label: '教学视频' },
+      { key: 'video', label: '教学' },
       { key: 'document', label: 'PDF文档' },
       { key: 'ppt', label: 'PPT课件' }
     ],
@@ -16,12 +15,6 @@ Page({
   },
 
   onLoad() {
-    // 审核模式下返回上一页
-    if (app.globalData.reviewMode) {
-      wx.showToast({ title: '功能开发中', icon: 'none' });
-      setTimeout(() => wx.navigateBack(), 500);
-      return;
-    }
     this.loadMaterials();
   },
 
