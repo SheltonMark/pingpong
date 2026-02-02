@@ -84,7 +84,7 @@
     <view class="no-more" wx:if="{{noMore && materials.length > 0}}">没有更多了</view>
     <view class="empty" wx:if="{{!isLoading && materials.length === 0}}">
       <text class="empty-icon">📚</text>
-      <text class="empty-text">暂无{{currentTab === 'video' ? '视频' : (currentTab === 'document' ? 'PDF' : 'PPT')}}资料</text>
+      <text class="empty-text">暂无{{currentTab === 'video' ? '教学' : (currentTab === 'document' ? 'PDF' : 'PPT')}}资料</text>
     </view>
   </scroll-view>
 </view>
