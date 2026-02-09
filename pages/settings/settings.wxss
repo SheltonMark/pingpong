@@ -57,17 +57,17 @@
 .logout-btn {
   width: 100%;
   padding: 32rpx;
-  background: var(--white);
-  color: var(--red);
+  background: #E53935;
+  color: #FFFFFF;
   font-size: 32rpx;
   font-weight: 500;
   border-radius: 24rpx;
   border: none;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4rpx 20rpx rgba(229, 57, 53, 0.3);
 }
 
 .logout-btn:active {
-  background: var(--gray-50);
+  background: #C62828;
 }
 
 /* 版本信息 */

@@ -21,11 +21,9 @@
     </view>
   </view>
 
-  <!-- 退出登录（暂时隐藏，因为微信登录是自动的）
   <view class="logout-section">
     <button class="logout-btn" bindtap="onLogout">退出登录</button>
   </view>
-  -->
 
   <!-- 版本信息 -->
   <view class="version-info">
