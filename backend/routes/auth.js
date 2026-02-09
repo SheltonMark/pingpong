@@ -22,7 +22,10 @@ router.post('/wx-login', async (req, res) => {
       openid = 'dev_' + code.substring(0, 16);
     } else {
       // 生产模式：调用微信接口获取 openid
-      const wxUrl = `https://api.weixin.qq.com/sns/jscode2session?appid=${WX_APPID}&secret=${WX_SECRET}&js_code=${code}&grant_type=authorization_code`;
+      // 微信云托管环境使用 http 内网代理调用微信API（更快、免鉴权）
+      const isCloudBase = !!process.env.MYSQL_ADDRESS;
+      const wxApiBase = isCloudBase ? 'http://api.weixin.qq.com' : 'https://api.weixin.qq.com';
+      const wxUrl = `${wxApiBase}/sns/jscode2session?appid=${WX_APPID}&secret=${WX_SECRET}&js_code=${code}&grant_type=authorization_code`;
 
       const wxRes = await axios.get(wxUrl);
       const { errcode, errmsg } = wxRes.data;
@@ -94,8 +97,8 @@ router.post('/wx-login', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('微信登录错误:', error);
-    res.status(500).json({ success: false, message: '服务器错误' });
+    console.error('微信登录错误:', error.message || error);
+    res.status(500).json({ success: false, message: '服务器错误: ' + (error.message || '未知错误') });
   }
 });
 
