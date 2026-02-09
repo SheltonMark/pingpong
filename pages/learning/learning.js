@@ -2,9 +2,9 @@ const app = getApp();
 
 Page({
   data: {
-    currentTab: 'video',
+    currentTab: 'document',
     tabs: [
-      { key: 'video', label: '教学' },
+      // { key: 'video', label: '教学' },  // 暂时屏蔽，待视频类目审核通过后恢复
       { key: 'document', label: 'PDF文档' },
       { key: 'ppt', label: 'PPT课件' }
     ],
