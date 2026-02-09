@@ -1,7 +1,7 @@
 .square-page {
-  min-height: 100vh;
+  height: 100vh;
   background: #FFFFFF;
-  overflow-x: hidden;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
@@ -56,9 +56,7 @@
 
 /* 顶部标题栏 */
 .square-header {
-  position: sticky;
-  top: 0;
-  z-index: 999;
+  flex-shrink: 0;
   background: #FFFFFF;
   padding-bottom: 16rpx;
   box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.05);
@@ -177,7 +175,6 @@
   flex: 1;
   min-height: 0;
   padding-top: 16rpx;
-  padding-bottom: 200rpx;
   box-sizing: border-box;
   background: #FFFFFF;
 }
@@ -381,4 +378,8 @@
   padding: 32rpx;
   font-size: 26rpx;
   color: #9CA3AF;
+}
+
+.bottom-spacer {
+  height: 180rpx;
 }
