@@ -6,7 +6,7 @@
       <text>欢迎使用校乒网！在使用前，请阅读并同意</text>
       <text class="link" bindtap="onTapPrivacy">《隐私政策》</text>
       <text>和</text>
-      <text class="link" bindtap="onTapPrivacy">《用户协议》</text>
+      <text class="link" bindtap="onTapAgreement">《用户协议》</text>
     </view>
     <view class="modal-buttons">
       <button class="btn-disagree" bindtap="onDisagree">不同意</button>
