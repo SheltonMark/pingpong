@@ -42,6 +42,8 @@ Page({
 
   onShow() {
     this.updateLoginStatus();
+    this.loadAnnouncements();
+    this.loadRankings();
     // 更新自定义 tabBar 选中状态
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 0 });
