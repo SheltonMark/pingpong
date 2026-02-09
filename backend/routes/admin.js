@@ -2196,7 +2196,7 @@ router.get('/invitations', requireAdmin, async (req, res) => {
         u2.name as invitee_name,
         u2.phone as invitee_phone,
         u2.avatar_url as invitee_avatar
-      FROM invitations i
+      FROM team_invitations i
       JOIN events e ON i.event_id = e.id
       JOIN users u1 ON i.inviter_id = u1.id
       JOIN users u2 ON i.invitee_id = u2.id
@@ -2223,7 +2223,7 @@ router.get('/invitations', requireAdmin, async (req, res) => {
     const [invitations] = await pool.execute(sql, params);
 
     // 获取总数
-    let countSql = 'SELECT COUNT(*) as total FROM invitations i WHERE 1=1';
+    let countSql = 'SELECT COUNT(*) as total FROM team_invitations i WHERE 1=1';
     const countParams = [];
     if (event_id) {
       countSql += ' AND i.event_id = ?';
@@ -2253,7 +2253,7 @@ router.post('/invitations/:id/accept', requireAdmin, async (req, res) => {
 
     // 获取邀请信息
     const [[invitation]] = await pool.execute(
-      'SELECT * FROM invitations WHERE id = ?',
+      'SELECT * FROM team_invitations WHERE id = ?',
       [id]
     );
 
@@ -2267,7 +2267,7 @@ router.post('/invitations/:id/accept', requireAdmin, async (req, res) => {
 
     // 更新邀请状态
     await pool.execute(
-      "UPDATE invitations SET status = 'accepted', responded_at = NOW() WHERE id = ?",
+      "UPDATE team_invitations SET status = 'accepted', responded_at = NOW() WHERE id = ?",
       [id]
     );
 
@@ -2302,7 +2302,7 @@ router.post('/invitations/:id/reject', requireAdmin, async (req, res) => {
 
     // 获取邀请信息
     const [[invitation]] = await pool.execute(
-      'SELECT * FROM invitations WHERE id = ?',
+      'SELECT * FROM team_invitations WHERE id = ?',
       [id]
     );
 
@@ -2316,7 +2316,7 @@ router.post('/invitations/:id/reject', requireAdmin, async (req, res) => {
 
     // 更新邀请状态
     await pool.execute(
-      "UPDATE invitations SET status = 'rejected', responded_at = NOW() WHERE id = ?",
+      "UPDATE team_invitations SET status = 'rejected', responded_at = NOW() WHERE id = ?",
       [id]
     );
 
