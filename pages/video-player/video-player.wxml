@@ -1,3 +1,4 @@
+<!-- 暂时屏蔽视频播放功能，待视频类目审核通过后恢复
 <view class="video-player-page">
   <video
     id="videoPlayer"
@@ -23,4 +24,8 @@
     </view>
     <text class="video-desc" wx:if="{{videoInfo.description}}">{{videoInfo.description}}</text>
   </view>
+</view>
+-->
+<view class="video-player-page">
+  <view style="text-align:center;padding-top:200rpx;color:#999;font-size:28rpx;">功能暂未开放</view>
 </view>
