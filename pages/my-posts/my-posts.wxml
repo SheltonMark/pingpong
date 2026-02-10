@@ -1,0 +1,85 @@
+<view class="my-posts-page">
+  <!-- 筛选标签 -->
+  <view class="filter-tabs">
+    <view
+      class="filter-tab {{currentType === '' ? 'active' : ''}}"
+      bindtap="onSelectType"
+      data-type=""
+    >全部</view>
+    <view
+      class="filter-tab {{currentType === 'post' ? 'active' : ''}}"
+      bindtap="onSelectType"
+      data-type="post"
+    >帖子</view>
+    <view
+      class="filter-tab {{currentType === 'invitation' ? 'active' : ''}}"
+      bindtap="onSelectType"
+      data-type="invitation"
+    >约球</view>
+  </view>
+
+  <!-- 帖子列表 -->
+  <scroll-view
+    class="post-list"
+    scroll-y
+    bindscrolltolower="onLoadMore"
+  >
+    <view class="post-item" wx:for="{{posts}}" wx:key="id" bindtap="onTapPost" data-id="{{item.id}}">
+      <view class="post-header">
+        <image class="author-avatar" src="{{item.author_avatar || '/images/default-avatar.png'}}" mode="aspectFill" />
+        <view class="author-info">
+          <text class="author-name">{{item.author_name}}</text>
+          <text class="post-meta">{{item.time_label}}</text>
+        </view>
+      </view>
+
+      <text class="post-content">{{item.content}}</text>
+
+      <!-- 约球卡片 -->
+      <view class="match-box" wx:if="{{item.invitation}}" catchtap="onTapInvitation" data-id="{{item.invitation.id}}">
+        <view class="match-title">🏓 发起约球</view>
+        <view class="match-detail">
+          <text wx:if="{{item.invitation.location}}">📍 {{item.invitation.location}}</text>
+          <text wx:if="{{item.invitation.scheduled_time}}"> · 🕐 {{item.invitation.time_label}}</text>
+        </view>
+      </view>
+
+      <!-- 图片网格 -->
+      <view class="post-images {{item.images.length === 1 ? 'single' : (item.images.length <= 4 ? 'grid-2' : 'grid-3')}}" wx:if="{{item.images && item.images.length > 0}}">
+        <image
+          wx:for="{{item.images}}"
+          wx:for-item="img"
+          wx:key="*this"
+          class="post-image"
+          src="{{img}}"
+          mode="aspectFill"
+          catchtap="onPreviewImage"
+          data-urls="{{item.images}}"
+          data-current="{{img}}"
+        />
+      </view>
+
+      <view class="post-actions">
+        <view class="action-item {{item.is_liked ? 'liked' : ''}}">
+          <text class="icon-heart">{{item.is_liked ? '❤️' : '🤍'}}</text>
+          <text class="action-count">{{item.like_count || 0}}</text>
+        </view>
+        <view class="action-item">
+          <text class="icon-comment">💬</text>
+          <text class="action-count">{{item.comment_count || 0}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="load-more" wx:if="{{isLoading}}">
+      <text>加载中...</text>
+    </view>
+    <view class="no-more" wx:if="{{noMore && posts.length > 0}}">
+      <text>没有更多了</text>
+    </view>
+    <view class="empty" wx:if="{{!isLoading && posts.length === 0}}">
+      <text class="empty-icon">📝</text>
+      <text class="empty-text">还没有发布过内容</text>
+    </view>
+  </scroll-view>
+</view>

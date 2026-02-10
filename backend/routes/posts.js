@@ -84,6 +84,11 @@ router.get('/', async (req, res) => {
       params.push(school_id);
     }
 
+    if (user_id) {
+      sql += ' AND p.user_id = ?';
+      params.push(user_id);
+    }
+
     // 帖子类型筛选
     if (post_type === 'invitation') {
       sql += ' AND mi.id IS NOT NULL';

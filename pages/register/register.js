@@ -292,6 +292,30 @@ Page({
 
     try {
       const { form, selectedType, isEditMode } = this.data;
+
+      // 上传头像到云存储（如果是本地临时路径）
+      let avatarUrl = form.avatarUrl;
+      if (avatarUrl && (avatarUrl.startsWith('wxfile://') || avatarUrl.startsWith('http://tmp'))) {
+        wx.showLoading({ title: '上传头像中...' });
+        try {
+          const ext = avatarUrl.split('.').pop() || 'png';
+          const cloudPath = `avatars/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+          const uploadRes = await wx.cloud.uploadFile({
+            cloudPath,
+            filePath: avatarUrl
+          });
+          if (uploadRes.fileID) {
+            const urlRes = await wx.cloud.getTempFileURL({ fileList: [uploadRes.fileID] });
+            if (urlRes.fileList[0]?.tempFileURL) {
+              avatarUrl = urlRes.fileList[0].tempFileURL;
+            }
+          }
+        } catch (uploadErr) {
+          console.error('头像上传失败:', uploadErr);
+        }
+        wx.hideLoading();
+      }
+
       const path = isEditMode ? '/api/user/update' : '/api/user/register';
 
       const res = await app.request(path, {
@@ -306,7 +330,7 @@ Page({
             department_id: form.departmentId,
             class_name: form.className,
             enrollment_year: form.enrollmentYear,
-            avatar_url: form.avatarUrl
+            avatar_url: avatarUrl
           }, 'POST');
 
       if (res && res.success) {

@@ -74,6 +74,8 @@ Page({
   },
 
   async onSubmit() {
+    if (this.data.isSubmitting) return;
+
     if (!this.data.content.trim()) {
       wx.showToast({ title: '请输入内容', icon: 'none' });
       return;
@@ -152,11 +154,11 @@ Page({
         setTimeout(() => wx.navigateBack(), 1500);
       } else {
         wx.showToast({ title: res.message || '发布失败', icon: 'none' });
+        this.setData({ isSubmitting: false });
       }
     } catch (error) {
       console.error('发布失败:', error);
       wx.showToast({ title: '发布失败', icon: 'none' });
-    } finally {
       this.setData({ isSubmitting: false });
     }
   },
