@@ -188,7 +188,7 @@ Page({
         params.post_type = this.data.currentPostType;
       }
       if (app.globalData.userInfo?.id) {
-        params.user_id = app.globalData.userInfo.id;
+        params.current_user_id = app.globalData.userInfo.id;
       }
 
       const res = await this.request('/api/posts', params);

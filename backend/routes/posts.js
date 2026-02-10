@@ -60,7 +60,7 @@ router.post('/', async (req, res) => {
 // 获取帖子列表
 router.get('/', async (req, res) => {
   try {
-    const { school_id, user_id, post_type, page = 1, limit = 20 } = req.query;
+    const { school_id, user_id, post_type, current_user_id, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
 
     let sql = `
@@ -121,10 +121,11 @@ router.get('/', async (req, res) => {
       }
 
       // 检查当前用户是否已点赞
-      if (user_id) {
+      const likeUserId = current_user_id || user_id;
+      if (likeUserId) {
         const [liked] = await pool.query(
           'SELECT id FROM likes WHERE post_id = ? AND user_id = ?',
-          [post.id, user_id]
+          [post.id, likeUserId]
         );
         post.is_liked = liked.length > 0;
       } else {
