@@ -126,42 +126,31 @@ router.get('/', async (req, res) => {
       sql += " AND (e.scope = 'inter_school' OR e.school_id IS NULL OR (e.scope = 'school' AND e.school_id = ?))";
       params.push(school_id);
     }
-    if (status) {
-      sql += ' AND e.status = ?';
-      params.push(status);
-    }
     if (event_type) {
       sql += ' AND e.event_type = ?';
       params.push(event_type);
     }
 
-    sql += ' ORDER BY e.event_start DESC LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), parseInt(offset));
+    // 不在SQL层面过滤status，改为在应用层过滤（因为status是动态计算的）
+    sql += ' ORDER BY e.event_start DESC';
 
-    const [rows] = await pool.query(sql, params);
+    const [allRows] = await pool.query(sql, params);
 
-    // 获取总数
-    let countSql = "SELECT COUNT(*) as total FROM events WHERE status != 'draft'";
-    const countParams = [];
-    if (school_id) {
-      countSql += " AND (scope = 'inter_school' OR school_id IS NULL OR (scope = 'school' AND school_id = ?))";
-      countParams.push(school_id);
-    }
+    // 动态计算状态并过滤
+    let filteredRows = allRows.map(e => ({ ...e, status: computeEventStatus(e) }));
     if (status) {
-      countSql += ' AND status = ?';
-      countParams.push(status);
+      filteredRows = filteredRows.filter(e => e.status === status);
     }
-    if (event_type) {
-      countSql += ' AND event_type = ?';
-      countParams.push(event_type);
-    }
-    const [countResult] = await pool.query(countSql, countParams);
+
+    // 手动分页
+    const total = filteredRows.length;
+    const pagedRows = filteredRows.slice(parseInt(offset), parseInt(offset) + parseInt(limit));
 
     res.json({
       success: true,
       data: {
-        list: rows.map(e => ({ ...e, status: computeEventStatus(e) })),
-        total: countResult[0].total,
+        list: pagedRows,
+        total,
         page: parseInt(page),
         limit: parseInt(limit)
       }

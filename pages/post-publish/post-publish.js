@@ -82,7 +82,42 @@ Page({
     this.setData({ isSubmitting: true });
 
     try {
-      const imageUrls = this.data.images;
+      // 先上传图片，获取真实URL
+      const imageUrls = [];
+      if (this.data.images.length > 0) {
+        wx.showLoading({ title: '上传图片中...' });
+        for (const tempPath of this.data.images) {
+          const ext = tempPath.split('.').pop() || 'png';
+          const cloudPath = `post-images/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+          try {
+            const uploadRes = await wx.cloud.uploadFile({
+              cloudPath,
+              filePath: tempPath
+            });
+            if (uploadRes.fileID) {
+              imageUrls.push(uploadRes.fileID);
+            }
+          } catch (uploadErr) {
+            console.error('图片上传失败:', uploadErr);
+          }
+        }
+        wx.hideLoading();
+
+        // 获取临时访问URL
+        if (imageUrls.length > 0) {
+          try {
+            const urlRes = await wx.cloud.getTempFileURL({ fileList: imageUrls });
+            for (let i = 0; i < urlRes.fileList.length; i++) {
+              if (urlRes.fileList[i].tempFileURL) {
+                imageUrls[i] = urlRes.fileList[i].tempFileURL;
+              }
+            }
+          } catch (urlErr) {
+            console.error('获取图片URL失败:', urlErr);
+          }
+        }
+      }
+
       let url, data;
 
       if (this.data.postType === 'invitation') {
