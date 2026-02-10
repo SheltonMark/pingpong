@@ -36,6 +36,10 @@ async function resolveCloudUrls(urls) {
   const cloudIds = urls.filter(u => u && u.startsWith('cloud://'));
   if (cloudIds.length === 0) return urls;
 
+  if (!cloudStorage.isCloudStorageAvailable()) {
+    return urls;
+  }
+
   try {
     const result = await cloudStorage.getTempFileURL(cloudIds);
     const urlMap = {};
