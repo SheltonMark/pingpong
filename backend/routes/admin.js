@@ -15,6 +15,7 @@ function formatDateForMySQL(dateStr) {
 function toFullUrl(url, req) {
   if (!url) return url;
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  if (url.startsWith('cloud://')) return url; // cloud fileID 需要异步转换，这里跳过
 
   let baseUrl = process.env.BASE_URL;
   if (!baseUrl) {
@@ -27,6 +28,27 @@ function toFullUrl(url, req) {
     }
   }
   return baseUrl + url;
+}
+
+// 批量将 cloud:// fileID 转为 HTTP 临时URL
+const cloudStorage = require('../utils/cloudStorage');
+async function resolveCloudUrls(urls) {
+  const cloudIds = urls.filter(u => u && u.startsWith('cloud://'));
+  if (cloudIds.length === 0) return urls;
+
+  try {
+    const result = await cloudStorage.getTempFileURL(cloudIds);
+    const urlMap = {};
+    result.forEach(item => {
+      if (item.tempFileURL) {
+        urlMap[item.fileID] = item.tempFileURL;
+      }
+    });
+    return urls.map(u => (u && urlMap[u]) ? urlMap[u] : u);
+  } catch (err) {
+    console.error('resolveCloudUrls failed:', err);
+    return urls;
+  }
 }
 
 
@@ -1966,10 +1988,16 @@ router.get('/posts', requireAdmin, async (req, res) => {
 
     const [posts] = await pool.execute(sql, params);
 
+    // 收集所有 cloud:// 头像URL并批量转换
+    const avatarUrls = posts.map(p => p.author_avatar).filter(Boolean);
+    const resolvedAvatars = await resolveCloudUrls(avatarUrls);
+    const avatarMap = {};
+    avatarUrls.forEach((url, i) => { avatarMap[url] = resolvedAvatars[i]; });
+
     // 转换头像URL
     const list = posts.map(p => ({
       ...p,
-      author_avatar: toFullUrl(p.author_avatar, req)
+      author_avatar: avatarMap[p.author_avatar] || toFullUrl(p.author_avatar, req)
     }));
 
     res.json({
