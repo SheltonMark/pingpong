@@ -20,11 +20,13 @@ const processRichTextImages = (html) => {
   const baseUrl = getApp().globalData.baseUrl;
   // 将相对路径 src="/uploads/..." 补全为绝对URL
   let processed = html.replace(/src="(\/uploads\/[^"]+)"/gi, `src="${baseUrl}$1"`);
-  // 给所有 img 标签添加内联样式限制宽度
+  // 给所有 img 标签：移除 data-href 等不支持的属性，添加样式限制宽度
   processed = processed.replace(/<img([^>]*)>/gi, (match, attrs) => {
-    // 移除已有的 style 属性
-    const cleanAttrs = attrs.replace(/style\s*=\s*["'][^"']*["']/gi, '');
-    return `<img${cleanAttrs} style="max-width:100%;height:auto;display:block;">`;
+    // 提取 src 属性
+    const srcMatch = attrs.match(/src="([^"]*)"/i);
+    const src = srcMatch ? srcMatch[1] : '';
+    if (!src) return '';
+    return `<img src="${src}" style="max-width:100%;height:auto;display:block;">`;
   });
   return processed;
 };
