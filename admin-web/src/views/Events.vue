@@ -263,26 +263,17 @@ const showCreateDialog = () => {
   dialogVisible.value = true
 }
 
-// 将HTML中的相对路径转为完整URL
+// 将HTML中的相对路径转为完整URL（用于编辑器显示）
 const processDescriptionUrls = (html) => {
   if (!html) return html
   const apiBase = 'https://express-lksv-207842-4-1391867763.sh.run.tcloudbase.com'
-  // 替换 src="/uploads/..." 为完整URL
-  let processed = html.replace(/src="(\/uploads\/[^"]+)"/g, `src="${apiBase}$1"`)
-
-  // 处理纯文本形式的图片路径（之前错误存储的数据）
-  processed = processed.replace(/(?<![">])(\/uploads\/[\w\-\.]+\.(jpg|jpeg|png|gif|webp))/gi, (match) => {
-    return `<img src="${apiBase}${match}" style="max-width:100%">`
-  })
-
-  return processed
+  // 替换所有属性中的相对路径 /uploads/... 为完整URL
+  return html.replace(/((?:src|data-href|href)=")(\/(uploads\/[^"]+))/g, `$1${apiBase}$2`)
 }
 
-// 将HTML中的完整URL转回相对路径（用于保存到数据库）
+// 保存时不再转换URL，直接存完整路径
 const toRelativeUrls = (html) => {
-  if (!html) return html
-  // 将所有完整URL中的 /uploads/ 路径转回相对路径
-  return html.replace(/src="https?:\/\/[^"]*?(\/uploads\/[^"]+)"/g, 'src="$1"')
+  return html || ''
 }
 
 const editEvent = (row) => {
