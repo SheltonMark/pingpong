@@ -150,6 +150,15 @@
   gap: 10rpx;
 }
 
+.delete-btn {
+  margin-left: auto;
+}
+
+.icon-delete {
+  font-size: 34rpx;
+  line-height: 1;
+}
+
 .icon-heart {
   font-size: 34rpx;
   line-height: 1;

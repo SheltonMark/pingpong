@@ -88,6 +88,36 @@ Page({
     wx.previewImage({ current, urls });
   },
 
+  onDelete(e) {
+    const { id, index } = e.currentTarget.dataset;
+    wx.showModal({
+      title: '确认删除',
+      content: '确定要删除这条发布吗？删除后不可恢复。',
+      confirmColor: '#FF4757',
+      success: async (res) => {
+        if (res.confirm) {
+          try {
+            const result = await app.request(`/api/posts/${id}`, {
+              user_id: app.globalData.userInfo.id
+            }, 'DELETE');
+
+            if (result.success) {
+              const posts = this.data.posts;
+              posts.splice(index, 1);
+              this.setData({ posts });
+              wx.showToast({ title: '已删除', icon: 'success' });
+            } else {
+              wx.showToast({ title: result.message || '删除失败', icon: 'none' });
+            }
+          } catch (error) {
+            console.error('删除失败:', error);
+            wx.showToast({ title: '删除失败', icon: 'none' });
+          }
+        }
+      }
+    });
+  },
+
   formatTime(dateStr) {
     if (!dateStr) return '';
     const date = new Date(dateStr);

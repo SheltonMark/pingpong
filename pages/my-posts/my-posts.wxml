@@ -68,6 +68,10 @@
           <text class="icon-comment">💬</text>
           <text class="action-count">{{item.comment_count || 0}}</text>
         </view>
+        <view class="action-item delete-btn" catchtap="onDelete" data-id="{{item.id}}" data-index="{{index}}">
+          <text class="icon-delete">🗑️</text>
+          <text class="action-count">删除</text>
+        </view>
       </view>
     </view>
 
