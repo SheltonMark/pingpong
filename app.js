@@ -35,6 +35,15 @@ App({
       const userInfo = wx.getStorageSync('userInfo');
       const hasAgreedPrivacy = wx.getStorageSync('hasAgreedPrivacy');
 
+      // 清理开发模式产生的无效缓存
+      if (openid && openid.startsWith('dev_')) {
+        console.log('清理开发模式缓存');
+        wx.removeStorageSync('openid');
+        wx.removeStorageSync('userInfo');
+        wx.removeStorageSync('hasAgreedPrivacy');
+        return;
+      }
+
       if (openid) {
         this.globalData.openid = openid;
         this.globalData.isLoggedIn = true;
