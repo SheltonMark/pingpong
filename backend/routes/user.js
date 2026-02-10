@@ -355,7 +355,7 @@ router.get('/:id/match-history', async (req, res) => {
         m.player1_id, m.player2_id, m.player1_games, m.player2_games,
         u1.name as player1_name, u1.avatar_url as player1_avatar,
         u2.name as player2_name, u2.avatar_url as player2_avatar,
-        e.name as event_name,
+        e.title as event_name,
         CASE WHEN m.invitation_id IS NOT NULL THEN 'invitation' ELSE 'event' END as match_type
       FROM matches m
       LEFT JOIN users u1 ON m.player1_id = u1.id
@@ -433,7 +433,7 @@ router.get('/:id/invitations', async (req, res) => {
 
     let sql = `
       SELECT i.*,
-        e.name as event_name, e.type as event_type,
+        e.title as event_name, e.event_type as event_type,
         u.name as inviter_name, u.avatar_url as inviter_avatar
       FROM team_invitations i
       LEFT JOIN events e ON i.event_id = e.id

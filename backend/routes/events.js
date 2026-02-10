@@ -257,7 +257,7 @@ router.post('/matches/:matchId/score', async (req, res) => {
     // 发送订阅消息通知对手确认比分
     try {
       const [matchInfo] = await pool.query(
-        `SELECT m.*, e.name as event_name,
+        `SELECT m.*, e.title as event_name,
           u1.name as player1_name, u1.openid as player1_openid,
           u2.name as player2_name, u2.openid as player2_openid
          FROM matches m
