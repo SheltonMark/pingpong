@@ -14,15 +14,19 @@ const formatDate = (dateStr) => {
   return `${month}月${day}日 ${hour}:${minute}`;
 };
 
-// 处理富文本中的图片，限制尺寸
+// 处理富文本中的图片，限制尺寸并补全URL
 const processRichTextImages = (html) => {
   if (!html) return '';
+  const baseUrl = getApp().globalData.baseUrl;
+  // 将相对路径 src="/uploads/..." 补全为绝对URL
+  let processed = html.replace(/src="(\/uploads\/[^"]+)"/gi, `src="${baseUrl}$1"`);
   // 给所有 img 标签添加内联样式限制宽度
-  return html.replace(/<img([^>]*)>/gi, (match, attrs) => {
+  processed = processed.replace(/<img([^>]*)>/gi, (match, attrs) => {
     // 移除已有的 style 属性
     const cleanAttrs = attrs.replace(/style\s*=\s*["'][^"']*["']/gi, '');
     return `<img${cleanAttrs} style="max-width:100%;height:auto;display:block;">`;
   });
+  return processed;
 };
 
 Page({
