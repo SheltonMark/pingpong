@@ -80,28 +80,41 @@ function computeEventStatus(event) {
   const regEnd = event.registration_end ? new Date(event.registration_end) : null;
   const eventEnd = event.event_end ? new Date(event.event_end) : null;
   const eventStart = event.event_start ? new Date(event.event_start) : null;
-  
+
   // 草稿和取消状态不变
   if (event.status === 'draft' || event.status === 'cancelled') {
     return event.status;
   }
-  
+
   // 已手动设为已结束的不变
   if (event.status === 'finished') {
     return 'finished';
   }
-  
-  // 动态判断
-  if (eventEnd && now >= eventEnd) {
-    return 'finished';
+
+  // 动态判断：已结束 = 过了 event_end 当天 24:00
+  if (eventEnd) {
+    const endOfDay = new Date(eventEnd);
+    endOfDay.setHours(23, 59, 59, 999);
+    if (now > endOfDay) {
+      return 'finished';
+    }
   }
-  if (regEnd && now >= regEnd) {
+
+  // 进行中 = 比赛开始时间 ≤ 当前时间 ≤ event_end 当天 24:00
+  if (eventStart && now >= eventStart) {
     return 'ongoing';
   }
-  if (event.participant_count >= event.max_participants) {
-    return 'ongoing'; // 人满也变进行中
+
+  // 待开始 = 报名截止 ≤ 当前时间 < 比赛开始时间
+  if (regEnd && now >= regEnd) {
+    return 'pending_start';
   }
-  
+
+  // 人满也变待开始
+  if (event.participant_count >= event.max_participants) {
+    return 'pending_start';
+  }
+
   return 'registration';
 }
 

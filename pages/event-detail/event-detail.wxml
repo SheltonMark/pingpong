@@ -9,7 +9,7 @@
       </view>
       <view class="event-title">{{event.title}}</view>
       <view class="event-status-tag {{event.status}}">
-        {{event.status === 'registration' ? '报名中' : event.status === 'ongoing' ? '进行中' : '已结束'}}
+        {{event.status === 'registration' ? '报名中' : event.status === 'pending_start' ? '待开始' : event.status === 'ongoing' ? '进行中' : '已结束'}}
       </view>
     </view>
   </view>

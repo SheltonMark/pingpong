@@ -50,6 +50,7 @@
 }
 
 .event-status-tag.registration { color: var(--green); }
+.event-status-tag.pending_start { color: #3B82F6; }
 .event-status-tag.ongoing { color: var(--orange); }
 .event-status-tag.finished { color: var(--gray-400); }
 

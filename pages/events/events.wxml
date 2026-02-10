@@ -27,7 +27,7 @@
           {{item.event_type === 'singles' ? '单打' : item.event_type === 'doubles' ? '双打' : '团体'}}
         </view>
         <view class="event-status {{item.status}}">
-          {{item.status === 'registration' ? '报名中' : item.status === 'ongoing' ? '进行中' : '已结束'}}
+          {{item.status === 'registration' ? '报名中' : item.status === 'pending_start' ? '待开始' : item.status === 'ongoing' ? '进行中' : '已结束'}}
         </view>
       </view>
 

@@ -7,6 +7,7 @@ Page({
     tabs: [
       { key: 'all', label: '全部' },
       { key: 'registration', label: '报名中' },
+      { key: 'pending_start', label: '待开始' },
       { key: 'ongoing', label: '进行中' },
       { key: 'finished', label: '已结束' }
     ],
