@@ -64,7 +64,9 @@
       "Bash(git -C D:/mast/pingpong push)",
       "Bash(git -C D:mastpingpong push)",
       "Bash(git revert:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(curl.exe:*)",
+      "Bash(git restore pages/learning/learning.js pages/learning/learning.wxml)"
     ],
     "deny": [],
     "ask": []

@@ -48,13 +48,6 @@ Page({
   },
 
   request(url, data) {
-    return new Promise((resolve, reject) => {
-      wx.request({
-        url: app.globalData.baseUrl + url,
-        data,
-        success: (res) => resolve(res.data),
-        fail: reject
-      });
-    });
+    return app.request(url, data);
   }
 });

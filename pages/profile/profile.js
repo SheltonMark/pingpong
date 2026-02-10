@@ -69,13 +69,7 @@ Page({
     }
 
     try {
-      const res = await new Promise((resolve, reject) => {
-        wx.request({
-          url: `${app.globalData.baseUrl}/api/user/${userInfo.id}/invitations?status=pending`,
-          success: (res) => resolve(res.data),
-          fail: reject
-        });
-      });
+      const res = await app.request(`/api/user/${userInfo.id}/invitations`, { status: 'pending' });
 
       if (res.success && res.data) {
         const count = res.data.length;
@@ -131,14 +125,7 @@ Page({
 
     try {
       // 直接调用排行榜接口获取积分和排名（与积分榜使用相同逻辑）
-      const res = await new Promise((resolve, reject) => {
-        wx.request({
-          url: `${app.globalData.baseUrl}/api/rankings`,
-          data: { limit: 1000 },  // 获取足够多的用户来找到当前用户的排名
-          success: (res) => resolve(res.data),
-          fail: reject
-        });
-      });
+      const res = await app.request('/api/rankings', { limit: 1000 });
 
       if (res.success && res.data && res.data.list) {
         // 在排行榜中找到当前用户

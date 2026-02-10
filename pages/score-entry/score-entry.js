@@ -21,13 +21,7 @@ Page({
   // 加载比赛详情
   async loadMatchDetail() {
     try {
-      const res = await new Promise((resolve, reject) => {
-        wx.request({
-          url: `${app.globalData.baseUrl}/api/events/matches/${this.data.matchId}`,
-          success: (res) => resolve(res.data),
-          fail: reject
-        });
-      });
+      const res = await app.request(`/api/events/matches/${this.data.matchId}`);
 
       if (res.success) {
         const scores = this.initScores(res.data.best_of || 5);
@@ -129,18 +123,10 @@ Page({
     }
 
     try {
-      const res = await new Promise((resolve, reject) => {
-        wx.request({
-          url: `${app.globalData.baseUrl}/api/events/matches/${this.data.matchId}/score`,
-          method: 'POST',
-          data: {
+      const res = await app.request(`/api/events/matches/${this.data.matchId}/score`, {
             scores: validScores,
             recorded_by: app.globalData.userInfo?.user_id
-          },
-          success: (res) => resolve(res.data),
-          fail: reject
-        });
-      });
+          }, 'POST');
 
       if (res.success) {
         wx.showToast({ title: '提交成功', icon: 'success' });

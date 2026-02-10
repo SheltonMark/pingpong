@@ -26,29 +26,21 @@ let templateIds = {
  * 从后端获取模板配置
  */
 async function fetchTemplateConfig() {
-  return new Promise((resolve, reject) => {
-    wx.request({
-      url: `${app.globalData.baseUrl}/api/subscription/templates`,
-      method: 'GET',
-      success: (res) => {
-        if (res.data && res.data.success && res.data.data) {
-          const templates = res.data.data;
-          for (const key in templates) {
-            if (templates[key] && templates[key].templateId) {
-              templateIds[key] = templates[key].templateId;
-            }
-          }
-          resolve(templateIds);
-        } else {
-          resolve(templateIds);
+  try {
+    const res = await app.request('/api/subscription/templates');
+    if (res && res.success && res.data) {
+      const templates = res.data;
+      for (const key in templates) {
+        if (templates[key] && templates[key].templateId) {
+          templateIds[key] = templates[key].templateId;
         }
-      },
-      fail: (err) => {
-        console.error('获取模板配置失败:', err);
-        resolve(templateIds);
       }
-    });
-  });
+    }
+    return templateIds;
+  } catch (err) {
+    console.error('获取模板配置失败:', err);
+    return templateIds;
+  }
 }
 
 /**
@@ -123,33 +115,22 @@ async function requestSubscription(types) {
  * @param {Array<number>} counts - 每个模板的订阅次数
  */
 async function recordSubscription(templateTypes, counts) {
-  return new Promise((resolve, reject) => {
-    const userId = app.globalData.userInfo && app.globalData.userInfo.id;
-    if (!userId) {
-      reject(new Error('用户未登录'));
-      return;
-    }
+  const userId = app.globalData.userInfo && app.globalData.userInfo.id;
+  if (!userId) {
+    throw new Error('用户未登录');
+  }
 
-    wx.request({
-      url: `${app.globalData.baseUrl}/api/subscription/record`,
-      method: 'POST',
-      data: {
-        user_id: userId,
-        template_types: templateTypes,
-        counts: counts
-      },
-      success: (res) => {
-        if (res.data && res.data.success) {
-          resolve(res.data);
-        } else {
-          reject(new Error(res.data ? res.data.message : '记录订阅失败'));
-        }
-      },
-      fail: (err) => {
-        reject(err);
-      }
-    });
-  });
+  const res = await app.request('/api/subscription/record', {
+    user_id: userId,
+    template_types: templateTypes,
+    counts: counts
+  }, 'POST');
+
+  if (res && res.success) {
+    return res;
+  } else {
+    throw new Error(res ? res.message : '记录订阅失败');
+  }
 }
 
 /**
@@ -194,29 +175,18 @@ async function requestEventSubscriptions() {
  * 获取用户的订阅配额
  */
 async function getSubscriptionQuota() {
-  return new Promise((resolve, reject) => {
-    const userId = app.globalData.userInfo && app.globalData.userInfo.id;
-    if (!userId) {
-      reject(new Error('用户未登录'));
-      return;
-    }
+  const userId = app.globalData.userInfo && app.globalData.userInfo.id;
+  if (!userId) {
+    throw new Error('用户未登录');
+  }
 
-    wx.request({
-      url: `${app.globalData.baseUrl}/api/subscription/quota`,
-      method: 'GET',
-      data: { user_id: userId },
-      success: (res) => {
-        if (res.data && res.data.success) {
-          resolve(res.data.data);
-        } else {
-          reject(new Error(res.data ? res.data.message : '获取配额失败'));
-        }
-      },
-      fail: (err) => {
-        reject(err);
-      }
-    });
-  });
+  const res = await app.request('/api/subscription/quota', { user_id: userId });
+
+  if (res && res.success) {
+    return res.data;
+  } else {
+    throw new Error(res ? res.message : '获取配额失败');
+  }
 }
 
 module.exports = {

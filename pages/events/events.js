@@ -62,14 +62,7 @@ Page({
         params.school_id = app.globalData.userInfo.school_id;
       }
 
-      const res = await new Promise((resolve, reject) => {
-        wx.request({
-          url: `${app.globalData.baseUrl}/api/events`,
-          data: params,
-          success: (res) => resolve(res.data),
-          fail: reject
-        });
-      });
+      const res = await app.request('/api/events', params);
 
       if (res.success) {
         this.setData({

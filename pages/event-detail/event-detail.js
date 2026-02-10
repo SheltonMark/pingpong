@@ -52,13 +52,7 @@ Page({
   // 加载赛事详情
   async loadEventDetail() {
     try {
-      const res = await new Promise((resolve, reject) => {
-        wx.request({
-          url: `${app.globalData.baseUrl}/api/events/${this.data.eventId}`,
-          success: (res) => resolve(res.data),
-          fail: reject
-        });
-      });
+      const res = await app.request(`/api/events/${this.data.eventId}`);
 
       if (res.success) {
         const event = res.data.event;
@@ -93,13 +87,7 @@ Page({
   // 加载对阵表
   async loadMatches() {
     try {
-      const res = await new Promise((resolve, reject) => {
-        wx.request({
-          url: `${app.globalData.baseUrl}/api/events/${this.data.eventId}/matches`,
-          success: (res) => resolve(res.data),
-          fail: reject
-        });
-      });
+      const res = await app.request(`/api/events/${this.data.eventId}/matches`);
 
       if (res.success) {
         this.setData({ matches: res.data });
@@ -115,13 +103,7 @@ Page({
     if (!userId) return;
 
     try {
-      const res = await new Promise((resolve, reject) => {
-        wx.request({
-          url: `${app.globalData.baseUrl}/api/events/${this.data.eventId}/captain-status?user_id=${userId}`,
-          success: (res) => resolve(res.data),
-          fail: reject
-        });
-      });
+      const res = await app.request(`/api/events/${this.data.eventId}/captain-status`, { user_id: userId });
 
       if (res.success) {
         this.setData({
@@ -154,15 +136,7 @@ Page({
           }
 
           try {
-            const result = await new Promise((resolve, reject) => {
-              wx.request({
-                url: `${app.globalData.baseUrl}/api/events/${this.data.eventId}/apply-captain`,
-                method: 'POST',
-                data: { user_id: app.globalData.userInfo.user_id },
-                success: (res) => resolve(res.data),
-                fail: reject
-              });
-            });
+            const result = await app.request(`/api/events/${this.data.eventId}/apply-captain`, { user_id: app.globalData.userInfo.user_id }, 'POST');
 
             if (result.success) {
               wx.showToast({ title: '申请已提交', icon: 'success' });
@@ -222,15 +196,7 @@ Page({
       success: async (res) => {
         if (res.confirm) {
           try {
-            const result = await new Promise((resolve, reject) => {
-              wx.request({
-                url: `${app.globalData.baseUrl}/api/events/${this.data.eventId}/register`,
-                method: 'POST',
-                data: { user_id: app.globalData.userInfo.user_id },
-                success: (res) => resolve(res.data),
-                fail: reject
-              });
-            });
+            const result = await app.request(`/api/events/${this.data.eventId}/register`, { user_id: app.globalData.userInfo.user_id }, 'POST');
 
             if (result.success) {
               wx.showToast({ title: '报名成功', icon: 'success' });
@@ -256,15 +222,7 @@ Page({
       success: async (res) => {
         if (res.confirm) {
           try {
-            const result = await new Promise((resolve, reject) => {
-              wx.request({
-                url: `${app.globalData.baseUrl}/api/events/${this.data.eventId}/cancel`,
-                method: 'POST',
-                data: { user_id: app.globalData.userInfo.user_id },
-                success: (res) => resolve(res.data),
-                fail: reject
-              });
-            });
+            const result = await app.request(`/api/events/${this.data.eventId}/cancel`, { user_id: app.globalData.userInfo.user_id }, 'POST');
 
             if (result.success) {
               wx.showToast({ title: '已取消', icon: 'success' });
@@ -309,15 +267,7 @@ Page({
       success: async (res) => {
         if (res.confirm) {
           try {
-            const result = await new Promise((resolve, reject) => {
-              wx.request({
-                url: `${app.globalData.baseUrl}/api/events/${this.data.eventId}/cancel-team`,
-                method: 'POST',
-                data: { user_id: app.globalData.userInfo.user_id },
-                success: (res) => resolve(res.data),
-                fail: reject
-              });
-            });
+            const result = await app.request(`/api/events/${this.data.eventId}/cancel-team`, { user_id: app.globalData.userInfo.user_id }, 'POST');
 
             if (result.success) {
               wx.showToast({ title: '已取消', icon: 'success' });

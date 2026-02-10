@@ -62,13 +62,7 @@ Page({
   async loadUserData() {
     // 从后端重新获取最新用户信息
     try {
-      const res = await new Promise((resolve, reject) => {
-        wx.request({
-          url: `${app.globalData.baseUrl}/api/user/profile?openid=${app.globalData.openid}`,
-          success: (res) => resolve(res.data),
-          fail: reject
-        });
-      });
+      const res = await app.request(`/api/user/profile`, { openid: app.globalData.openid });
 
       if (res.success && res.data) {
         const userInfo = res.data;
@@ -134,17 +128,11 @@ Page({
   async loadSchools() {
     try {
       this.setData({ loading: true });
-      const res = await new Promise((resolve, reject) => {
-        wx.request({
-          url: `${app.globalData.baseUrl}/api/common/schools`,
-          success: (res) => resolve(res),
-          fail: reject
-        });
-      });
+      const res = await app.request('/api/common/schools');
 
-      if (res.data && res.data.data) {
+      if (res && res.data) {
         this.setData({
-          schools: res.data.data,
+          schools: res.data,
           loading: false
         });
       }
@@ -172,16 +160,10 @@ Page({
     }
 
     try {
-      const res = await new Promise((resolve, reject) => {
-        wx.request({
-          url: `${app.globalData.baseUrl}/api/common/colleges?school_id=${schoolId}`,
-          success: (res) => resolve(res),
-          fail: reject
-        });
-      });
+      const res = await app.request('/api/common/colleges', { school_id: schoolId });
 
-      if (res.data && res.data.data) {
-        this.setData({ colleges: res.data.data });
+      if (res && res.data) {
+        this.setData({ colleges: res.data });
       }
     } catch (error) {
       console.error('加载学院失败:', error);
@@ -196,16 +178,10 @@ Page({
     }
 
     try {
-      const res = await new Promise((resolve, reject) => {
-        wx.request({
-          url: `${app.globalData.baseUrl}/api/common/departments?school_id=${schoolId}`,
-          success: (res) => resolve(res),
-          fail: reject
-        });
-      });
+      const res = await app.request('/api/common/departments', { school_id: schoolId });
 
-      if (res.data && res.data.data) {
-        this.setData({ departments: res.data.data });
+      if (res && res.data) {
+        this.setData({ departments: res.data });
       }
     } catch (error) {
       console.error('加载单位失败:', error);
@@ -316,15 +292,9 @@ Page({
 
     try {
       const { form, selectedType, isEditMode } = this.data;
-      const url = isEditMode
-        ? `${app.globalData.baseUrl}/api/user/update`
-        : `${app.globalData.baseUrl}/api/user/register`;
+      const path = isEditMode ? '/api/user/update' : '/api/user/register';
 
-      const res = await new Promise((resolve, reject) => {
-        wx.request({
-          url,
-          method: 'POST',
-          data: {
+      const res = await app.request(path, {
             openid: app.globalData.openid,
             user_id: app.globalData.userInfo?.id,
             user_type: selectedType,
@@ -337,20 +307,16 @@ Page({
             class_name: form.className,
             enrollment_year: form.enrollmentYear,
             avatar_url: form.avatarUrl
-          },
-          success: (res) => resolve(res),
-          fail: reject
-        });
-      });
+          }, 'POST');
 
-      if (res.data && res.data.success) {
+      if (res && res.success) {
         wx.showToast({
           title: isEditMode ? '保存成功' : '注册成功',
           icon: 'success'
         });
 
         // 更新全局用户信息
-        app.globalData.userInfo = res.data.data;
+        app.globalData.userInfo = res.data;
         app.globalData.isRegistered = true;
 
         setTimeout(() => {
@@ -361,7 +327,7 @@ Page({
           }
         }, 1500);
       } else {
-        throw new Error(res.data?.message || (isEditMode ? '保存失败' : '注册失败'));
+        throw new Error(res?.message || (isEditMode ? '保存失败' : '注册失败'));
       }
     } catch (error) {
       console.error('提交失败:', error);

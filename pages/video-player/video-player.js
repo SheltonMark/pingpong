@@ -25,13 +25,7 @@ Page({
 
   async loadVideoInfo(id) {
     try {
-      const res = await new Promise((resolve, reject) => {
-        wx.request({
-          url: `${app.globalData.baseUrl}/api/learning/${id}`,
-          success: (res) => resolve(res.data),
-          fail: reject
-        });
-      });
+      const res = await app.request(`/api/learning/${id}`);
 
       if (res.success) {
         this.setData({ videoInfo: res.data });

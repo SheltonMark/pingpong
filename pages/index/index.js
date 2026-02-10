@@ -156,13 +156,7 @@ Page({
   // 加载学校列表
   async loadSchools() {
     try {
-      const res = await new Promise((resolve, reject) => {
-        wx.request({
-          url: `${app.globalData.baseUrl}/api/common/schools`,
-          success: (res) => resolve(res.data),
-          fail: reject
-        });
-      });
+      const res = await app.request('/api/common/schools');
 
       if (res.success && res.data) {
         const schools = res.data;
@@ -214,16 +208,9 @@ Page({
   // 加载公告
   async loadAnnouncements() {
     try {
-      const res = await new Promise((resolve, reject) => {
-        wx.request({
-          url: `${app.globalData.baseUrl}/api/announcements`,
-          data: {
-            school_id: app.globalData.userInfo?.school_id,
-            limit: 5
-          },
-          success: (res) => resolve(res.data),
-          fail: reject
-        });
+      const res = await app.request('/api/announcements', {
+        school_id: app.globalData.userInfo?.school_id,
+        limit: 5
       });
 
       if (res.success) {
@@ -242,14 +229,7 @@ Page({
         params.school_id = this.data.currentSchoolId;
       }
 
-      const res = await new Promise((resolve, reject) => {
-        wx.request({
-          url: `${app.globalData.baseUrl}/api/rankings`,
-          data: params,
-          success: (res) => resolve(res.data),
-          fail: reject
-        });
-      });
+      const res = await app.request('/api/rankings', params);
 
       if (res.success && res.data && res.data.list) {
         // 格式化排行榜数据

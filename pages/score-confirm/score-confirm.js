@@ -19,13 +19,7 @@ Page({
   // 加载比赛详情和比分
   async loadMatchDetail() {
     try {
-      const res = await new Promise((resolve, reject) => {
-        wx.request({
-          url: `${app.globalData.baseUrl}/api/events/matches/${this.data.matchId}`,
-          success: (res) => resolve(res.data),
-          fail: reject
-        });
-      });
+      const res = await app.request(`/api/events/matches/${this.data.matchId}`);
 
       if (res.success) {
         const totalScore = this.calculateTotalScore(res.data.scores || []);
@@ -60,17 +54,9 @@ Page({
     this.setData({ confirming: true });
 
     try {
-      const res = await new Promise((resolve, reject) => {
-        wx.request({
-          url: `${app.globalData.baseUrl}/api/events/matches/${this.data.matchId}/confirm`,
-          method: 'POST',
-          data: {
+      const res = await app.request(`/api/events/matches/${this.data.matchId}/confirm`, {
             user_id: app.globalData.userInfo?.user_id
-          },
-          success: (res) => resolve(res.data),
-          fail: reject
-        });
-      });
+          }, 'POST');
 
       if (res.success) {
         wx.showToast({ title: '确认成功', icon: 'success' });

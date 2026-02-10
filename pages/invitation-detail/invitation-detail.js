@@ -205,14 +205,6 @@ Page({
   },
 
   request(url, data, method = 'GET') {
-    return new Promise((resolve, reject) => {
-      wx.request({
-        url: app.globalData.baseUrl + url,
-        method,
-        data,
-        success: (res) => resolve(res.data),
-        fail: reject
-      });
-    });
+    return app.request(url, data, method);
   }
 });

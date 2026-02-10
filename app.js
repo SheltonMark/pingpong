@@ -1,6 +1,13 @@
 App({
   onLaunch() {
     console.log('小程序启动');
+
+    // 初始化云托管
+    wx.cloud.init({
+      env: 'prod-1gc88z9k40350ea7',
+      traceUser: true
+    });
+
     // 检查登录状态
     this.checkLoginStatus();
   },
@@ -24,7 +31,66 @@ App({
     // 【开发模式配置】
     // 设置为 false 启用真实后端登录
     // ============================================================
-    useMockLogin: false
+    useMockLogin: false,
+
+    // ============================================================
+    // 【云托管配置】
+    // useCloudContainer: true 使用云托管调用（生产环境）
+    // useCloudContainer: false 回退到 wx.request（本地开发）
+    // ============================================================
+    useCloudContainer: true,
+    cloudConfig: {
+      env: 'prod-1gc88z9k40350ea7',
+      serviceName: 'express-lksv'
+    }
+  },
+
+  // 统一请求方法
+  request(path, data, method) {
+    method = method || 'GET';
+    if (this.globalData.useCloudContainer) {
+      return new Promise((resolve, reject) => {
+        wx.cloud.callContainer({
+          config: {
+            env: this.globalData.cloudConfig.env
+          },
+          path: path,
+          method: method,
+          header: {
+            'X-WX-SERVICE': this.globalData.cloudConfig.serviceName,
+            'content-type': 'application/json'
+          },
+          data: data,
+          success: (res) => {
+            if (res.data) {
+              resolve(res.data);
+            } else {
+              reject(new Error('服务器响应异常'));
+            }
+          },
+          fail: (err) => {
+            console.error('云托管请求失败:', path, err);
+            reject(err);
+          }
+        });
+      });
+    } else {
+      return new Promise((resolve, reject) => {
+        wx.request({
+          url: this.globalData.baseUrl + path,
+          method: method,
+          data: data,
+          success: (res) => {
+            if (res.data) {
+              resolve(res.data);
+            } else {
+              reject(new Error('服务器响应异常'));
+            }
+          },
+          fail: reject
+        });
+      });
+    }
   },
 
   // 检查登录状态
@@ -67,7 +133,7 @@ App({
           if (res.code) {
             try {
               // 调用后端接口换取 openid
-              const result = await this.requestWxLogin(res.code);
+              const result = await this.request('/api/auth/wx-login', { code: res.code }, 'POST');
               if (result.success) {
                 this.globalData.openid = result.data.openid;
                 this.globalData.isLoggedIn = true;
@@ -96,25 +162,6 @@ App({
     });
   },
 
-  // 请求后端微信登录接口
-  requestWxLogin(code) {
-    return new Promise((resolve, reject) => {
-      wx.request({
-        url: `${this.globalData.baseUrl}/api/auth/wx-login`,
-        method: 'POST',
-        data: { code },
-        success: (res) => {
-          if (res.data) {
-            resolve(res.data);
-          } else {
-            reject(new Error('服务器响应异常'));
-          }
-        },
-        fail: reject
-      });
-    });
-  },
-
   // 同意隐私政策
   async agreePrivacy() {
     this.globalData.hasAgreedPrivacy = true;
@@ -122,15 +169,7 @@ App({
 
     if (this.globalData.openid) {
       try {
-        await new Promise((resolve, reject) => {
-          wx.request({
-            url: `${this.globalData.baseUrl}/api/user/agree-privacy`,
-            method: 'POST',
-            data: { openid: this.globalData.openid },
-            success: resolve,
-            fail: reject
-          });
-        });
+        await this.request('/api/user/agree-privacy', { openid: this.globalData.openid }, 'POST');
       } catch (error) {
         console.error('记录隐私政策同意状态失败:', error);
       }
