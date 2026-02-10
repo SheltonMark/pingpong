@@ -1992,16 +1992,10 @@ router.get('/posts', requireAdmin, async (req, res) => {
 
     const [posts] = await pool.execute(sql, params);
 
-    // 收集所有 cloud:// 头像URL并批量转换
-    const avatarUrls = posts.map(p => p.author_avatar).filter(Boolean);
-    const resolvedAvatars = await resolveCloudUrls(avatarUrls);
-    const avatarMap = {};
-    avatarUrls.forEach((url, i) => { avatarMap[url] = resolvedAvatars[i]; });
-
     // 转换头像URL
     const list = posts.map(p => ({
       ...p,
-      author_avatar: avatarMap[p.author_avatar] || toFullUrl(p.author_avatar, req)
+      author_avatar: toFullUrl(p.author_avatar, req)
     }));
 
     res.json({
