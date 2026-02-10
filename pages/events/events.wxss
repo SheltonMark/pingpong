@@ -9,16 +9,18 @@
 .filter-tabs {
   display: flex;
   background: var(--white);
-  padding: 24rpx 32rpx;
-  gap: 24rpx;
+  padding: 20rpx 24rpx;
+  gap: 16rpx;
   position: sticky;
   top: 0;
   z-index: 100;
 }
 
 .tab-item {
-  padding: 16rpx 32rpx;
-  font-size: 28rpx;
+  flex: 1;
+  text-align: center;
+  padding: 14rpx 0;
+  font-size: 24rpx;
   color: var(--gray-600);
   background: var(--gray-100);
   border-radius: 32rpx;
