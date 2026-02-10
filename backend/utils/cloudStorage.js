@@ -52,12 +52,8 @@ async function uploadFile(localFilePath, cloudPath) {
       fileContent: fs.createReadStream(localFilePath)
     });
 
-    // 获取临时访问链接
-    const tempUrls = await tcbApp.getTempFileURL({
-      fileList: [result.fileID]
-    });
-
-    const downloadUrl = tempUrls.fileList[0]?.tempFileURL || '';
+    // 直接从 fileID 构造 URL，避免 getTempFileURL 超时
+    const downloadUrl = cloudIdToHttpUrl(result.fileID);
 
     return {
       fileID: result.fileID,
@@ -66,6 +62,26 @@ async function uploadFile(localFilePath, cloudPath) {
   } catch (error) {
     console.error('Upload to cloud storage failed:', error);
     throw error;
+  }
+}
+
+/**
+ * 从 cloud:// fileID 构造 HTTP 下载 URL（不依赖 getTempFileURL）
+ * cloud://prod-1gc88z9k40350ea7.7072-prod-1gc88z9k40350ea7-1391867763/path
+ * → https://7072-prod-1gc88z9k40350ea7-1391867763.tcb.qcloud.la/path
+ */
+function cloudIdToHttpUrl(fileID) {
+  if (!fileID || !fileID.startsWith('cloud://')) return fileID;
+  try {
+    const withoutPrefix = fileID.replace('cloud://', '');
+    const dotIndex = withoutPrefix.indexOf('.');
+    const slashIndex = withoutPrefix.indexOf('/');
+    if (dotIndex === -1 || slashIndex === -1) return fileID;
+    const bucket = withoutPrefix.substring(dotIndex + 1, slashIndex);
+    const filePath = withoutPrefix.substring(slashIndex + 1);
+    return `https://${bucket}.tcb.qcloud.la/${filePath}`;
+  } catch (e) {
+    return fileID;
   }
 }
 
@@ -88,12 +104,8 @@ async function uploadBuffer(buffer, cloudPath) {
       fileContent: buffer
     });
 
-    // 获取临时访问链接
-    const tempUrls = await tcbApp.getTempFileURL({
-      fileList: [result.fileID]
-    });
-
-    const downloadUrl = tempUrls.fileList[0]?.tempFileURL || '';
+    // 直接从 fileID 构造 URL，避免 getTempFileURL 超时
+    const downloadUrl = cloudIdToHttpUrl(result.fileID);
 
     return {
       fileID: result.fileID,
@@ -169,5 +181,6 @@ module.exports = {
   uploadBuffer,
   getTempFileURL,
   deleteFile,
-  isCloudStorageAvailable
+  isCloudStorageAvailable,
+  cloudIdToHttpUrl
 };

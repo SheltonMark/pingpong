@@ -15,7 +15,7 @@ function formatDateForMySQL(dateStr) {
 function toFullUrl(url, req) {
   if (!url) return url;
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  if (url.startsWith('cloud://')) return url; // cloud fileID 需要异步转换，这里跳过
+  if (url.startsWith('cloud://')) return cloudStorage.cloudIdToHttpUrl(url);
 
   let baseUrl = process.env.BASE_URL;
   if (!baseUrl) {
