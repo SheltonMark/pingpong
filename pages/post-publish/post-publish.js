@@ -84,7 +84,7 @@ Page({
     this.setData({ isSubmitting: true });
 
     try {
-      // 先上传图片，获取真实URL
+      // 先上传图片到云存储
       const imageUrls = [];
       if (this.data.images.length > 0) {
         wx.showLoading({ title: '上传图片中...' });
@@ -104,20 +104,6 @@ Page({
           }
         }
         wx.hideLoading();
-
-        // 获取临时访问URL
-        if (imageUrls.length > 0) {
-          try {
-            const urlRes = await wx.cloud.getTempFileURL({ fileList: imageUrls });
-            for (let i = 0; i < urlRes.fileList.length; i++) {
-              if (urlRes.fileList[i].tempFileURL) {
-                imageUrls[i] = urlRes.fileList[i].tempFileURL;
-              }
-            }
-          } catch (urlErr) {
-            console.error('获取图片URL失败:', urlErr);
-          }
-        }
       }
 
       let url, data;

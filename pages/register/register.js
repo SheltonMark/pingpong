@@ -305,10 +305,7 @@ Page({
             filePath: avatarUrl
           });
           if (uploadRes.fileID) {
-            const urlRes = await wx.cloud.getTempFileURL({ fileList: [uploadRes.fileID] });
-            if (urlRes.fileList[0]?.tempFileURL) {
-              avatarUrl = urlRes.fileList[0].tempFileURL;
-            }
+            avatarUrl = uploadRes.fileID;
           }
         } catch (uploadErr) {
           console.error('头像上传失败:', uploadErr);
