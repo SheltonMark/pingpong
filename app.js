@@ -49,18 +49,29 @@ App({
   request(path, data, method) {
     method = method || 'GET';
     if (this.globalData.useCloudContainer) {
+      // GET 请求：参数拼到 URL query string，避免 callContainer 把 data 放 body
+      let requestPath = path;
+      let requestData = data;
+      if (method === 'GET' && data && Object.keys(data).length > 0) {
+        const qs = Object.keys(data)
+          .filter(k => data[k] !== undefined && data[k] !== null)
+          .map(k => `${encodeURIComponent(k)}=${encodeURIComponent(data[k])}`)
+          .join('&');
+        requestPath = path + (path.includes('?') ? '&' : '?') + qs;
+        requestData = {};
+      }
       return new Promise((resolve, reject) => {
         wx.cloud.callContainer({
           config: {
             env: this.globalData.cloudConfig.env
           },
-          path: path,
+          path: requestPath,
           method: method,
           header: {
             'X-WX-SERVICE': this.globalData.cloudConfig.serviceName,
             'content-type': 'application/json'
           },
-          data: data,
+          data: requestData,
           success: (res) => {
             if (res.data) {
               resolve(res.data);
