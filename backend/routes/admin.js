@@ -449,11 +449,12 @@ router.get('/users', requireAdmin, async (req, res) => {
       FROM users u
       LEFT JOIN schools s ON u.school_id = s.id
       LEFT JOIN colleges c ON u.college_id = c.id
+      WHERE u.is_registered = 1
     `;
     const params = [];
 
     if (keyword) {
-      sql += ' WHERE u.name LIKE ? OR u.phone LIKE ?';
+      sql += ' AND (u.name LIKE ? OR u.phone LIKE ?)';
       params.push(`%${keyword}%`, `%${keyword}%`);
     }
 
@@ -463,10 +464,10 @@ router.get('/users', requireAdmin, async (req, res) => {
     const [users] = await pool.execute(sql, params);
 
     // 获取总数
-    let countSql = 'SELECT COUNT(*) as total FROM users';
+    let countSql = 'SELECT COUNT(*) as total FROM users WHERE is_registered = 1';
     let countParams = [];
     if (keyword) {
-      countSql += ' WHERE name LIKE ? OR phone LIKE ?';
+      countSql += ' AND (name LIKE ? OR phone LIKE ?)';
       countParams = [`%${keyword}%`, `%${keyword}%`];
     }
     const [[{ total }]] = await pool.execute(countSql, countParams);
