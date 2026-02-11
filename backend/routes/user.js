@@ -52,11 +52,7 @@ router.post('/agree-privacy', async (req, res) => {
     const [existing] = await pool.query('SELECT id FROM users WHERE openid = ?', [openid]);
 
     if (existing.length === 0) {
-      // 创建新用户
-      await pool.execute(
-        'INSERT INTO users (openid, privacy_agreed, privacy_agreed_at) VALUES (?, 1, NOW())',
-        [openid]
-      );
+      // 用户不存在，不创建记录，仅返回成功（注册时再创建）
     } else {
       // 更新现有用户
       await pool.execute(
