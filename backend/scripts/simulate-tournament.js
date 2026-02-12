@@ -12,17 +12,17 @@ const fetch = globalThis.fetch || require('node-fetch');
 const BASE_URL = process.env.BASE_URL || 'https://express-lksv-207842-4-1391867763.sh.run.tcloudbase.com';
 
 const PLAYERS = [
-  { id: 1, name: '李思源' },
-  { id: 2, name: '王老师' },
-  { id: 3, name: '陈雨婷' },
-  { id: 4, name: '张明远' },
-  { id: 5, name: '刘大伟' },
   { id: 1007, name: '海中' },
+  { id: 1008, name: '那图' },
   { id: 1013, name: '黄海' },
+  { id: 1014, name: '孩睡' },
   { id: 1015, name: '发个' },
+  { id: 1057, name: '肖老大' },
+  { id: 1066, name: '董' },
+  { id: 1012, name: '海中海' },
 ];
 
-const EVENT_ID = 9; // 新生杯单打赛
+const EVENT_ID = 12; // 日日日 - 校际单打赛
 
 const c = {
   g: (t) => `\x1b[32m${t}\x1b[0m`,
