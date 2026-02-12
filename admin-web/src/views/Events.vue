@@ -160,20 +160,26 @@ const editorConfig = {
   placeholder: '请输入赛事说明...',
   MENU_CONF: {
     uploadImage: {
-      server: '/api/upload/file',
-      fieldName: 'file',
       maxFileSize: 5 * 1024 * 1024,
       allowedFileTypes: ['image/*'],
-      timeout: 60 * 1000, // 60秒超时
-      // 自定义插入图片
-      customInsert(res, insertFn) {
-        if (res.success) {
-          // insertFn(url, alt, href)
-          // url 必须是完整的URL，否则编辑器可能无法正确显示
-          const imageUrl = res.data.url
-          insertFn(imageUrl, '', imageUrl)
-        } else {
-          ElMessage.error(res.message || '上传失败')
+      // 使用 customUpload 完全绕过 Uppy（Uppy 有 10s stall 检测会误杀慢上传）
+      async customUpload(file, insertFn) {
+        try {
+          const formData = new FormData()
+          formData.append('file', file)
+          const res = await fetch('/api/upload/file', {
+            method: 'POST',
+            body: formData
+          })
+          const data = await res.json()
+          if (data.success) {
+            insertFn(data.data.url, '', data.data.url)
+          } else {
+            ElMessage.error(data.message || '上传失败')
+          }
+        } catch (err) {
+          console.error('Upload failed:', err)
+          ElMessage.error('图片上传失败')
         }
       }
     }
