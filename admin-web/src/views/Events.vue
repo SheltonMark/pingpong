@@ -164,6 +164,7 @@ const editorConfig = {
       fieldName: 'file',
       maxFileSize: 5 * 1024 * 1024,
       allowedFileTypes: ['image/*'],
+      timeout: 60 * 1000, // 60秒超时
       // 自定义插入图片
       customInsert(res, insertFn) {
         if (res.success) {
