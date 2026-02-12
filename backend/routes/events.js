@@ -1464,3 +1464,4 @@ async function calculateGroupKnockoutStandings(eventId) {
 }
 
 module.exports = router;
+module.exports.computeEventStatus = computeEventStatus;

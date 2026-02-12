@@ -190,7 +190,8 @@ router.get('/events', requireAdmin, async (req, res) => {
 
     let sql = `
       SELECT e.*, s.name as school_name, u.name as creator_name,
-             (SELECT COUNT(*) FROM event_registrations WHERE event_id = e.id) as registration_count
+             (SELECT COUNT(*) FROM event_registrations WHERE event_id = e.id) as registration_count,
+             (SELECT COUNT(*) FROM event_registrations WHERE event_id = e.id AND status != 'cancelled') as participant_count
       FROM events e
       LEFT JOIN schools s ON e.school_id = s.id
       LEFT JOIN users u ON e.created_by = u.id
@@ -201,29 +202,39 @@ router.get('/events', requireAdmin, async (req, res) => {
     // 权限过滤：学校管理员只能看到校际赛事和自己学校的校内赛事
     if (!adminContext.isSuperAdmin) {
       if (adminContext.managedSchoolIds && adminContext.managedSchoolIds.length > 0) {
-        // 学校管理员：可以看到校际赛事 OR 自己学校的校内赛事 OR school_id为NULL的全局赛事
         whereClauses.push(`(e.scope = 'inter_school' OR e.school_id IS NULL OR e.school_id IN (${adminContext.managedSchoolIds.join(',')}))`);
       } else {
-        // 没有管理任何学校的管理员（理论上不应该发生，但做保护）
         whereClauses.push(`(e.scope = 'inter_school' OR e.school_id IS NULL)`);
       }
     }
 
-    if (status) {
-      whereClauses.push('e.status = ?');
-      params.push(status);
-    }
+    // 不在SQL层面过滤status，改为应用层过滤（status是动态计算的）
 
     if (whereClauses.length > 0) {
       sql += ' WHERE ' + whereClauses.join(' AND ');
     }
 
-    sql += ' ORDER BY e.created_at DESC LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), parseInt(offset));
+    sql += ' ORDER BY e.created_at DESC';
 
     const [events] = await pool.execute(sql, params);
 
-    res.json({ success: true, data: events });
+    // 动态计算赛事状态
+    const { computeEventStatus } = require('./events');
+    let eventsWithStatus = events.map(e => ({
+      ...e,
+      status: computeEventStatus(e)
+    }));
+
+    // 应用层过滤状态
+    if (status) {
+      eventsWithStatus = eventsWithStatus.filter(e => e.status === status);
+    }
+
+    // 手动分页
+    const total = eventsWithStatus.length;
+    const paged = eventsWithStatus.slice(parseInt(offset), parseInt(offset) + parseInt(limit));
+
+    res.json({ success: true, data: paged, total });
   } catch (error) {
     console.error('Get events error:', error);
     res.json({ success: false, message: '获取赛事列表失败' });
