@@ -77,15 +77,15 @@ router.post('/file', upload.single('file'), async (req, res) => {
     let fileID = null;
 
     if (useCloudStorage && req.file.buffer) {
-      // 使用云存储（带超时，防止挂起）
+      // 使用云存储（加大超时，本地存储在云托管环境不可靠）
       try {
         const category = req.body.category || 'uploads';
         const cloudPath = generateCloudPath(originalName, category);
 
-        // 设置 8 秒超时
+        // 设置 30 秒超时
         const uploadPromise = cloudStorage.uploadBuffer(req.file.buffer, cloudPath);
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Cloud upload timeout')), 8000)
+          setTimeout(() => reject(new Error('Cloud upload timeout')), 30000)
         );
         const result = await Promise.race([uploadPromise, timeoutPromise]);
         fileUrl = result.downloadUrl;
@@ -93,14 +93,8 @@ router.post('/file', upload.single('file'), async (req, res) => {
 
         console.log('File uploaded to cloud storage:', fileID);
       } catch (cloudError) {
-        console.error('Cloud storage upload failed, falling back to local:', cloudError.message);
-        // 回退到本地存储
-        const localFilename = Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(originalName);
-        const localPath = path.join(uploadDir, localFilename);
-        fs.writeFileSync(localPath, req.file.buffer);
-
-        const relativePath = `/uploads/${localFilename}`;
-        fileUrl = getBaseUrl(req) + relativePath;
+        console.error('Cloud storage upload failed:', cloudError.message);
+        return res.status(500).json({ success: false, message: '图片上传失败，请重试' });
       }
     } else {
       // 使用本地存储
