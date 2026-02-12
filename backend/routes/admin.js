@@ -334,6 +334,7 @@ router.get('/matches', requireAdmin, async (req, res) => {
 
     const [matches] = await pool.query(`
       SELECT m.*,
+             CONCAT(m.player1_games, ':', m.player2_games) as score,
              e.title as event_title,
              p1.name as player1_name, p2.name as player2_name,
              w.name as winner_name
