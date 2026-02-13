@@ -132,7 +132,7 @@
         <el-form-item label="说明图片">
           <el-upload
             v-model:file-list="imageFileList"
-            action="/api/upload/file?require_cloud=1"
+            action="/api/upload/file"
             list-type="picture-card"
             :on-success="onImageUploadSuccess"
             :on-error="onImageUploadError"
