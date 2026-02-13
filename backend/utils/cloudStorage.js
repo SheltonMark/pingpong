@@ -40,45 +40,64 @@ function initCloudBase() {
 }
 
 /**
- * 使用 COS SDK 直接上传（云托管内网，更稳定）
+ * 使用 COS SDK 直接上传（通过 metadata 服务获取临时密钥）
  */
 async function uploadBufferViaCOS(buffer, cloudPath) {
   return new Promise((resolve, reject) => {
-    // 云托管环境内置临时密钥，通过环境变量获取
-    const cos = new COS({
-      getAuthorization: function (options, callback) {
-        // 在云托管中，使用内置的临时密钥
-        const tmpSecretId = process.env.TENCENTCLOUD_SECRETID || process.env.SECRETID;
-        const tmpSecretKey = process.env.TENCENTCLOUD_SECRETKEY || process.env.SECRETKEY;
-        const sessionToken = process.env.TENCENTCLOUD_SESSIONTOKEN || process.env.SESSIONTOKEN;
+    const http = require('http');
 
-        if (tmpSecretId && tmpSecretKey) {
-          callback({
-            TmpSecretId: tmpSecretId,
-            TmpSecretKey: tmpSecretKey,
-            SecurityToken: sessionToken || '',
-            ExpiredTime: Math.floor(Date.now() / 1000) + 3600,
+    // 先从 metadata 服务获取临时密钥
+    const getCredentials = () => {
+      return new Promise((res, rej) => {
+        // 先获取角色名
+        const roleReq = http.get('http://metadata.tencentyun.com/latest/meta-data/cam/security-credentials/', { timeout: 3000 }, (roleRes) => {
+          let roleData = '';
+          roleRes.on('data', c => roleData += c);
+          roleRes.on('end', () => {
+            const roleName = roleData.trim();
+            if (!roleName) return rej(new Error('No IAM role found in metadata'));
+            // 用角色名获取临时密钥
+            http.get(`http://metadata.tencentyun.com/latest/meta-data/cam/security-credentials/${roleName}`, { timeout: 3000 }, (credRes) => {
+              let credData = '';
+              credRes.on('data', c => credData += c);
+              credRes.on('end', () => {
+                try {
+                  const cred = JSON.parse(credData);
+                  res(cred);
+                } catch (e) {
+                  rej(new Error('Failed to parse metadata credentials: ' + credData));
+                }
+              });
+            }).on('error', rej);
           });
-        } else {
-          reject(new Error('No COS credentials found in environment'));
-        }
-      }
-    });
+        });
+        roleReq.on('error', rej);
+        roleReq.on('timeout', () => { roleReq.destroy(); rej(new Error('Metadata service timeout')); });
+      });
+    };
 
-    cos.putObject({
-      Bucket: COS_BUCKET,
-      Region: COS_REGION,
-      Key: cloudPath,
-      Body: buffer,
-    }, (err, data) => {
-      if (err) {
-        reject(err);
-      } else {
-        const downloadUrl = `https://${COS_BUCKET}.tcb.qcloud.la/${cloudPath}`;
-        const fileID = `cloud://prod-1gc88z9k40350ea7.${COS_BUCKET}/${cloudPath}`;
-        resolve({ fileID, downloadUrl });
-      }
-    });
+    getCredentials().then(cred => {
+      const cos = new COS({
+        SecretId: cred.TmpSecretId,
+        SecretKey: cred.TmpSecretKey,
+        SecurityToken: cred.Token,
+      });
+
+      cos.putObject({
+        Bucket: COS_BUCKET,
+        Region: COS_REGION,
+        Key: cloudPath,
+        Body: buffer,
+      }, (err, data) => {
+        if (err) {
+          reject(err);
+        } else {
+          const downloadUrl = `https://${COS_BUCKET}.tcb.qcloud.la/${cloudPath}`;
+          const fileID = `cloud://prod-1gc88z9k40350ea7.${COS_BUCKET}/${cloudPath}`;
+          resolve({ fileID, downloadUrl });
+        }
+      });
+    }).catch(reject);
   });
 }
 
