@@ -131,6 +131,17 @@
   line-height: 1.6;
 }
 
+.desc-images {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.desc-image {
+  width: 100%;
+  border-radius: 12rpx;
+}
+
 /* 限制rich-text中图片的尺寸 */
 .desc-content image,
 .desc-content img {

@@ -70,6 +70,18 @@ Page({
         if (event.description) {
           event.description = processRichTextImages(event.description);
         }
+        // 解析说明图片
+        let descriptionImages = [];
+        if (event.description_images) {
+          try {
+            descriptionImages = typeof event.description_images === 'string'
+              ? JSON.parse(event.description_images)
+              : event.description_images;
+          } catch (e) {
+            descriptionImages = [];
+          }
+        }
+        event.descriptionImages = descriptionImages;
 
         this.setData({
           event: event,
@@ -262,6 +274,15 @@ Page({
     }
     wx.navigateTo({
       url: `/pages/team-register/team-register?id=${this.data.eventId}`
+    });
+  },
+
+  // 预览说明图片
+  onPreviewImage(e) {
+    const url = e.currentTarget.dataset.url;
+    wx.previewImage({
+      current: url,
+      urls: this.data.event.descriptionImages || [url]
     });
   },
 

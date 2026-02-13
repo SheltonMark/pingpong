@@ -112,23 +112,38 @@
             value-format="YYYY-MM-DD HH:mm:ss"
           />
         </el-form-item>
-		  <el-form-item label="赛事说明">
-			<div class="editor-container">
-			  <Toolbar
-				style="border-bottom: 1px solid #ccc"
-				:editor="editorRef"
-				:defaultConfig="toolbarConfig"
-				mode="default"
-			  />
-			  <Editor
-				style="height: 300px; overflow-y: hidden;"
-				v-model="form.description"
-				:defaultConfig="editorConfig"
-				mode="default"
-				@onCreated="handleCreated"
-			  />
-			</div>
-		  </el-form-item>
+        <el-form-item label="赛事说明">
+          <div class="editor-container">
+            <Toolbar
+              style="border-bottom: 1px solid #ccc"
+              :editor="editorRef"
+              :defaultConfig="toolbarConfig"
+              mode="default"
+            />
+            <Editor
+              style="height: 200px; overflow-y: hidden;"
+              v-model="form.description"
+              :defaultConfig="editorConfig"
+              mode="default"
+              @onCreated="handleCreated"
+            />
+          </div>
+        </el-form-item>
+        <el-form-item label="说明图片">
+          <el-upload
+            v-model:file-list="imageFileList"
+            action="/api/upload/file?require_cloud=1"
+            list-type="picture-card"
+            :on-success="onImageUploadSuccess"
+            :on-error="onImageUploadError"
+            :on-remove="onImageRemove"
+            :before-upload="beforeImageUpload"
+            :limit="9"
+            accept="image/*"
+          >
+            <el-icon><Plus /></el-icon>
+          </el-upload>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -141,7 +156,7 @@
 <script setup>
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { formatDateTime } from '../utils/format'
-import { ref, shallowRef, onMounted, onBeforeUnmount } from 'vue'
+import { ref, shallowRef, onMounted } from 'vue'
 import '@wangeditor/editor/dist/css/style.css'
 import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
 
@@ -151,44 +166,20 @@ const dialogVisible = ref(false)
 const isEdit = ref(false)
 const submitting = ref(false)
 const editorRef = shallowRef()
+const imageFileList = ref([])
 
 const toolbarConfig = {
-excludeKeys: ['fullScreen', 'group-video']
+  excludeKeys: ['fullScreen', 'group-video', 'group-image', 'insertImage']
 }
 
 const editorConfig = {
-  placeholder: '请输入赛事说明...',
-  MENU_CONF: {
-    uploadImage: {
-      maxFileSize: 5 * 1024 * 1024,
-      allowedFileTypes: ['image/*'],
-      // 使用 customUpload 完全绕过 Uppy（Uppy 有 10s stall 检测会误杀慢上传）
-      async customUpload(file, insertFn) {
-        try {
-          const formData = new FormData()
-          formData.append('file', file)
-          const res = await fetch('/api/upload/file', {
-            method: 'POST',
-            body: formData
-          })
-          const data = await res.json()
-          if (data.success) {
-            insertFn(data.data.url, '', data.data.url)
-          } else {
-            ElMessage.error(data.message || '上传失败')
-          }
-        } catch (err) {
-          console.error('Upload failed:', err)
-          ElMessage.error('图片上传失败')
-        }
-      }
-    }
-  }
+  placeholder: '请输入赛事说明（文字部分，图片请在下方上传）...'
 }
 
 const handleCreated = (editor) => {
-editorRef.value = editor
+  editorRef.value = editor
 }
+
 const form = ref({
   title: '',
   scope: 'school',
@@ -202,6 +193,7 @@ const form = ref({
   max_participants: 32,
   registration_end: '',
   description: '',
+  description_images: [],
 })
 
 const scopeLabels = {
@@ -233,6 +225,44 @@ const getAdminUser = () => {
   return JSON.parse(localStorage.getItem('adminUser') || '{}')
 }
 
+// 图片上传回调
+const beforeImageUpload = (file) => {
+  const isImage = file.type.startsWith('image/')
+  const isLt5M = file.size / 1024 / 1024 < 5
+  if (!isImage) {
+    ElMessage.error('只能上传图片文件')
+    return false
+  }
+  if (!isLt5M) {
+    ElMessage.error('图片大小不能超过 5MB')
+    return false
+  }
+  return true
+}
+
+const onImageUploadSuccess = (response, uploadFile) => {
+  if (response.success) {
+    uploadFile.url = response.data.url
+    form.value.description_images.push(response.data.url)
+  } else {
+    ElMessage.error(response.message || '上传失败')
+    // 移除失败的文件
+    const idx = imageFileList.value.indexOf(uploadFile)
+    if (idx > -1) imageFileList.value.splice(idx, 1)
+  }
+}
+
+const onImageUploadError = () => {
+  ElMessage.error('图片上传失败，请重试')
+}
+
+const onImageRemove = (uploadFile) => {
+  const url = uploadFile.url || uploadFile.response?.data?.url
+  if (url) {
+    form.value.description_images = form.value.description_images.filter(u => u !== url)
+  }
+}
+
 const loadEvents = async () => {
   loading.value = true
   try {
@@ -252,6 +282,7 @@ const loadEvents = async () => {
 
 const showCreateDialog = () => {
   isEdit.value = false
+  imageFileList.value = []
   form.value = {
     title: '',
     scope: 'school',
@@ -265,31 +296,35 @@ const showCreateDialog = () => {
     max_participants: 32,
     registration_end: '',
     description: '',
+    description_images: [],
     status: 'registration'
   }
   dialogVisible.value = true
 }
 
-// 将HTML中的相对路径转为完整URL（用于编辑器显示）
-const processDescriptionUrls = (html) => {
-  if (!html) return html
-  const apiBase = 'https://express-lksv-207842-4-1391867763.sh.run.tcloudbase.com'
-  // 替换所有属性中的相对路径 /uploads/... 为完整URL
-  return html.replace(/((?:src|data-href|href)=")(\/(uploads\/[^"]+))/g, `$1${apiBase}$2`)
-}
-
-// 保存时不再转换URL，直接存完整路径
-const toRelativeUrls = (html) => {
-  return html || ''
-}
-
 const editEvent = (row) => {
   isEdit.value = true
+  // 解析 description_images
+  let images = []
+  if (row.description_images) {
+    try {
+      images = typeof row.description_images === 'string'
+        ? JSON.parse(row.description_images)
+        : row.description_images
+    } catch (e) {
+      images = []
+    }
+  }
   form.value = {
     ...row,
-    // 处理description中的相对URL和纯文本图片路径
-    description: processDescriptionUrls(row.description)
+    description: row.description || '',
+    description_images: images
   }
+  // 构建 el-upload 的 fileList
+  imageFileList.value = images.map((url, i) => ({
+    name: `image-${i}`,
+    url: url
+  }))
   dialogVisible.value = true
 }
 
@@ -311,10 +346,10 @@ const submitForm = async () => {
       : '/api/admin/events'
     const method = isEdit.value ? 'PUT' : 'POST'
 
-    // 保存时将description中的完整URL转回相对路径
     const saveData = {
       ...form.value,
-      description: toRelativeUrls(form.value.description),
+      description: form.value.description || '',
+      description_images: form.value.description_images || [],
       user_id: user.id,
       school_id: user.school_id || null
     }
@@ -387,9 +422,8 @@ onMounted(() => {
 }
 
 .editor-container {
-border: 1px solid #ccc;
-border-radius: 4px;
-width: 100%;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 100%;
 }
-
 </style>

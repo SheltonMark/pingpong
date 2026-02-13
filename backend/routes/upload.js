@@ -95,7 +95,13 @@ router.post('/file', upload.single('file'), async (req, res) => {
 
         console.log('File uploaded to cloud storage:', fileID, 'url:', fileUrl);
       } catch (cloudError) {
-        console.error('Cloud storage upload failed, falling back to local:', cloudError.message, cloudError.stack);
+        console.error('Cloud storage upload failed:', cloudError.message, cloudError.stack);
+
+        // 如果要求必须云存储，直接报错
+        if (req.query.require_cloud === '1') {
+          return res.status(500).json({ success: false, message: '云存储上传失败，请重试' });
+        }
+
         // 回退到本地存储（云托管环境下文件可能在重启后丢失，但至少当前可用）
         const localFilename = Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(originalName);
         const localPath = path.join(uploadDir, localFilename);

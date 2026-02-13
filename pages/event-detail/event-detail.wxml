@@ -57,6 +57,22 @@
       <rich-text class="desc-content" nodes="{{event.description}}"></rich-text>
     </view>
 
+    <!-- 说明图片 -->
+    <view class="desc-card" wx:if="{{event.descriptionImages && event.descriptionImages.length > 0}}">
+      <view class="card-title">相关图片</view>
+      <view class="desc-images">
+        <image
+          wx:for="{{event.descriptionImages}}"
+          wx:key="index"
+          class="desc-image"
+          src="{{item}}"
+          mode="widthFix"
+          bindtap="onPreviewImage"
+          data-url="{{item}}"
+        />
+      </view>
+    </view>
+
     <!-- 团体赛领队申请 -->
     <view class="captain-card" wx:if="{{event.event_type === 'team'}}">
       <view class="card-title">领队申请</view>
