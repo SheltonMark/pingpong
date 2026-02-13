@@ -211,26 +211,25 @@ router.delete('/file', async (req, res) => {
 // 临时调试：检查云存储环境
 router.get('/debug-cloud', async (req, res) => {
   const envVars = {
-    TCB_ENV_ID: process.env.TCB_ENV_ID ? 'set' : 'unset',
-    CBR_ENV_ID: process.env.CBR_ENV_ID ? 'set(' + process.env.CBR_ENV_ID + ')' : 'unset',
-    TENCENTCLOUD_SECRETID: process.env.TENCENTCLOUD_SECRETID ? 'set' : 'unset',
-    TENCENTCLOUD_SECRETKEY: process.env.TENCENTCLOUD_SECRETKEY ? 'set' : 'unset',
-    TENCENTCLOUD_SESSIONTOKEN: process.env.TENCENTCLOUD_SESSIONTOKEN ? 'set' : 'unset',
+    CBR_ENV_ID: process.env.CBR_ENV_ID || 'unset',
     useCloudStorage: useCloudStorage,
   };
 
-  // 尝试上传一个小测试文件
-  if (useCloudStorage) {
-    try {
-      const testBuffer = Buffer.from('test');
-      const result = await cloudStorage.uploadBuffer(testBuffer, 'test/debug-' + Date.now() + '.txt');
-      envVars.uploadTest = 'SUCCESS';
-      envVars.uploadResult = { fileID: result.fileID, url: result.downloadUrl };
-    } catch (err) {
-      envVars.uploadTest = 'FAILED';
-      envVars.uploadError = err.message;
-      envVars.uploadErrorCode = err.code || null;
-    }
+  // 检查 metadata 服务是否可用
+  try {
+    const http = require('http');
+    const metaResult = await new Promise((resolve, reject) => {
+      const r = http.get('http://metadata.tencentyun.com/latest/meta-data/cam/security-credentials/', { timeout: 3000 }, (resp) => {
+        let d = '';
+        resp.on('data', c => d += c);
+        resp.on('end', () => resolve(d.trim()));
+      });
+      r.on('error', e => reject(e));
+      r.on('timeout', () => { r.destroy(); reject(new Error('timeout')); });
+    });
+    envVars.metadataRole = metaResult || 'empty';
+  } catch (e) {
+    envVars.metadataRole = 'error: ' + e.message;
   }
 
   res.json(envVars);
