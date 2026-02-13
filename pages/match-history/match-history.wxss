@@ -1,7 +1,16 @@
+page {
+  overflow-x: hidden;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .match-history-page {
   min-height: 100vh;
   background: #F5F5F5;
   padding: 24rpx;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 .stats-card {
@@ -49,6 +58,8 @@
   border-radius: 24rpx;
   overflow: hidden;
   box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.05);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .card-header {
@@ -65,6 +76,8 @@
 .record-list {
   height: calc(100vh - 400rpx);
   padding: 0 36rpx 36rpx;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 .record-item {
@@ -75,6 +88,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  box-sizing: border-box;
+  overflow: hidden;
+  width: 100%;
 }
 
 .record-left {
@@ -89,12 +105,14 @@
 .opponent-avatar {
   width: 72rpx;
   height: 72rpx;
+  min-width: 72rpx;
   border-radius: 20rpx;
   background: #E5E7EB;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 36rpx;
+  flex-shrink: 0;
 }
 
 .opponent-info {
