@@ -212,15 +212,27 @@ router.delete('/file', async (req, res) => {
 router.get('/debug-cloud', async (req, res) => {
   const envVars = {
     TCB_ENV_ID: process.env.TCB_ENV_ID ? 'set' : 'unset',
-    CBR_ENV_ID: process.env.CBR_ENV_ID ? 'set' : 'unset',
-    TENCENTCLOUD_SECRETID: process.env.TENCENTCLOUD_SECRETID ? 'set(' + process.env.TENCENTCLOUD_SECRETID.substring(0, 6) + '...)' : 'unset',
+    CBR_ENV_ID: process.env.CBR_ENV_ID ? 'set(' + process.env.CBR_ENV_ID + ')' : 'unset',
+    TENCENTCLOUD_SECRETID: process.env.TENCENTCLOUD_SECRETID ? 'set' : 'unset',
     TENCENTCLOUD_SECRETKEY: process.env.TENCENTCLOUD_SECRETKEY ? 'set' : 'unset',
     TENCENTCLOUD_SESSIONTOKEN: process.env.TENCENTCLOUD_SESSIONTOKEN ? 'set' : 'unset',
-    SECRETID: process.env.SECRETID ? 'set' : 'unset',
-    SECRETKEY: process.env.SECRETKEY ? 'set' : 'unset',
-    SESSIONTOKEN: process.env.SESSIONTOKEN ? 'set' : 'unset',
     useCloudStorage: useCloudStorage,
   };
+
+  // 尝试上传一个小测试文件
+  if (useCloudStorage) {
+    try {
+      const testBuffer = Buffer.from('test');
+      const result = await cloudStorage.uploadBuffer(testBuffer, 'test/debug-' + Date.now() + '.txt');
+      envVars.uploadTest = 'SUCCESS';
+      envVars.uploadResult = { fileID: result.fileID, url: result.downloadUrl };
+    } catch (err) {
+      envVars.uploadTest = 'FAILED';
+      envVars.uploadError = err.message;
+      envVars.uploadErrorCode = err.code || null;
+    }
+  }
+
   res.json(envVars);
 });
 
