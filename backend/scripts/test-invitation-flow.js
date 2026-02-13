@@ -20,8 +20,8 @@ const fetch = globalThis.fetch || require('node-fetch');
 const BASE_URL = process.env.BASE_URL || 'https://express-lksv-207842-4-1391867763.sh.run.tcloudbase.com';
 
 // 测试用户（需要在数据库中存在）
-const USER_A = { id: 4, name: '张明远' };  // 创建者
-const USER_B = { id: 5, name: '李思源' };  // 参与者
+const USER_A = { id: 1007, name: '海中' };  // 创建者
+const USER_B = { id: 1008, name: '那图' };  // 参与者
 
 // 颜色输出
 const colors = {

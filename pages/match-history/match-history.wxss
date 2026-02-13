@@ -81,6 +81,9 @@
   display: flex;
   align-items: center;
   gap: 20rpx;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .opponent-avatar {
@@ -97,22 +100,32 @@
 .opponent-info {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .opponent-name {
   font-size: 28rpx;
   font-weight: 600;
   color: #1A1A1A;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .match-meta {
   font-size: 22rpx;
   color: #9CA3AF;
   margin-top: 6rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .record-right {
   text-align: right;
+  flex-shrink: 0;
+  margin-left: 16rpx;
 }
 
 .result {
