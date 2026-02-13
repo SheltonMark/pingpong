@@ -52,15 +52,10 @@
       </view>
     </view>
 
-    <view class="desc-card" wx:if="{{event.description}}">
+    <view class="desc-card" wx:if="{{event.description || (event.descriptionImages && event.descriptionImages.length > 0)}}">
       <view class="card-title">赛事说明</view>
-      <rich-text class="desc-content" nodes="{{event.description}}"></rich-text>
-    </view>
-
-    <!-- 说明图片 -->
-    <view class="desc-card" wx:if="{{event.descriptionImages && event.descriptionImages.length > 0}}">
-      <view class="card-title">相关图片</view>
-      <view class="desc-images">
+      <rich-text class="desc-content" nodes="{{event.description}}" wx:if="{{event.description}}"></rich-text>
+      <view class="desc-images" wx:if="{{event.descriptionImages && event.descriptionImages.length > 0}}">
         <image
           wx:for="{{event.descriptionImages}}"
           wx:key="index"

@@ -1,14 +1,20 @@
 /**
  * CloudBase 云存储工具
  * 用于将文件上传到微信云开发的云存储中
+ * 优先使用 COS SDK 直传（更稳定），回退到 @cloudbase/node-sdk
  */
 
 const cloudbase = require('@cloudbase/node-sdk');
+const COS = require('cos-nodejs-sdk-v5');
 const fs = require('fs');
 const path = require('path');
 
 // 初始化 CloudBase
 let app = null;
+
+// COS 桶信息（从已知的 fileID 格式推导）
+const COS_BUCKET = '7072-prod-1gc88z9k40350ea7-1391867763';
+const COS_REGION = 'ap-shanghai';
 
 function initCloudBase() {
   if (app) return app;
@@ -31,6 +37,49 @@ function initCloudBase() {
     console.error('CloudBase initialization failed:', error);
     return null;
   }
+}
+
+/**
+ * 使用 COS SDK 直接上传（云托管内网，更稳定）
+ */
+async function uploadBufferViaCOS(buffer, cloudPath) {
+  return new Promise((resolve, reject) => {
+    // 云托管环境内置临时密钥，通过环境变量获取
+    const cos = new COS({
+      getAuthorization: function (options, callback) {
+        // 在云托管中，使用内置的临时密钥
+        const tmpSecretId = process.env.TENCENTCLOUD_SECRETID || process.env.SECRETID;
+        const tmpSecretKey = process.env.TENCENTCLOUD_SECRETKEY || process.env.SECRETKEY;
+        const sessionToken = process.env.TENCENTCLOUD_SESSIONTOKEN || process.env.SESSIONTOKEN;
+
+        if (tmpSecretId && tmpSecretKey) {
+          callback({
+            TmpSecretId: tmpSecretId,
+            TmpSecretKey: tmpSecretKey,
+            SecurityToken: sessionToken || '',
+            ExpiredTime: Math.floor(Date.now() / 1000) + 3600,
+          });
+        } else {
+          reject(new Error('No COS credentials found in environment'));
+        }
+      }
+    });
+
+    cos.putObject({
+      Bucket: COS_BUCKET,
+      Region: COS_REGION,
+      Key: cloudPath,
+      Body: buffer,
+    }, (err, data) => {
+      if (err) {
+        reject(err);
+      } else {
+        const downloadUrl = `https://${COS_BUCKET}.tcb.qcloud.la/${cloudPath}`;
+        const fileID = `cloud://prod-1gc88z9k40350ea7.${COS_BUCKET}/${cloudPath}`;
+        resolve({ fileID, downloadUrl });
+      }
+    });
+  });
 }
 
 /**
@@ -92,6 +141,17 @@ function cloudIdToHttpUrl(fileID) {
  * @returns {Promise<{fileID: string, downloadUrl: string}>}
  */
 async function uploadBuffer(buffer, cloudPath) {
+  // 优先尝试 COS SDK 直传
+  try {
+    console.log('Trying COS SDK upload:', cloudPath, 'size:', buffer.length);
+    const result = await uploadBufferViaCOS(buffer, cloudPath);
+    console.log('COS upload success:', result.fileID);
+    return result;
+  } catch (cosError) {
+    console.error('COS SDK upload failed:', cosError.message, '- falling back to CloudBase SDK');
+  }
+
+  // 回退到 CloudBase SDK
   const tcbApp = initCloudBase();
 
   if (!tcbApp) {
@@ -99,7 +159,6 @@ async function uploadBuffer(buffer, cloudPath) {
   }
 
   try {
-    // 先写入临时文件，再用 ReadStream 上传（SDK 对 Buffer 支持不稳定）
     const os = require('os');
     const tmpFile = path.join(os.tmpdir(), 'upload_' + Date.now() + '_' + Math.random().toString(36).slice(2));
     fs.writeFileSync(tmpFile, buffer);
@@ -109,10 +168,8 @@ async function uploadBuffer(buffer, cloudPath) {
       fileContent: fs.createReadStream(tmpFile)
     });
 
-    // 清理临时文件
     try { fs.unlinkSync(tmpFile); } catch (e) {}
 
-    // 直接从 fileID 构造 URL，避免 getTempFileURL 超时
     const downloadUrl = cloudIdToHttpUrl(result.fileID);
 
     return {

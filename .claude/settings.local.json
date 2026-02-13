@@ -68,7 +68,8 @@
       "Bash(curl.exe:*)",
       "Bash(git restore pages/learning/learning.js pages/learning/learning.wxml)",
       "Bash(git rm:*)",
-      "WebFetch(domain:express-lksv-207842-4-1391867763.sh.run.tcloudbase.com)"
+      "WebFetch(domain:express-lksv-207842-4-1391867763.sh.run.tcloudbase.com)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []
