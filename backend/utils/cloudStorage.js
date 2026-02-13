@@ -99,10 +99,18 @@ async function uploadBuffer(buffer, cloudPath) {
   }
 
   try {
+    // 先写入临时文件，再用 ReadStream 上传（SDK 对 Buffer 支持不稳定）
+    const os = require('os');
+    const tmpFile = path.join(os.tmpdir(), 'upload_' + Date.now() + '_' + Math.random().toString(36).slice(2));
+    fs.writeFileSync(tmpFile, buffer);
+
     const result = await tcbApp.uploadFile({
       cloudPath: cloudPath,
-      fileContent: buffer
+      fileContent: fs.createReadStream(tmpFile)
     });
+
+    // 清理临时文件
+    try { fs.unlinkSync(tmpFile); } catch (e) {}
 
     // 直接从 fileID 构造 URL，避免 getTempFileURL 超时
     const downloadUrl = cloudIdToHttpUrl(result.fileID);

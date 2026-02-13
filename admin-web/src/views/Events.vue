@@ -132,8 +132,10 @@
         <el-form-item label="说明图片">
           <el-upload
             v-model:file-list="imageFileList"
-            :http-request="uploadImageToCloud"
+            action="/api/upload/file"
             list-type="picture-card"
+            :on-success="onImageUploadSuccess"
+            :on-error="onImageUploadError"
             :on-remove="onImageRemove"
             :before-upload="beforeImageUpload"
             :limit="9"
@@ -157,15 +159,6 @@ import { formatDateTime } from '../utils/format'
 import { ref, shallowRef, onMounted } from 'vue'
 import '@wangeditor/editor/dist/css/style.css'
 import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
-import tcb from 'tcb-js-sdk'
-
-// 初始化腾讯云开发
-const tcbApp = tcb.init({
-  env: 'prod-1gc88z9k40350ea7'
-})
-
-// 匿名登录（上传文件需要）
-tcbApp.auth({ persistence: 'local' }).anonymousAuthProvider().signIn()
 
 const loading = ref(false)
 const events = ref([])
@@ -247,34 +240,23 @@ const beforeImageUpload = (file) => {
   return true
 }
 
-// 直接上传到云存储（绕过后端）
-const uploadImageToCloud = async ({ file, onSuccess, onError }) => {
-  try {
-    const ext = file.name.split('.').pop() || 'png'
-    const cloudPath = `events/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-    const result = await tcbApp.uploadFile({
-      cloudPath,
-      filePath: file
-    })
-    // 获取下载链接
-    const urlRes = await tcbApp.getTempFileURL({ fileList: [result.fileID] })
-    const url = urlRes.fileList[0]?.tempFileURL || ''
-    if (url) {
-      form.value.description_images.push(url)
-      onSuccess({ url })
-    } else {
-      ElMessage.error('获取图片链接失败')
-      onError(new Error('获取图片链接失败'))
-    }
-  } catch (err) {
-    console.error('Cloud upload failed:', err)
-    ElMessage.error('图片上传失败: ' + (err.message || '未知错误'))
-    onError(err)
+const onImageUploadSuccess = (response, uploadFile) => {
+  if (response.success) {
+    uploadFile.url = response.data.url
+    form.value.description_images.push(response.data.url)
+  } else {
+    ElMessage.error(response.message || '上传失败')
+    const idx = imageFileList.value.indexOf(uploadFile)
+    if (idx > -1) imageFileList.value.splice(idx, 1)
   }
 }
 
+const onImageUploadError = () => {
+  ElMessage.error('图片上传失败，请重试')
+}
+
 const onImageRemove = (uploadFile) => {
-  const url = uploadFile.url || uploadFile.response?.url
+  const url = uploadFile.url || uploadFile.response?.data?.url
   if (url) {
     form.value.description_images = form.value.description_images.filter(u => u !== url)
   }
