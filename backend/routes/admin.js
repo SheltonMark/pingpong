@@ -40,7 +40,6 @@ async function resolveCloudUrls(urls) {
     }
     return u;
   });
-  }
 }
 
 
