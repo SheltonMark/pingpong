@@ -75,7 +75,6 @@ page {
 
 .record-list {
   height: calc(100vh - 400rpx);
-  padding: 0 36rpx 36rpx;
   box-sizing: border-box;
   width: 100%;
 }
@@ -84,13 +83,12 @@ page {
   background: #F9FAFB;
   border-radius: 24rpx;
   padding: 28rpx;
-  margin-top: 20rpx;
+  margin: 20rpx 36rpx 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
   box-sizing: border-box;
   overflow: hidden;
-  width: 100%;
 }
 
 .record-left {
@@ -161,14 +159,14 @@ page {
 
 .loading, .no-more {
   text-align: center;
-  padding: 32rpx;
+  padding: 32rpx 36rpx;
   font-size: 26rpx;
   color: #9CA3AF;
 }
 
 .empty {
   text-align: center;
-  padding: 60rpx;
+  padding: 60rpx 36rpx;
   color: #9CA3AF;
   font-size: 28rpx;
 }
