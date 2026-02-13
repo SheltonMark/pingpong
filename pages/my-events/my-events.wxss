@@ -1,84 +1,133 @@
+page {
+  overflow-x: hidden;
+}
+
 .my-events-page {
   min-height: 100vh;
   background: #F5F5F5;
+  padding-bottom: 40rpx;
 }
 
-.tabs {
+/* 筛选标签 - 参考赛事页面 */
+.filter-tabs {
   display: flex;
   background: #FFFFFF;
-  padding: 32rpx 40rpx 24rpx;
+  padding: 20rpx 24rpx;
   gap: 16rpx;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
-.tab {
-  padding: 16rpx 32rpx;
-  font-size: 26rpx;
-  color: #9CA3AF;
+.tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 14rpx 0;
+  font-size: 24rpx;
+  color: #666;
   background: #F5F5F5;
-  border-radius: 40rpx;
+  border-radius: 32rpx;
+}
+
+.tab-item.active {
+  color: #FFFFFF;
+  background: linear-gradient(135deg, #FF6B00, #E55D00);
   font-weight: 500;
 }
 
-.tab.active {
-  background: linear-gradient(135deg, #FF6B00, #E55D00);
-  color: #FFFFFF;
-}
-
+/* 赛事列表 */
 .event-list {
-  padding: 24rpx;
+  padding: 24rpx 32rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
 }
 
 .event-card {
   background: #FFFFFF;
   border-radius: 24rpx;
-  padding: 28rpx;
-  margin-bottom: 20rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+  padding: 32rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
 }
 
-.event-top {
+.event-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16rpx;
+  margin-bottom: 20rpx;
 }
 
-.event-status {
-  font-size: 22rpx;
-  font-weight: 600;
-  padding: 6rpx 16rpx;
-  border-radius: 8rpx;
+.event-type-tag {
+  font-size: 24rpx;
+  padding: 8rpx 20rpx;
+  border-radius: 20rpx;
+  font-weight: 500;
 }
 
-.event-status.ongoing {
-  background: #D1FAE5;
-  color: #065F46;
+.event-type-tag.singles {
+  background: #FFF5EB;
+  color: #FF6B00;
 }
 
-.event-status.registering {
+.event-type-tag.doubles {
+  background: #E0F2FE;
+  color: #0284C7;
+}
+
+.event-type-tag.team {
   background: #FEF3C7;
   color: #D97706;
 }
 
-.event-status.finished {
-  background: #E5E7EB;
-  color: #6B7280;
+.event-status {
+  font-size: 24rpx;
+  font-weight: 500;
 }
 
-.event-type {
-  font-size: 24rpx;
+.event-status.registration {
+  color: #10B981;
+}
+
+.event-status.pending_start {
+  color: #3B82F6;
+}
+
+.event-status.ongoing {
+  color: #FF6B00;
+}
+
+.event-status.finished {
   color: #9CA3AF;
 }
 
-.event-name {
-  font-size: 32rpx;
+.event-title {
+  font-size: 34rpx;
   font-weight: 600;
   color: #1A1A1A;
-  display: block;
+  margin-bottom: 20rpx;
+}
+
+.event-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+  margin-bottom: 24rpx;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  font-size: 26rpx;
+  color: #9CA3AF;
+}
+
+.info-icon {
+  font-size: 28rpx;
 }
 
 .event-stats {
-  margin-top: 24rpx;
+  margin-bottom: 24rpx;
   padding: 24rpx;
   background: #FFF5EB;
   border-radius: 20rpx;
@@ -98,20 +147,48 @@
   display: block;
 }
 
-.event-bottom {
-  margin-top: 20rpx;
+.event-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 24rpx;
+  border-top: 1rpx solid #F0F0F0;
 }
 
-.event-date {
+.participant-info {
   font-size: 26rpx;
+}
+
+.participant-count {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #FF6B00;
+}
+
+.participant-total {
   color: #9CA3AF;
 }
 
-.loading {
+.action-btn {
+  padding: 16rpx 40rpx;
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #FFFFFF;
+  background: linear-gradient(135deg, #FF6B00, #E55D00);
+  border-radius: 32rpx;
+}
+
+.action-btn.secondary {
+  background: #F5F5F5;
+  color: #666;
+}
+
+/* 加载和空状态 */
+.loading-tip {
   text-align: center;
-  padding: 32rpx;
-  font-size: 26rpx;
+  padding: 60rpx;
   color: #9CA3AF;
+  font-size: 28rpx;
 }
 
 .empty {

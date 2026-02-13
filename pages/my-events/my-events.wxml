@@ -1,10 +1,10 @@
 <view class="my-events-page">
-  <!-- Tab栏 -->
-  <view class="tabs">
+  <!-- 筛选标签 -->
+  <view class="filter-tabs">
     <view
       wx:for="{{tabs}}"
       wx:key="key"
-      class="tab {{currentTab === item.key ? 'active' : ''}}"
+      class="tab-item {{currentTab === item.key ? 'active' : ''}}"
       bindtap="onSwitchTab"
       data-tab="{{item.key}}"
     >{{item.label}}</view>
@@ -19,26 +19,49 @@
       bindtap="onTapEvent"
       data-id="{{item.id}}"
     >
-      <view class="event-top">
-        <text class="event-status {{item.status}}">{{item.status === 'ongoing' ? '进行中' : (item.status === 'registering' ? '报名中' : '已结束')}}</text>
-        <text class="event-type">{{item.type_label}} · {{item.format}}</text>
+      <view class="event-header">
+        <view class="event-type-tag {{item.event_type}}">
+          {{item.type_label}}
+        </view>
+        <view class="event-status {{item.status}}">
+          {{item.status === 'registration' ? '报名中' : item.status === 'pending_start' ? '待开始' : item.status === 'ongoing' ? '进行中' : '已结束'}}
+        </view>
       </view>
-      <text class="event-name">{{item.name}}</text>
 
-      <view class="event-stats" wx:if="{{item.my_wins !== undefined}}">
+      <view class="event-title">{{item.title}}</view>
+
+      <view class="event-info">
+        <view class="info-item">
+          <text class="info-icon">📅</text>
+          <text>{{item.event_start_fmt}}</text>
+        </view>
+        <view class="info-item" wx:if="{{item.location}}">
+          <text class="info-icon">📍</text>
+          <text>{{item.location}}</text>
+        </view>
+      </view>
+
+      <view class="event-stats" wx:if="{{item.my_wins > 0 || item.my_losses > 0}}">
         <text class="stats-label">我的战绩</text>
         <text class="stats-value">{{item.my_wins}}胜 {{item.my_losses}}负</text>
       </view>
 
-      <view class="event-bottom">
-        <text class="event-date">{{item.date_label}}</text>
+      <view class="event-footer">
+        <view class="participant-info">
+          <text class="participant-count">{{item.participant_count}}</text>
+          <text class="participant-total">/{{item.max_participants}}人</text>
+        </view>
+        <view class="action-btn" wx:if="{{item.status === 'registration'}}">查看详情</view>
+        <view class="action-btn secondary" wx:elif="{{item.status === 'ongoing'}}">查看对阵</view>
+        <view class="action-btn secondary" wx:else>查看详情</view>
       </view>
     </view>
+  </view>
 
-    <view class="loading" wx:if="{{isLoading}}">加载中...</view>
-    <view class="empty" wx:if="{{!isLoading && events.length === 0}}">
-      <text class="empty-icon">🏆</text>
-      <text class="empty-text">暂无{{currentTab === 'ongoing' ? '进行中的' : '已结束的'}}赛事</text>
-    </view>
+  <!-- 加载状态 -->
+  <view class="loading-tip" wx:if="{{isLoading}}">加载中...</view>
+  <view class="empty" wx:if="{{!isLoading && events.length === 0}}">
+    <text class="empty-icon">🏆</text>
+    <text class="empty-text">暂无赛事</text>
   </view>
 </view>

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
 const { calculateInitialRating } = require('../utils/ratingCalculator');
+const { computeEventStatus } = require('./events');
 
 // 检查用户是否存在
 router.get('/check', async (req, res) => {
@@ -397,24 +398,29 @@ router.get('/:id/events', async (req, res) => {
 
     let sql = `
       SELECT e.*, r.status as reg_status,
-        (SELECT COUNT(*) FROM matches m WHERE (m.player1_id = ? OR m.player2_id = ?) AND m.event_id = e.id AND m.status = 'confirmed' AND ((m.player1_id = ? AND m.player1_games > m.player2_games) OR (m.player2_id = ? AND m.player2_games > m.player1_games))) as my_wins,
-        (SELECT COUNT(*) FROM matches m WHERE (m.player1_id = ? OR m.player2_id = ?) AND m.event_id = e.id AND m.status = 'confirmed' AND ((m.player1_id = ? AND m.player1_games < m.player2_games) OR (m.player2_id = ? AND m.player2_games < m.player1_games))) as my_losses
+        (SELECT COUNT(*) FROM event_registrations WHERE event_id = e.id) as participant_count,
+        (SELECT COUNT(*) FROM matches m WHERE (m.player1_id = ? OR m.player2_id = ?) AND m.event_id = e.id AND m.status IN ('confirmed','finished') AND ((m.player1_id = ? AND m.player1_games > m.player2_games) OR (m.player2_id = ? AND m.player2_games > m.player1_games))) as my_wins,
+        (SELECT COUNT(*) FROM matches m WHERE (m.player1_id = ? OR m.player2_id = ?) AND m.event_id = e.id AND m.status IN ('confirmed','finished') AND ((m.player1_id = ? AND m.player1_games < m.player2_games) OR (m.player2_id = ? AND m.player2_games < m.player1_games))) as my_losses
       FROM events e
       INNER JOIN event_registrations r ON e.id = r.event_id
       WHERE r.user_id = ?
     `;
     const params = [id, id, id, id, id, id, id, id, id];
 
-    if (status === 'ongoing') {
-      sql += " AND e.status IN ('registering', 'ongoing')";
-    } else if (status === 'finished') {
-      sql += " AND e.status = 'finished'";
-    }
-
-    sql += ' ORDER BY e.start_date DESC';
+    sql += ' ORDER BY e.event_start DESC';
 
     const [events] = await pool.query(sql, params);
-    res.json({ success: true, data: events });
+
+    // 动态计算状态并过滤
+    const result = events.map(e => ({
+      ...e,
+      status: computeEventStatus(e)
+    })).filter(e => {
+      if (!status) return true;
+      return e.status === status;
+    });
+
+    res.json({ success: true, data: result });
   } catch (error) {
     console.error('获取我的赛事失败:', error);
     res.status(500).json({ success: false, message: '服务器错误' });
