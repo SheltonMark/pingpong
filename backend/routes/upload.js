@@ -84,12 +84,7 @@ router.post('/file', upload.single('file'), async (req, res) => {
 
         console.log('Uploading to cloud:', cloudPath, 'size:', req.file.buffer.length);
 
-        // 设置 30 秒超时
-        const uploadPromise = cloudStorage.uploadBuffer(req.file.buffer, cloudPath);
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Cloud upload timeout (30s)')), 30000)
-        );
-        const result = await Promise.race([uploadPromise, timeoutPromise]);
+        const result = await cloudStorage.uploadBuffer(req.file.buffer, cloudPath);
         fileUrl = result.downloadUrl;
         fileID = result.fileID;
 

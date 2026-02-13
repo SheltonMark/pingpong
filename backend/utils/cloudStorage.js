@@ -132,34 +132,23 @@ function cloudIdToHttpUrl(fileID) {
  * @returns {Promise<{fileID: string, downloadUrl: string}>}
  */
 async function uploadBuffer(buffer, cloudPath) {
-  // 优先尝试 COS SDK 直传
-  try {
-    console.log('Trying COS SDK upload:', cloudPath, 'size:', buffer.length);
-    const result = await uploadBufferViaCOS(buffer, cloudPath);
-    console.log('COS upload success:', result.fileID);
-    return result;
-  } catch (cosError) {
-    console.error('COS SDK upload failed:', cosError.message, '- falling back to CloudBase SDK');
-  }
-
-  // 回退到 CloudBase SDK
   const tcbApp = initCloudBase();
 
   if (!tcbApp) {
     throw new Error('CloudBase not initialized. Check TCB_ENV_ID environment variable.');
   }
 
+  // 直接用 CloudBase SDK 上传，不设超时，让它自然完成或报错
   try {
-    const os = require('os');
-    const tmpFile = path.join(os.tmpdir(), 'upload_' + Date.now() + '_' + Math.random().toString(36).slice(2));
-    fs.writeFileSync(tmpFile, buffer);
+    console.log('[CloudBase] uploadFile start, cloudPath:', cloudPath, 'size:', buffer.length);
+    const startTime = Date.now();
 
     const result = await tcbApp.uploadFile({
       cloudPath: cloudPath,
-      fileContent: fs.createReadStream(tmpFile)
+      fileContent: buffer
     });
 
-    try { fs.unlinkSync(tmpFile); } catch (e) {}
+    console.log('[CloudBase] uploadFile success, took:', Date.now() - startTime, 'ms, fileID:', result.fileID);
 
     const downloadUrl = cloudIdToHttpUrl(result.fileID);
 
@@ -168,7 +157,7 @@ async function uploadBuffer(buffer, cloudPath) {
       downloadUrl: downloadUrl
     };
   } catch (error) {
-    console.error('Upload buffer to cloud storage failed:', error);
+    console.error('[CloudBase] uploadFile FAILED:', error.message, error.code, JSON.stringify(error));
     throw error;
   }
 }
