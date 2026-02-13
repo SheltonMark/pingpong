@@ -208,6 +208,22 @@ router.delete('/file', async (req, res) => {
   }
 });
 
+// 临时调试：检查云存储环境
+router.get('/debug-cloud', async (req, res) => {
+  const envVars = {
+    TCB_ENV_ID: process.env.TCB_ENV_ID ? 'set' : 'unset',
+    CBR_ENV_ID: process.env.CBR_ENV_ID ? 'set' : 'unset',
+    TENCENTCLOUD_SECRETID: process.env.TENCENTCLOUD_SECRETID ? 'set(' + process.env.TENCENTCLOUD_SECRETID.substring(0, 6) + '...)' : 'unset',
+    TENCENTCLOUD_SECRETKEY: process.env.TENCENTCLOUD_SECRETKEY ? 'set' : 'unset',
+    TENCENTCLOUD_SESSIONTOKEN: process.env.TENCENTCLOUD_SESSIONTOKEN ? 'set' : 'unset',
+    SECRETID: process.env.SECRETID ? 'set' : 'unset',
+    SECRETKEY: process.env.SECRETKEY ? 'set' : 'unset',
+    SESSIONTOKEN: process.env.SESSIONTOKEN ? 'set' : 'unset',
+    useCloudStorage: useCloudStorage,
+  };
+  res.json(envVars);
+});
+
 // 错误处理
 router.use((error, req, res, next) => {
   if (error instanceof multer.MulterError) {
