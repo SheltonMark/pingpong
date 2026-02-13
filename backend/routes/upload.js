@@ -145,7 +145,7 @@ function getBaseUrl(req) {
   return baseUrl;
 }
 
-// 刷新云存储文件的临时URL
+// 刷新云存储文件的URL
 router.post('/refresh-url', async (req, res) => {
   try {
     const { fileID } = req.body;
@@ -154,23 +154,12 @@ router.post('/refresh-url', async (req, res) => {
       return res.status(400).json({ success: false, message: '缺少 fileID 参数' });
     }
 
-    if (!useCloudStorage) {
-      return res.status(400).json({ success: false, message: '云存储未启用' });
-    }
-
-    const result = await cloudStorage.getTempFileURL(fileID);
-    const tempUrl = result[0]?.tempFileURL;
-
-    if (!tempUrl) {
-      return res.status(404).json({ success: false, message: '无法获取文件URL' });
-    }
+    // 直接用 cloudIdToHttpUrl 转换
+    const url = cloudStorage.cloudIdToHttpUrl(fileID);
 
     res.json({
       success: true,
-      data: {
-        url: tempUrl,
-        fileID: fileID
-      }
+      data: { url, fileID }
     });
   } catch (error) {
     console.error('Refresh URL error:', error);
@@ -178,29 +167,9 @@ router.post('/refresh-url', async (req, res) => {
   }
 });
 
-// 删除云存储文件
+// 删除云存储文件（暂不支持）
 router.delete('/file', async (req, res) => {
-  try {
-    const { fileID } = req.body;
-
-    if (!fileID) {
-      return res.status(400).json({ success: false, message: '缺少 fileID 参数' });
-    }
-
-    if (!useCloudStorage) {
-      return res.status(400).json({ success: false, message: '云存储未启用' });
-    }
-
-    await cloudStorage.deleteFile(fileID);
-
-    res.json({
-      success: true,
-      message: '文件已删除'
-    });
-  } catch (error) {
-    console.error('Delete file error:', error);
-    res.status(500).json({ success: false, message: '删除失败' });
-  }
+  res.status(501).json({ success: false, message: '暂不支持删除云存储文件' });
 });
 
 // 临时调试：检查云存储环境

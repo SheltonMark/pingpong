@@ -1,112 +1,153 @@
 /**
- * CloudBase 云存储工具
- * 用于将文件上传到微信云开发的云存储中
- * 优先使用 COS SDK 直传（更稳定），回退到 @cloudbase/node-sdk
+ * 云存储工具 - 通过微信 API 上传文件到云开发对象存储
+ *
+ * 流程：
+ * 1. 用 WX_APPID + WX_SECRET 获取 access_token
+ * 2. 调用 /tcb/uploadfile 获取上传链接和凭证
+ * 3. POST multipart/form-data 到返回的 url 完成上传
  */
 
-const cloudbase = require('@cloudbase/node-sdk');
-const COS = require('cos-nodejs-sdk-v5');
 const fs = require('fs');
-const path = require('path');
+const https = require('https');
 
-// 初始化 CloudBase
-let app = null;
+const WX_APPID = process.env.WX_APPID;
+const WX_SECRET = process.env.WX_SECRET;
+const ENV_ID = process.env.CBR_ENV_ID || process.env.TCB_ENV_ID;
 
-// COS 桶信息（从已知的 fileID 格式推导）
-const COS_BUCKET = '7072-prod-1gc88z9k40350ea7-1391867763';
-const COS_REGION = 'ap-shanghai';
-
-function initCloudBase() {
-  if (app) return app;
-
-  const envId = process.env.TCB_ENV_ID || process.env.CBR_ENV_ID;
-
-  if (!envId) {
-    console.warn('CloudBase: No environment ID found, cloud storage disabled');
-    return null;
-  }
-
-  try {
-    // 在云托管环境中使用内置鉴权
-    app = cloudbase.init({
-      env: envId,
-    });
-    console.log('CloudBase initialized with env:', envId);
-    return app;
-  } catch (error) {
-    console.error('CloudBase initialization failed:', error);
-    return null;
-  }
-}
+// access_token 缓存
+let tokenCache = { token: null, expireTime: 0 };
 
 /**
- * 使用 COS SDK 直接上传（永久密钥方式，最稳定）
+ * 获取微信 access_token（带缓存）
  */
-async function uploadBufferViaCOS(buffer, cloudPath) {
-  const secretId = process.env.COS_SECRET_ID;
-  const secretKey = process.env.COS_SECRET_KEY;
-
-  if (!secretId || !secretKey) {
-    throw new Error('COS_SECRET_ID or COS_SECRET_KEY not set');
+async function getAccessToken() {
+  if (tokenCache.token && Date.now() < tokenCache.expireTime) {
+    return tokenCache.token;
   }
 
   return new Promise((resolve, reject) => {
-    const cos = new COS({
-      SecretId: secretId,
-      SecretKey: secretKey,
-    });
-
-    cos.putObject({
-      Bucket: COS_BUCKET,
-      Region: COS_REGION,
-      Key: cloudPath,
-      Body: buffer,
-    }, (err, data) => {
-      if (err) {
-        reject(err);
-      } else {
-        const downloadUrl = `https://${COS_BUCKET}.tcb.qcloud.la/${cloudPath}`;
-        const fileID = `cloud://prod-1gc88z9k40350ea7.${COS_BUCKET}/${cloudPath}`;
-        resolve({ fileID, downloadUrl });
-      }
-    });
+    const url = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${WX_APPID}&secret=${WX_SECRET}`;
+    https.get(url, { timeout: 10000 }, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        try {
+          const result = JSON.parse(data);
+          if (result.access_token) {
+            tokenCache = {
+              token: result.access_token,
+              expireTime: Date.now() + (result.expires_in - 300) * 1000
+            };
+            resolve(result.access_token);
+          } else {
+            reject(new Error('获取access_token失败: ' + data));
+          }
+        } catch (e) {
+          reject(new Error('解析access_token失败: ' + data));
+        }
+      });
+    }).on('error', reject);
   });
 }
 
 /**
- * 上传文件到云存储
- * @param {string} localFilePath - 本地文件路径
- * @param {string} cloudPath - 云存储路径 (如: 'uploads/events/xxx.jpg')
- * @returns {Promise<{fileID: string, downloadUrl: string}>}
+ * 调用微信 API 获取文件上传链接
  */
-async function uploadFile(localFilePath, cloudPath) {
-  const tcbApp = initCloudBase();
-
-  if (!tcbApp) {
-    throw new Error('CloudBase not initialized. Check TCB_ENV_ID environment variable.');
-  }
-
-  try {
-    const result = await tcbApp.uploadFile({
-      cloudPath: cloudPath,
-      fileContent: fs.createReadStream(localFilePath)
+async function getUploadLink(accessToken, cloudPath) {
+  return new Promise((resolve, reject) => {
+    const postData = JSON.stringify({ env: ENV_ID, path: cloudPath });
+    const req = https.request({
+      hostname: 'api.weixin.qq.com',
+      path: `/tcb/uploadfile?access_token=${accessToken}`,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData)
+      },
+      timeout: 10000
+    }, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        try {
+          const result = JSON.parse(data);
+          if (result.errcode === 0 || result.url) {
+            resolve(result);
+          } else {
+            reject(new Error('获取上传链接失败: ' + data));
+          }
+        } catch (e) {
+          reject(new Error('解析上传链接失败: ' + data));
+        }
+      });
     });
-
-    // 直接从 fileID 构造 URL，避免 getTempFileURL 超时
-    const downloadUrl = cloudIdToHttpUrl(result.fileID);
-
-    return {
-      fileID: result.fileID,
-      downloadUrl: downloadUrl
-    };
-  } catch (error) {
-    console.error('Upload to cloud storage failed:', error);
-    throw error;
-  }
+    req.on('error', reject);
+    req.write(postData);
+    req.end();
+  });
 }
 
 /**
- * 从 cloud:// fileID 构造 HTTP 下载 URL（不依赖 getTempFileURL）
+ * POST 文件到 COS（multipart/form-data）
+ */
+async function postFileToCOS(uploadUrl, cloudPath, authorization, token, cosFileId, buffer) {
+  return new Promise((resolve, reject) => {
+    const boundary = '----WxCloudUpload' + Date.now().toString(36);
+
+    // 构建 multipart body 各字段
+    const fields = [
+      { name: 'key', value: cloudPath },
+      { name: 'Signature', value: authorization },
+      { name: 'x-cos-security-token', value: token },
+      { name: 'x-cos-meta-fileid', value: cosFileId },
+    ];
+
+    const parts = [];
+    for (const f of fields) {
+      parts.push(Buffer.from(
+        `--${boundary}\r\nContent-Disposition: form-data; name="${f.name}"\r\n\r\n${f.value}\r\n`
+      ));
+    }
+    // file 字段必须放最后
+    parts.push(Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="file"\r\nContent-Type: application/octet-stream\r\n\r\n`
+    ));
+    parts.push(buffer);
+    parts.push(Buffer.from(`\r\n--${boundary}--\r\n`));
+
+    const body = Buffer.concat(parts);
+    const urlObj = new URL(uploadUrl);
+
+    const req = https.request({
+      hostname: urlObj.hostname,
+      path: urlObj.pathname + urlObj.search,
+      method: 'POST',
+      headers: {
+        'Content-Type': `multipart/form-data; boundary=${boundary}`,
+        'Content-Length': body.length,
+      },
+      timeout: 60000
+    }, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        // 204 = 成功
+        if (res.statusCode === 200 || res.statusCode === 204) {
+          resolve();
+        } else {
+          reject(new Error(`COS上传失败: ${res.statusCode} ${data.substring(0, 300)}`));
+        }
+      });
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('COS上传超时')); });
+    req.write(body);
+    req.end();
+  });
+}
+
+/**
+ * 从 file_id 构造 HTTP 下载 URL
  * cloud://prod-1gc88z9k40350ea7.7072-prod-1gc88z9k40350ea7-1391867763/path
  * → https://7072-prod-1gc88z9k40350ea7-1391867763.tcb.qcloud.la/path
  */
@@ -126,106 +167,52 @@ function cloudIdToHttpUrl(fileID) {
 }
 
 /**
- * 上传文件缓冲区到云存储
- * @param {Buffer} buffer - 文件缓冲区
- * @param {string} cloudPath - 云存储路径
- * @returns {Promise<{fileID: string, downloadUrl: string}>}
+ * 上传 Buffer 到云存储
  */
 async function uploadBuffer(buffer, cloudPath) {
-  const tcbApp = initCloudBase();
-
-  if (!tcbApp) {
-    throw new Error('CloudBase not initialized. Check TCB_ENV_ID environment variable.');
+  if (!WX_APPID || !WX_SECRET || !ENV_ID) {
+    throw new Error('缺少 WX_APPID / WX_SECRET / ENV_ID 环境变量');
   }
 
-  // 直接用 CloudBase SDK 上传，不设超时，让它自然完成或报错
-  try {
-    console.log('[CloudBase] uploadFile start, cloudPath:', cloudPath, 'size:', buffer.length);
-    const startTime = Date.now();
+  console.log('[WxCloud] 开始上传, path:', cloudPath, 'size:', buffer.length);
 
-    const result = await tcbApp.uploadFile({
-      cloudPath: cloudPath,
-      fileContent: buffer
-    });
+  // 1. 获取 access_token
+  const accessToken = await getAccessToken();
 
-    console.log('[CloudBase] uploadFile success, took:', Date.now() - startTime, 'ms, fileID:', result.fileID);
+  // 2. 获取上传链接
+  const info = await getUploadLink(accessToken, cloudPath);
+  console.log('[WxCloud] 获取上传链接成功, file_id:', info.file_id);
 
-    const downloadUrl = cloudIdToHttpUrl(result.fileID);
+  // 3. POST 文件到 COS
+  await postFileToCOS(info.url, cloudPath, info.authorization, info.token, info.cos_file_id, buffer);
 
-    return {
-      fileID: result.fileID,
-      downloadUrl: downloadUrl
-    };
-  } catch (error) {
-    console.error('[CloudBase] uploadFile FAILED:', error.message, error.code, JSON.stringify(error));
-    throw error;
-  }
+  const downloadUrl = cloudIdToHttpUrl(info.file_id);
+  console.log('[WxCloud] 上传成功, url:', downloadUrl);
+
+  return {
+    fileID: info.file_id,
+    downloadUrl: downloadUrl
+  };
 }
 
 /**
- * 获取文件的临时访问URL
- * @param {string|string[]} fileIDs - 文件ID或文件ID数组
- * @returns {Promise<Array<{fileID: string, tempFileURL: string}>>}
+ * 上传本地文件到云存储
  */
-async function getTempFileURL(fileIDs) {
-  const tcbApp = initCloudBase();
-
-  if (!tcbApp) {
-    throw new Error('CloudBase not initialized');
-  }
-
-  const fileList = Array.isArray(fileIDs) ? fileIDs : [fileIDs];
-
-  try {
-    const result = await tcbApp.getTempFileURL({
-      fileList: fileList
-    });
-
-    return result.fileList;
-  } catch (error) {
-    console.error('Get temp file URL failed:', error);
-    throw error;
-  }
+async function uploadFile(localFilePath, cloudPath) {
+  const buffer = fs.readFileSync(localFilePath);
+  return uploadBuffer(buffer, cloudPath);
 }
 
 /**
- * 删除云存储中的文件
- * @param {string|string[]} fileIDs - 文件ID或文件ID数组
- */
-async function deleteFile(fileIDs) {
-  const tcbApp = initCloudBase();
-
-  if (!tcbApp) {
-    throw new Error('CloudBase not initialized');
-  }
-
-  const fileList = Array.isArray(fileIDs) ? fileIDs : [fileIDs];
-
-  try {
-    await tcbApp.deleteFile({
-      fileList: fileList
-    });
-    return true;
-  } catch (error) {
-    console.error('Delete file failed:', error);
-    throw error;
-  }
-}
-
-/**
- * 检查 CloudBase 是否可用
+ * 检查云存储是否可用
  */
 function isCloudStorageAvailable() {
-  const envId = process.env.TCB_ENV_ID || process.env.CBR_ENV_ID;
-  return !!envId;
+  return !!(WX_APPID && WX_SECRET && ENV_ID);
 }
 
 module.exports = {
-  initCloudBase,
   uploadFile,
   uploadBuffer,
-  getTempFileURL,
-  deleteFile,
   isCloudStorageAvailable,
   cloudIdToHttpUrl
 };

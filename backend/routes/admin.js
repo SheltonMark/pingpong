@@ -33,25 +33,13 @@ function toFullUrl(url, req) {
 // 批量将 cloud:// fileID 转为 HTTP 临时URL
 const cloudStorage = require('../utils/cloudStorage');
 async function resolveCloudUrls(urls) {
-  const cloudIds = urls.filter(u => u && u.startsWith('cloud://'));
-  if (cloudIds.length === 0) return urls;
-
-  if (!cloudStorage.isCloudStorageAvailable()) {
-    return urls;
-  }
-
-  try {
-    const result = await cloudStorage.getTempFileURL(cloudIds);
-    const urlMap = {};
-    result.forEach(item => {
-      if (item.tempFileURL) {
-        urlMap[item.fileID] = item.tempFileURL;
-      }
-    });
-    return urls.map(u => (u && urlMap[u]) ? urlMap[u] : u);
-  } catch (err) {
-    console.error('resolveCloudUrls failed:', err);
-    return urls;
+  // 直接用 cloudIdToHttpUrl 转换，不需要调 API
+  return urls.map(u => {
+    if (u && u.startsWith('cloud://')) {
+      return cloudStorage.cloudIdToHttpUrl(u);
+    }
+    return u;
+  });
   }
 }
 
