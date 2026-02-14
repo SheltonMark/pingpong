@@ -129,21 +129,6 @@
             />
           </div>
         </el-form-item>
-        <el-form-item label="说明图片">
-          <el-upload
-            v-model:file-list="imageFileList"
-            action="/api/upload/file"
-            list-type="picture-card"
-            :on-success="onImageUploadSuccess"
-            :on-error="onImageUploadError"
-            :on-remove="onImageRemove"
-            :before-upload="beforeImageUpload"
-            :limit="9"
-            accept="image/*"
-          >
-            <el-icon><Plus /></el-icon>
-          </el-upload>
-        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -166,14 +151,28 @@ const dialogVisible = ref(false)
 const isEdit = ref(false)
 const submitting = ref(false)
 const editorRef = shallowRef()
-const imageFileList = ref([])
 
 const toolbarConfig = {
-  excludeKeys: ['fullScreen', 'group-video', 'group-image', 'insertImage']
+  excludeKeys: ['fullScreen', 'group-video']
 }
 
 const editorConfig = {
-  placeholder: '请输入赛事说明（文字部分，图片请在下方上传）...'
+  placeholder: '请输入赛事说明，支持插入图片...',
+  MENU_CONF: {
+    uploadImage: {
+      server: '/api/upload/file',
+      fieldName: 'file',
+      maxFileSize: 5 * 1024 * 1024,
+      allowedFileTypes: ['image/*'],
+      customInsert(res, insertFn) {
+        if (res.success) {
+          insertFn(res.data.url, '', '')
+        } else {
+          ElMessage.error(res.message || '图片上传失败')
+        }
+      }
+    }
+  }
 }
 
 const handleCreated = (editor) => {
@@ -193,7 +192,6 @@ const form = ref({
   max_participants: 32,
   registration_end: '',
   description: '',
-  description_images: [],
 })
 
 const scopeLabels = {
@@ -225,43 +223,6 @@ const getAdminUser = () => {
   return JSON.parse(localStorage.getItem('adminUser') || '{}')
 }
 
-// 图片上传回调
-const beforeImageUpload = (file) => {
-  const isImage = file.type.startsWith('image/')
-  const isLt5M = file.size / 1024 / 1024 < 5
-  if (!isImage) {
-    ElMessage.error('只能上传图片文件')
-    return false
-  }
-  if (!isLt5M) {
-    ElMessage.error('图片大小不能超过 5MB')
-    return false
-  }
-  return true
-}
-
-const onImageUploadSuccess = (response, uploadFile) => {
-  if (response.success) {
-    uploadFile.url = response.data.url
-    form.value.description_images.push(response.data.url)
-  } else {
-    ElMessage.error(response.message || '上传失败')
-    const idx = imageFileList.value.indexOf(uploadFile)
-    if (idx > -1) imageFileList.value.splice(idx, 1)
-  }
-}
-
-const onImageUploadError = () => {
-  ElMessage.error('图片上传失败，请重试')
-}
-
-const onImageRemove = (uploadFile) => {
-  const url = uploadFile.url || uploadFile.response?.data?.url
-  if (url) {
-    form.value.description_images = form.value.description_images.filter(u => u !== url)
-  }
-}
-
 const loadEvents = async () => {
   loading.value = true
   try {
@@ -281,7 +242,6 @@ const loadEvents = async () => {
 
 const showCreateDialog = () => {
   isEdit.value = false
-  imageFileList.value = []
   form.value = {
     title: '',
     scope: 'school',
@@ -295,7 +255,6 @@ const showCreateDialog = () => {
     max_participants: 32,
     registration_end: '',
     description: '',
-    description_images: [],
     status: 'registration'
   }
   dialogVisible.value = true
@@ -303,27 +262,10 @@ const showCreateDialog = () => {
 
 const editEvent = (row) => {
   isEdit.value = true
-  // 解析 description_images
-  let images = []
-  if (row.description_images) {
-    try {
-      images = typeof row.description_images === 'string'
-        ? JSON.parse(row.description_images)
-        : row.description_images
-    } catch (e) {
-      images = []
-    }
-  }
   form.value = {
     ...row,
     description: row.description || '',
-    description_images: images
   }
-  // 构建 el-upload 的 fileList
-  imageFileList.value = images.map((url, i) => ({
-    name: `image-${i}`,
-    url: url
-  }))
   dialogVisible.value = true
 }
 
@@ -348,7 +290,6 @@ const submitForm = async () => {
     const saveData = {
       ...form.value,
       description: form.value.description || '',
-      description_images: form.value.description_images || [],
       user_id: user.id,
       school_id: user.school_id || null
     }
