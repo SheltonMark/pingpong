@@ -162,7 +162,7 @@
   font-size: 32rpx;
   font-weight: 600;
   color: #FF6B00;
-  width: 80rpx;
+  width: 120rpx;
   text-align: center;
 }
 
@@ -195,8 +195,10 @@
 .score.winner { color: #10B981; }
 .score-sep {
   color: #999;
-  width: 80rpx;
+  width: 120rpx;
   text-align: center;
+  font-size: 24rpx;
+  white-space: nowrap;
 }
 
 .total-score {
@@ -217,10 +219,11 @@
 
 .total.winner { color: #FF6B00; }
 .total-sep {
-  font-size: 36rpx;
+  font-size: 24rpx;
   color: #999;
-  width: 80rpx;
+  width: 120rpx;
   text-align: center;
+  white-space: nowrap;
 }
 
 .action-bar {
