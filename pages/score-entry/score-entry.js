@@ -14,6 +14,7 @@ Page({
   },
 
   onLoad(options) {
+    this._scores = []; // 本地缓存比分，避免setData导致输入闪烁
     this.setData({ matchId: options.match_id });
     this.loadMatchDetail();
   },
@@ -24,11 +25,11 @@ Page({
       const res = await app.request(`/api/events/matches/${this.data.matchId}`);
 
       if (res.success) {
-        const scores = this.initScores(res.data.best_of || 5);
+        this._scores = this.initScores(res.data.best_of || 5);
         this.setData({
           match: res.data,
           bestOf: res.data.best_of || 5,
-          scores,
+          scores: this._scores,
           loading: false
         });
       }
@@ -56,18 +57,16 @@ Page({
   onScoreInput(e) {
     const { game, player } = e.currentTarget.dataset;
     const value = e.detail.value;
-    const scores = [...this.data.scores];
 
     if (player === 1) {
-      scores[game - 1].player1_score = value;
+      this._scores[game - 1].player1_score = value;
     } else {
-      scores[game - 1].player2_score = value;
+      this._scores[game - 1].player2_score = value;
     }
 
-    // 计算总比分
-    const totalScore = this.calculateTotalScore(scores);
-
-    this.setData({ scores, totalScore });
+    // 只更新总比分，不回写scores，避免input重新渲染闪烁
+    const totalScore = this.calculateTotalScore(this._scores);
+    this.setData({ totalScore });
   },
 
   // 计算总比分
@@ -89,7 +88,8 @@ Page({
 
   // 提交比分
   async onSubmit() {
-    const { scores, totalScore, bestOf } = this.data;
+    const scores = this._scores;
+    const { totalScore, bestOf } = this.data;
     const winGames = Math.ceil(bestOf / 2);
 
     // 验证比分
