@@ -158,6 +158,7 @@ const toolbarConfig = {
 
 const editorConfig = {
   placeholder: '请输入赛事说明，支持插入图片...',
+  hoverbarKeys: {},
   MENU_CONF: {
     uploadImage: {
       server: '/api/upload/file',
