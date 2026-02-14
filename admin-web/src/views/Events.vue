@@ -121,7 +121,7 @@
               mode="default"
             />
             <Editor
-              style="height: 200px; overflow-y: hidden;"
+              style="height: 200px; overflow-y: auto;"
               v-model="form.description"
               :defaultConfig="editorConfig"
               mode="default"
@@ -365,5 +365,7 @@ onMounted(() => {
   border: 1px solid #ccc;
   border-radius: 4px;
   width: 100%;
+  position: relative;
+  z-index: 10;
 }
 </style>
