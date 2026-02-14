@@ -181,24 +181,38 @@ router.get('/debug-cloud', async (req, res) => {
     useCloudStorage: useCloudStorage,
   };
 
-  // 测试获取 access_token
+  // 单独测试内网 http 调用
+  try {
+    const http = require('http');
+    const internalResult = await new Promise((resolve, reject) => {
+      const postData = JSON.stringify({ grant_type: 'client_credential' });
+      const req = http.request({
+        hostname: 'api.weixin.qq.com',
+        path: '/cgi-bin/token',
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) },
+        timeout: 5000
+      }, (resp) => {
+        let data = '';
+        resp.on('data', c => data += c);
+        resp.on('end', () => resolve(data));
+      });
+      req.on('error', e => reject(e));
+      req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+      req.write(postData);
+      req.end();
+    });
+    result.internalHttp = internalResult.substring(0, 200);
+  } catch (e) {
+    result.internalHttp = 'error: ' + e.message;
+  }
+
+  // 测试完整 getAccessToken
   try {
     const token = await cloudStorage.getAccessToken();
     result.accessToken = token ? 'ok (length: ' + token.length + ')' : 'empty';
   } catch (e) {
     result.accessToken = 'error: ' + e.message;
-  }
-
-  // 测试获取上传链接
-  if (result.accessToken && result.accessToken.startsWith('ok')) {
-    try {
-      const token = await cloudStorage.getAccessToken();
-      const info = await cloudStorage.getUploadLink(token, 'test/debug-' + Date.now() + '.txt');
-      result.uploadLink = info.url ? 'ok' : 'no url';
-      result.fileId = info.file_id || 'none';
-    } catch (e) {
-      result.uploadLink = 'error: ' + e.message;
-    }
   }
 
   res.json(result);
