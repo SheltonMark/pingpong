@@ -95,9 +95,10 @@ async function getAccessToken() {
  * 调用微信 API 获取文件上传链接
  */
 async function getUploadLink(accessToken, cloudPath) {
+  const httpModule = isInCloudRun ? require('http') : https;
   return new Promise((resolve, reject) => {
     const postData = JSON.stringify({ env: ENV_ID, path: cloudPath });
-    const req = https.request({
+    const req = httpModule.request({
       hostname: 'api.weixin.qq.com',
       path: `/tcb/uploadfile?access_token=${accessToken}`,
       method: 'POST',
@@ -211,8 +212,8 @@ function cloudIdToHttpUrl(fileID) {
  * 上传 Buffer 到云存储
  */
 async function uploadBuffer(buffer, cloudPath) {
-  if (!WX_APPID || !WX_SECRET || !ENV_ID) {
-    throw new Error('缺少 WX_APPID / WX_SECRET / ENV_ID 环境变量');
+  if (!ENV_ID) {
+    throw new Error('缺少 ENV_ID 环境变量');
   }
 
   console.log('[WxCloud] 开始上传, path:', cloudPath, 'size:', buffer.length);
