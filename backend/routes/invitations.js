@@ -203,12 +203,22 @@ router.post('/:id/join', async (req, res) => {
 
     // 检查约球是否存在且开放
     const [invitations] = await pool.query(
-      'SELECT * FROM match_invitations WHERE id = ? AND status = "open"',
+      'SELECT * FROM match_invitations WHERE id = ?',
       [id]
     );
 
     if (invitations.length === 0) {
-      return res.status(400).json({ success: false, message: '约球不存在或已关闭' });
+      return res.status(400).json({ success: false, message: '约球不存在' });
+    }
+
+    const statusMessages = {
+      full: '约球已满员',
+      ongoing: '比赛已开始，无法加入',
+      finished: '约球已结束',
+      cancelled: '约球已取消'
+    };
+    if (invitations[0].status !== 'open') {
+      return res.status(400).json({ success: false, message: statusMessages[invitations[0].status] || '约球已关闭' });
     }
 
     const invitation = invitations[0];

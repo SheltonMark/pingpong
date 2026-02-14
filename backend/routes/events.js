@@ -184,7 +184,9 @@ router.get('/matches/:matchId', async (req, res) => {
     const [matches] = await pool.query(
       `SELECT m.*,
         u1.name as player1_name,
+        u1.avatar_url as player1_avatar,
         u2.name as player2_name,
+        u2.avatar_url as player2_avatar,
         e.title as event_title
        FROM matches m
        LEFT JOIN users u1 ON m.player1_id = u1.id

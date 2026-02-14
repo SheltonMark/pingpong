@@ -58,7 +58,7 @@ Page({
     const { game, player } = e.currentTarget.dataset;
     const value = e.detail.value;
 
-    if (player === 1) {
+    if (player == 1) {
       this._scores[game - 1].player1_score = value;
     } else {
       this._scores[game - 1].player2_score = value;

@@ -55,15 +55,14 @@
       </view>
       <view class="scores" wx:if="{{match.scores.length > 0}}">
         <view class="score-row" wx:for="{{match.scores}}" wx:key="game_number">
-          <text class="game-label">第{{item.game_number}}局</text>
           <text class="score {{item.player1_score > item.player2_score ? 'winner' : ''}}">{{item.player1_score}}</text>
-          <text class="score-sep">:</text>
+          <text class="score-sep">第{{item.game_number}}局</text>
           <text class="score {{item.player2_score > item.player1_score ? 'winner' : ''}}">{{item.player2_score}}</text>
         </view>
       </view>
       <view class="total-score">
         <text class="total {{match.player1_games > match.player2_games ? 'winner' : ''}}">{{match.player1_games || 0}}</text>
-        <text class="total-sep">:</text>
+        <text class="total-sep">总比分</text>
         <text class="total {{match.player2_games > match.player1_games ? 'winner' : ''}}">{{match.player2_games || 0}}</text>
       </view>
       <!-- 比分确认状态 -->

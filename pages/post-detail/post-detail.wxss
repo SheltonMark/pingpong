@@ -174,16 +174,18 @@
 }
 
 .send-btn {
-  width: 120rpx;
+  width: 100rpx;
   height: 72rpx;
   background: #FF6B00;
   color: #FFF;
-  font-size: 28rpx;
+  font-size: 26rpx;
   border-radius: 36rpx;
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
+  min-width: 100rpx;
 }
 
 .send-btn[disabled] { background: #D1D5DB; }
