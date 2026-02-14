@@ -5,18 +5,13 @@ Page({
     postId: null,
     post: null,
     comments: [],
-    commentText: '',
-    keyboardHeight: 0
+    commentText: ''
   },
 
   onLoad(options) {
     this.setData({ postId: options.id });
     this.loadPost();
     this.loadComments();
-
-    wx.onKeyboardHeightChange(res => {
-      this.setData({ keyboardHeight: res.height });
-    });
   },
 
   async loadPost() {
@@ -72,14 +67,6 @@ Page({
 
   onCommentInput(e) {
     this.setData({ commentText: e.detail.value });
-  },
-
-  onInputFocus(e) {
-    this.setData({ keyboardHeight: e.detail.height || 0 });
-  },
-
-  onInputBlur() {
-    this.setData({ keyboardHeight: 0 });
   },
 
   async onSendComment() {

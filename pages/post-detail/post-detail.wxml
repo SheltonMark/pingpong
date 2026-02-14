@@ -53,8 +53,8 @@
     </view>
   </view>
 
-  <view class="comment-input-bar" style="bottom: {{keyboardHeight}}px;">
-    <input class="comment-input" placeholder="写评论..." bindinput="onCommentInput" value="{{commentText}}" confirm-type="send" bindconfirm="onSendComment" adjust-position="{{false}}" bindfocus="onInputFocus" bindblur="onInputBlur" />
+  <view class="comment-input-bar">
+    <input class="comment-input" placeholder="写评论..." bindinput="onCommentInput" value="{{commentText}}" confirm-type="send" bindconfirm="onSendComment" />
     <view class="send-btn {{!commentText ? 'disabled' : ''}}" bindtap="onSendComment">发送</view>
   </view>
 </view>

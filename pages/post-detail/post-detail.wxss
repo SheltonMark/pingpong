@@ -162,7 +162,6 @@
   background: #FFFFFF;
   box-shadow: 0 -4rpx 20rpx rgba(0,0,0,0.05);
   gap: 16rpx;
-  transition: bottom 0.25s ease;
 }
 
 .comment-input {
