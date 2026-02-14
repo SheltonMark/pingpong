@@ -181,16 +181,15 @@ router.get('/debug-cloud', async (req, res) => {
     useCloudStorage: useCloudStorage,
   };
 
-  // 单独测试内网 http 调用
+  // 单独测试内网 http GET 调用
   try {
     const http = require('http');
+    const appid = process.env.WX_APPID;
+    const secret = process.env.WX_SECRET;
     const internalResult = await new Promise((resolve, reject) => {
-      const postData = JSON.stringify({ grant_type: 'client_credential' });
-      const req = http.request({
+      const req = http.get({
         hostname: 'api.weixin.qq.com',
-        path: '/cgi-bin/token',
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) },
+        path: `/cgi-bin/token?grant_type=client_credential&appid=${appid}&secret=${secret}`,
         timeout: 5000
       }, (resp) => {
         let data = '';
@@ -199,8 +198,6 @@ router.get('/debug-cloud', async (req, res) => {
       });
       req.on('error', e => reject(e));
       req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
-      req.write(postData);
-      req.end();
     });
     result.internalHttp = internalResult.substring(0, 200);
   } catch (e) {

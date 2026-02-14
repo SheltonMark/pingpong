@@ -37,21 +37,14 @@ async function getAccessToken() {
     return result.access_token;
   }
 
-  // 云托管内部先尝试内网调用
-  if (isInCloudRun) {
+  // 云托管内部先尝试内网调用（用http避免self-signed certificate）
+  if (isInCloudRun && WX_APPID && WX_SECRET) {
     try {
       const http = require('http');
       const token = await new Promise((resolve, reject) => {
-        const postData = JSON.stringify({
-          grant_type: 'client_credential',
-          appid: WX_APPID,
-          secret: WX_SECRET
-        });
-        const req = http.request({
+        const req = http.get({
           hostname: 'api.weixin.qq.com',
-          path: '/cgi-bin/token',
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) },
+          path: `/cgi-bin/token?grant_type=client_credential&appid=${WX_APPID}&secret=${WX_SECRET}`,
           timeout: 5000
         }, (res) => {
           let data = '';
@@ -66,8 +59,6 @@ async function getAccessToken() {
         });
         req.on('error', reject);
         req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
-        req.write(postData);
-        req.end();
       });
       return token;
     } catch (e) {
