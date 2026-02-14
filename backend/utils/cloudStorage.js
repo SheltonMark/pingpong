@@ -42,7 +42,11 @@ async function getAccessToken() {
     try {
       const http = require('http');
       const token = await new Promise((resolve, reject) => {
-        const postData = JSON.stringify({ grant_type: 'client_credential' });
+        const postData = JSON.stringify({
+          grant_type: 'client_credential',
+          appid: WX_APPID,
+          secret: WX_SECRET
+        });
         const req = http.request({
           hostname: 'api.weixin.qq.com',
           path: '/cgi-bin/token',
