@@ -266,5 +266,7 @@ module.exports = {
   uploadFile,
   uploadBuffer,
   isCloudStorageAvailable,
-  cloudIdToHttpUrl
+  cloudIdToHttpUrl,
+  getAccessToken,
+  getUploadLink
 };

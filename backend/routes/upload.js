@@ -172,31 +172,36 @@ router.delete('/file', async (req, res) => {
   res.status(501).json({ success: false, message: '暂不支持删除云存储文件' });
 });
 
-// 临时调试：检查云存储环境
+// 临时调试：测试云存储上传流程
 router.get('/debug-cloud', async (req, res) => {
-  const envVars = {
+  const result = {
     CBR_ENV_ID: process.env.CBR_ENV_ID || 'unset',
+    WX_APPID: process.env.WX_APPID ? 'set' : 'unset',
+    WX_SECRET: process.env.WX_SECRET ? 'set' : 'unset',
     useCloudStorage: useCloudStorage,
   };
 
-  // 检查 metadata 服务是否可用
+  // 测试获取 access_token
   try {
-    const http = require('http');
-    const metaResult = await new Promise((resolve, reject) => {
-      const r = http.get('http://metadata.tencentyun.com/latest/meta-data/cam/security-credentials/', { timeout: 3000 }, (resp) => {
-        let d = '';
-        resp.on('data', c => d += c);
-        resp.on('end', () => resolve(d.trim()));
-      });
-      r.on('error', e => reject(e));
-      r.on('timeout', () => { r.destroy(); reject(new Error('timeout')); });
-    });
-    envVars.metadataRole = metaResult || 'empty';
+    const token = await cloudStorage.getAccessToken();
+    result.accessToken = token ? 'ok (length: ' + token.length + ')' : 'empty';
   } catch (e) {
-    envVars.metadataRole = 'error: ' + e.message;
+    result.accessToken = 'error: ' + e.message;
   }
 
-  res.json(envVars);
+  // 测试获取上传链接
+  if (result.accessToken && result.accessToken.startsWith('ok')) {
+    try {
+      const token = await cloudStorage.getAccessToken();
+      const info = await cloudStorage.getUploadLink(token, 'test/debug-' + Date.now() + '.txt');
+      result.uploadLink = info.url ? 'ok' : 'no url';
+      result.fileId = info.file_id || 'none';
+    } catch (e) {
+      result.uploadLink = 'error: ' + e.message;
+    }
+  }
+
+  res.json(result);
 });
 
 // 错误处理
