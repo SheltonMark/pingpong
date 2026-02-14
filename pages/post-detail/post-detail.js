@@ -13,6 +13,10 @@ Page({
     this.setData({ postId: options.id });
     this.loadPost();
     this.loadComments();
+
+    wx.onKeyboardHeightChange(res => {
+      this.setData({ keyboardHeight: res.height });
+    });
   },
 
   async loadPost() {
@@ -68,10 +72,6 @@ Page({
 
   onCommentInput(e) {
     this.setData({ commentText: e.detail.value });
-  },
-
-  onKeyboardChange(e) {
-    this.setData({ keyboardHeight: e.detail.height });
   },
 
   async onSendComment() {
