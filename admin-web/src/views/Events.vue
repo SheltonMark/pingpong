@@ -178,6 +178,9 @@ const editorConfig = {
 
 const handleCreated = (editor) => {
   editorRef.value = editor
+  // 销毁悬浮工具栏，避免遮挡问题
+  const toolbar = editor.getHoverbar && editor.getHoverbar()
+  if (toolbar) toolbar.destroy()
 }
 
 const form = ref({
