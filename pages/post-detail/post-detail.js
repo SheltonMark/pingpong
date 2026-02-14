@@ -74,6 +74,14 @@ Page({
     this.setData({ commentText: e.detail.value });
   },
 
+  onInputFocus(e) {
+    this.setData({ keyboardHeight: e.detail.height || 0 });
+  },
+
+  onInputBlur() {
+    this.setData({ keyboardHeight: 0 });
+  },
+
   async onSendComment() {
     if (!this.data.commentText.trim()) return;
 
