@@ -5,7 +5,8 @@ Page({
     postId: null,
     post: null,
     comments: [],
-    commentText: ''
+    commentText: '',
+    keyboardHeight: 0
   },
 
   onLoad(options) {
@@ -67,6 +68,10 @@ Page({
 
   onCommentInput(e) {
     this.setData({ commentText: e.detail.value });
+  },
+
+  onKeyboardChange(e) {
+    this.setData({ keyboardHeight: e.detail.height });
   },
 
   async onSendComment() {
