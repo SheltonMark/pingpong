@@ -22,54 +22,59 @@ let tokenCache = { token: null, expireTime: 0 };
 
 /**
  * 获取微信 access_token（带缓存）
- * 云托管内部走内网，不需要 secret
+ * 云托管内部优先走内网，失败回退外网
  */
 async function getAccessToken() {
   if (tokenCache.token && Date.now() < tokenCache.expireTime) {
     return tokenCache.token;
   }
 
-  if (isInCloudRun) {
-    // 云托管内部：用 http 内网调用，不需要 appid 和 secret
-    const http = require('http');
-    return new Promise((resolve, reject) => {
-      const postData = JSON.stringify({ grant_type: 'client_credential' });
-      const req = http.request({
-        hostname: 'api.weixin.qq.com',
-        path: '/cgi-bin/token',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(postData)
-        },
-        timeout: 10000
-      }, (res) => {
-        let data = '';
-        res.on('data', c => data += c);
-        res.on('end', () => {
-          try {
-            const result = JSON.parse(data);
-            if (result.access_token) {
-              tokenCache = {
-                token: result.access_token,
-                expireTime: Date.now() + (result.expires_in - 300) * 1000
-              };
-              resolve(result.access_token);
-            } else {
-              reject(new Error('云托管内部获取access_token失败: ' + data));
-            }
-          } catch (e) {
-            reject(new Error('解析access_token失败: ' + data));
-          }
-        });
-      });
-      req.on('error', reject);
-      req.write(postData);
-      req.end();
-    });
+  function saveToken(result) {
+    tokenCache = {
+      token: result.access_token,
+      expireTime: Date.now() + (result.expires_in - 300) * 1000
+    };
+    return result.access_token;
   }
 
-  // 外部调用：需要 appid 和 secret
+  // 云托管内部先尝试内网调用
+  if (isInCloudRun) {
+    try {
+      const http = require('http');
+      const token = await new Promise((resolve, reject) => {
+        const postData = JSON.stringify({ grant_type: 'client_credential' });
+        const req = http.request({
+          hostname: 'api.weixin.qq.com',
+          path: '/cgi-bin/token',
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) },
+          timeout: 5000
+        }, (res) => {
+          let data = '';
+          res.on('data', c => data += c);
+          res.on('end', () => {
+            try {
+              const result = JSON.parse(data);
+              if (result.access_token) resolve(saveToken(result));
+              else reject(new Error(data));
+            } catch (e) { reject(e); }
+          });
+        });
+        req.on('error', reject);
+        req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+        req.write(postData);
+        req.end();
+      });
+      return token;
+    } catch (e) {
+      console.log('[WxCloud] 内网获取token失败，回退外网:', e.message);
+    }
+  }
+
+  // 外网调用：需要 appid 和 secret
+  if (!WX_APPID || !WX_SECRET) {
+    throw new Error('缺少 WX_APPID 或 WX_SECRET');
+  }
   return new Promise((resolve, reject) => {
     const url = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${WX_APPID}&secret=${WX_SECRET}`;
     https.get(url, { timeout: 10000 }, (res) => {
@@ -78,18 +83,9 @@ async function getAccessToken() {
       res.on('end', () => {
         try {
           const result = JSON.parse(data);
-          if (result.access_token) {
-            tokenCache = {
-              token: result.access_token,
-              expireTime: Date.now() + (result.expires_in - 300) * 1000
-            };
-            resolve(result.access_token);
-          } else {
-            reject(new Error('获取access_token失败: ' + data));
-          }
-        } catch (e) {
-          reject(new Error('解析access_token失败: ' + data));
-        }
+          if (result.access_token) resolve(saveToken(result));
+          else reject(new Error('获取access_token失败: ' + data));
+        } catch (e) { reject(new Error('解析access_token失败: ' + data)); }
       });
     }).on('error', reject);
   });
@@ -99,15 +95,11 @@ async function getAccessToken() {
  * 调用微信 API 获取文件上传链接
  */
 async function getUploadLink(accessToken, cloudPath) {
-  const httpModule = isInCloudRun ? require('http') : https;
-  const hostname = 'api.weixin.qq.com';
-  const reqPath = `/tcb/uploadfile?access_token=${accessToken}`;
-
   return new Promise((resolve, reject) => {
     const postData = JSON.stringify({ env: ENV_ID, path: cloudPath });
-    const req = httpModule.request({
-      hostname,
-      path: reqPath,
+    const req = https.request({
+      hostname: 'api.weixin.qq.com',
+      path: `/tcb/uploadfile?access_token=${accessToken}`,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
