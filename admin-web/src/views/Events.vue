@@ -178,9 +178,6 @@ const editorConfig = {
 
 const handleCreated = (editor) => {
   editorRef.value = editor
-  // 销毁悬浮工具栏，避免遮挡问题
-  const toolbar = editor.getHoverbar && editor.getHoverbar()
-  if (toolbar) toolbar.destroy()
 }
 
 const form = ref({
@@ -371,5 +368,12 @@ onMounted(() => {
   width: 100%;
   position: relative;
   z-index: 10;
+}
+</style>
+
+<style>
+/* 隐藏 wangEditor 悬浮工具栏 */
+.w-e-hover-bar {
+  display: none !important;
 }
 </style>
