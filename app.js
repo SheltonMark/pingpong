@@ -1,3 +1,24 @@
+// 全局开启分享
+const originalPage = Page;
+Page = function(config) {
+  if (!config.onShareAppMessage) {
+    config.onShareAppMessage = function() {
+      return {
+        title: '校乒网 - 乒乓球赛事平台',
+        path: '/pages/index/index'
+      };
+    };
+  }
+  if (!config.onShareTimeline) {
+    config.onShareTimeline = function() {
+      return {
+        title: '校乒网 - 乒乓球赛事平台'
+      };
+    };
+  }
+  originalPage(config);
+};
+
 App({
   onLaunch() {
     console.log('小程序启动');
