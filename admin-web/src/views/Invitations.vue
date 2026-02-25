@@ -3,7 +3,7 @@
     <div class="page-header">
       <h2>邀请管理</h2>
       <div class="header-actions">
-        <el-select v-model="selectedEventId" placeholder="选择赛事" clearable @change="loadInvitations">
+        <el-select v-model="selectedEventId" placeholder="选择赛事" clearable @change="loadInvitations" style="width: 180px;">
           <el-option
             v-for="event in events"
             :key="event.id"
@@ -11,11 +11,11 @@
             :value="event.id"
           />
         </el-select>
-        <el-select v-model="selectedType" placeholder="邀请类型" clearable @change="loadInvitations">
+        <el-select v-model="selectedType" placeholder="邀请类型" clearable @change="loadInvitations" style="width: 130px;">
           <el-option label="双打邀请" value="doubles" />
           <el-option label="团体赛邀请" value="team" />
         </el-select>
-        <el-select v-model="selectedStatus" placeholder="状态" clearable @change="loadInvitations">
+        <el-select v-model="selectedStatus" placeholder="状态" clearable @change="loadInvitations" style="width: 120px;">
           <el-option label="待处理" value="pending" />
           <el-option label="已接受" value="accepted" />
           <el-option label="已拒绝" value="rejected" />
