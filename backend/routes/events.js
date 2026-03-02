@@ -242,11 +242,13 @@ router.post('/matches/:matchId/score', async (req, res) => {
       );
     }
 
-    // 计算局数
+    // 计算局数（注意：前端传来的分数可能是字符串，需转为数值比较）
     let player1Games = 0, player2Games = 0;
     for (const score of scores) {
-      if (score.player1_score > score.player2_score) player1Games++;
-      else if (score.player2_score > score.player1_score) player2Games++;
+      const p1 = Number(score.player1_score);
+      const p2 = Number(score.player2_score);
+      if (p1 > p2) player1Games++;
+      else if (p2 > p1) player2Games++;
     }
 
     // 更新比赛状态

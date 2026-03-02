@@ -125,7 +125,7 @@ Page({
     try {
       const res = await app.request(`/api/events/matches/${this.data.matchId}/score`, {
             scores: validScores,
-            recorded_by: app.globalData.userInfo?.user_id
+            recorded_by: app.globalData.userInfo?.id
           }, 'POST');
 
       if (res.success) {
