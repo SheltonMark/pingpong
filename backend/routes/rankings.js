@@ -17,6 +17,8 @@ router.get('/', async (req, res) => {
       LEFT JOIN schools s ON u.school_id = s.id
       LEFT JOIN colleges c ON u.college_id = c.id
       WHERE u.is_registered = 1
+        AND u.phone IS NOT NULL
+        AND TRIM(u.phone) <> ''
     `;
     const params = [];
 
@@ -58,7 +60,10 @@ router.get('/schools', async (req, res) => {
         SUM(u.points) as total_points,
         SUM(u.wins) as total_wins
       FROM schools s
-      LEFT JOIN users u ON s.id = u.school_id AND u.is_registered = 1
+      LEFT JOIN users u ON s.id = u.school_id
+        AND u.is_registered = 1
+        AND u.phone IS NOT NULL
+        AND TRIM(u.phone) <> ''
       GROUP BY s.id
       ORDER BY total_points DESC
       LIMIT ?
