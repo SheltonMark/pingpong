@@ -438,6 +438,7 @@ router.get('/users', requireAdmin, async (req, res) => {
   try {
     const { keyword, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
+    const { managedSchoolIds } = req.adminContext;
 
     let sql = `
       SELECT u.id, u.name, u.phone, u.user_type, u.points as rating, u.wins, u.losses,
@@ -452,9 +453,18 @@ router.get('/users', requireAdmin, async (req, res) => {
       FROM users u
       LEFT JOIN schools s ON u.school_id = s.id
       LEFT JOIN colleges c ON u.college_id = c.id
-      WHERE u.is_registered = 1
+      WHERE u.is_registered = 1 AND u.phone IS NOT NULL
     `;
     const params = [];
+
+    // 学校管理员只能看本校用户
+    if (managedSchoolIds !== null) {
+      if (managedSchoolIds.length === 0) {
+        return res.json({ success: true, data: [], total: 0 });
+      }
+      sql += ` AND u.school_id IN (${managedSchoolIds.map(() => '?').join(',')})`;
+      params.push(...managedSchoolIds);
+    }
 
     if (keyword) {
       sql += ' AND (u.name LIKE ? OR u.phone LIKE ?)';
@@ -467,11 +477,18 @@ router.get('/users', requireAdmin, async (req, res) => {
     const [users] = await pool.execute(sql, params);
 
     // 获取总数
-    let countSql = 'SELECT COUNT(*) as total FROM users WHERE is_registered = 1';
+    let countSql = 'SELECT COUNT(*) as total FROM users WHERE is_registered = 1 AND phone IS NOT NULL';
     let countParams = [];
+    if (managedSchoolIds !== null) {
+      if (managedSchoolIds.length === 0) {
+        return res.json({ success: true, data: [], total: 0 });
+      }
+      countSql += ` AND school_id IN (${managedSchoolIds.map(() => '?').join(',')})`;
+      countParams.push(...managedSchoolIds);
+    }
     if (keyword) {
       countSql += ' AND (name LIKE ? OR phone LIKE ?)';
-      countParams = [`%${keyword}%`, `%${keyword}%`];
+      countParams.push(`%${keyword}%`, `%${keyword}%`);
     }
     const [[{ total }]] = await pool.execute(countSql, countParams);
 
