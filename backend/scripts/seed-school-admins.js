@@ -90,7 +90,7 @@ const schoolAdmins = [
   ['浙江邮电职业技术学院', 'zjydzyjsxy'],
   ['湖州师范学院', 'hzsfxy'],
   ['湖州学院', 'hzxy'],
-  ['湖州职业技术学院', 'hzzyjsxy'],
+  ['湖州职业技术学院', 'huzyzyjsxy'],
   ['浙江宇翔职业技术学院', 'zjyxzyjsxy'],
   ['嘉兴大学', 'jxdx'],
   ['嘉兴南湖学院', 'jxnhxy'],

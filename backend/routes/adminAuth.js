@@ -230,7 +230,7 @@ router.get('/seed-school-admins', async (req, res) => {
       ['浙江理工大学科技与艺术学院', 'zjlgdxkjyysxy'], ['浙江农林大学暨阳学院', 'zjnldxjyxy'],
       ['绍兴职业技术学院', 'sxzyjsxy'], ['浙江农业商贸职业学院', 'zjnysmzyxy'],
       ['浙江邮电职业技术学院', 'zjydzyjsxy'], ['湖州师范学院', 'hzsfxy'],
-      ['湖州学院', 'hzxy'], ['湖州职业技术学院', 'hzzyjsxy'],
+      ['湖州学院', 'hzxy'], ['湖州职业技术学院', 'huzyzyjsxy'],
       ['浙江宇翔职业技术学院', 'zjyxzyjsxy'], ['嘉兴大学', 'jxdx'],
       ['嘉兴南湖学院', 'jxnhxy'], ['浙江财经大学东方学院', 'zjcjdxdfxy'],
       ['嘉兴职业技术学院', 'jxzyjsxy'], ['嘉兴南洋职业技术学院', 'jxnyzyjsxy'],
