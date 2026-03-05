@@ -242,7 +242,7 @@ const handleAddAdmin = async () => {
 
   addLoading.value = true
   try {
-    const response = await fetch('/api/admin/admins', {
+    const response = await fetch(`/api/admin/admins?user_id=${getUserId()}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
