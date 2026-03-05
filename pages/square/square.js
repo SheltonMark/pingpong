@@ -9,6 +9,8 @@ Page({
     schools: [],
     schoolPickerList: [],  // picker显示列表
     schoolPickerIndex: 0,  // picker当前选中索引
+    schoolsLoaded: false,
+    isLoadingSchools: false,
 
     // 帖子
     posts: [],
@@ -37,8 +39,12 @@ Page({
     // 审核模式不加载数据
     if (app.globalData.reviewMode) return;
 
-    this.loadPosts(true);
-    this.loadStandaloneInvitations();
+    if (this.data.schoolsLoaded) {
+      this.loadPosts(true);
+      this.loadStandaloneInvitations();
+    } else if (!this.data.isLoadingSchools) {
+      this.loadSchools();
+    }
     // 更新自定义 tabBar 选中状态
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 1 });
@@ -47,6 +53,9 @@ Page({
 
   // 加载学校列表
   async loadSchools() {
+    if (this.data.isLoadingSchools) return;
+    this.setData({ isLoadingSchools: true });
+
     try {
       const res = await this.request('/api/common/schools');
       if (res.success) {
@@ -55,14 +64,17 @@ Page({
         const schoolPickerList = ['全部学校', ...schools.map(s => s.short_name || s.name)];
 
         // 默认显示用户自己学校的帖子
-        const userInfo = app.globalData.userInfo;
+        const cachedUserInfo = app.globalData.userInfo || wx.getStorageSync('userInfo');
+        if (!app.globalData.userInfo && cachedUserInfo) {
+          app.globalData.userInfo = cachedUserInfo;
+        }
         let currentSchoolId = null;
         let currentSchoolName = '';
         let schoolPickerIndex = 0;
 
-        if (userInfo && userInfo.school_id) {
-          currentSchoolId = userInfo.school_id;
-          const userSchoolIndex = schools.findIndex(s => s.id === userInfo.school_id);
+        if (cachedUserInfo && cachedUserInfo.school_id) {
+          currentSchoolId = cachedUserInfo.school_id;
+          const userSchoolIndex = schools.findIndex(s => s.id === cachedUserInfo.school_id);
           if (userSchoolIndex !== -1) {
             currentSchoolName = schools[userSchoolIndex].short_name || schools[userSchoolIndex].name;
             schoolPickerIndex = userSchoolIndex + 1;
@@ -74,11 +86,12 @@ Page({
           schoolPickerList,
           schoolPickerIndex,
           currentSchoolId,
-          currentSchoolName
+          currentSchoolName,
+          schoolsLoaded: true
         });
 
         // 加载帖子和约球数据
-        this.loadPosts();
+        this.loadPosts(true);
         this.loadStandaloneInvitations();
       } else {
         console.error('加载学校列表失败:', res.message);
@@ -87,6 +100,8 @@ Page({
     } catch (error) {
       console.error('加载学校列表失败:', error);
       wx.showToast({ title: '网络错误', icon: 'none' });
+    } finally {
+      this.setData({ isLoadingSchools: false });
     }
   },
 
