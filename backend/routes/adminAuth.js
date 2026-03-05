@@ -10,13 +10,13 @@ router.post('/login', async (req, res) => {
     const { phone, password } = req.body;
 
     if (!phone || !password) {
-      return res.json({ success: false, message: '请输入手机号和密码' });
+      return res.json({ success: false, message: '请输入账号和密码' });
     }
 
-    // 查找用户
+    // 查找用户（支持手机号或用户名登录）
     const [[user]] = await pool.execute(
-      'SELECT id, name, phone, school_id, admin_password, password_changed FROM users WHERE phone = ?',
-      [phone]
+      'SELECT id, name, phone, username, school_id, admin_password, password_changed FROM users WHERE phone = ? OR username = ?',
+      [phone, phone]
     );
 
     if (!user) {

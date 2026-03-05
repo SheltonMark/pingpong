@@ -6,7 +6,7 @@
         <el-form-item prop="phone">
           <el-input
             v-model="form.phone"
-            placeholder="手机号"
+            placeholder="手机号 / 用户名"
             prefix-icon="User"
             size="large"
           />
@@ -54,8 +54,7 @@ const form = reactive({
 
 const rules = {
   phone: [
-    { required: true, message: '请输入手机号', trigger: 'blur' },
-    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }
+    { required: true, message: '请输入手机号或用户名', trigger: 'blur' }
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
