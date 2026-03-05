@@ -52,7 +52,24 @@ Page({
 
   // 更新登录状态
   updateLoginStatus() {
-    const { isLoggedIn, isRegistered, userInfo } = app.globalData;
+    const cachedOpenid = wx.getStorageSync('openid');
+    const cachedUserInfo = wx.getStorageSync('userInfo');
+
+    let { isLoggedIn, isRegistered, userInfo } = app.globalData;
+    if (!userInfo && cachedUserInfo) {
+      userInfo = cachedUserInfo;
+      app.globalData.userInfo = cachedUserInfo;
+    }
+    if (!isLoggedIn && cachedOpenid) {
+      isLoggedIn = true;
+      app.globalData.isLoggedIn = true;
+      app.globalData.openid = app.globalData.openid || cachedOpenid;
+    }
+    if (!isRegistered && userInfo) {
+      isRegistered = true;
+      app.globalData.isRegistered = true;
+    }
+
     this.setData({
       isLoggedIn,
       isRegistered,
@@ -225,8 +242,9 @@ Page({
   async loadRankings() {
     try {
       const params = { limit: 5 };
-      if (this.data.currentSchoolId) {
-        params.school_id = this.data.currentSchoolId;
+      const schoolId = this.data.isLoggedIn ? this.data.userInfo?.school_id : null;
+      if (schoolId) {
+        params.school_id = schoolId;
       }
 
       const res = await app.request('/api/rankings', params);
