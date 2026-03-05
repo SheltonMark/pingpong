@@ -113,6 +113,9 @@ Page({
       await app.wxLogin();
       await app.agreePrivacy();
       this.updateLoginStatus();
+      this.loadSchools();
+      this.loadAnnouncements();
+      this.loadRankings();
 
       wx.hideLoading();
 
