@@ -814,12 +814,20 @@ const QQ_MAP_KEY = 'ORNBZ-LB63J-CYOFT-XCIHE-ZMZCQ-NOBTU';
 const QQ_MAP_SK = 'jxq6w0kpHa97DMAPD93JQh5JMyNGTKWk';
 const crypto = require('crypto');
 
-// 腾讯地图签名计算: MD5(请求路径?参数排序拼接 + SK)
+// 腾讯地图签名计算: MD5(请求路径?参数按key排序拼接 + SK)
+// 签名用原始未编码参数，发送请求时再编码
 function signQQMapUrl(path, params) {
   const sortedKeys = Object.keys(params).sort();
   const queryStr = sortedKeys.map(k => `${k}=${params[k]}`).join('&');
   const raw = `${path}?${queryStr}${QQ_MAP_SK}`;
-  return crypto.createHash('md5').update(raw).digest('hex');
+  return crypto.createHash('md5').update(raw, 'utf8').digest('hex');
+}
+
+function buildSignedUrl(baseUrl, path, params) {
+  const sig = signQQMapUrl(path, params);
+  const encodedParts = Object.keys(params).sort().map(k => `${encodeURIComponent(k)}=${encodeURIComponent(params[k])}`);
+  encodedParts.push(`sig=${sig}`);
+  return `${baseUrl}${path}?${encodedParts.join('&')}`;
 }
 
 router.get('/geocode/search', requireAdmin, async (req, res) => {
@@ -830,10 +838,10 @@ router.get('/geocode/search', requireAdmin, async (req, res) => {
 
   const axios = require('axios');
   try {
-    // 使用地址解析接口（配额6000/天），不再回退POI搜索（配额仅200/天）
+    // 使用地址解析接口（配额6000/天）
     const geocoderParams = { address: keyword.trim(), key: QQ_MAP_KEY };
-    geocoderParams.sig = signQQMapUrl('/ws/geocoder/v1/', geocoderParams);
-    const geocoderRes = await axios.get('https://apis.map.qq.com/ws/geocoder/v1/', { params: geocoderParams });
+    const url = buildSignedUrl('https://apis.map.qq.com', '/ws/geocoder/v1', geocoderParams);
+    const geocoderRes = await axios.get(url);
     console.log('[Geocoder] keyword:', keyword, 'status:', geocoderRes.data.status, 'message:', geocoderRes.data.message);
 
     if (geocoderRes.data.status === 0 && geocoderRes.data.result?.location) {
