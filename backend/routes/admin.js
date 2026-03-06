@@ -838,19 +838,28 @@ router.get('/geocode/search', requireAdmin, async (req, res) => {
 
   const axios = require('axios');
   try {
-    // 使用地址解析接口（配额6000/天）
-    const geocoderParams = { address: keyword.trim(), key: QQ_MAP_KEY };
-    const url = buildSignedUrl('https://apis.map.qq.com', '/ws/geocoder/v1', geocoderParams);
-    const geocoderRes = await axios.get(url);
-    console.log('[Geocoder] keyword:', keyword, 'status:', geocoderRes.data.status, 'message:', geocoderRes.data.message);
+    // 1) 优先 POI 搜索（适合地名/场馆名，配额200/天，管理后台够用）
+    const placeParams = { boundary: 'region(杭州市,0)', key: QQ_MAP_KEY, keyword: keyword.trim(), page_size: 5 };
+    const placeUrl = buildSignedUrl('https://apis.map.qq.com', '/ws/place/v1/search', placeParams);
+    const placeRes = await axios.get(placeUrl);
+    console.log('[PlaceSearch] keyword:', keyword, 'status:', placeRes.data.status, 'message:', placeRes.data.message, 'count:', placeRes.data.data?.length);
+    if (placeRes.data.status === 0 && placeRes.data.data?.length > 0) {
+      const poi = placeRes.data.data[0];
+      return res.json({ success: true, data: { lat: poi.location.lat, lng: poi.location.lng, title: poi.title } });
+    }
 
+    // 2) POI 无结果时回退地址解析（适合完整地址，配额6000/天）
+    const geocoderParams = { address: keyword.trim(), key: QQ_MAP_KEY };
+    const geocoderUrl = buildSignedUrl('https://apis.map.qq.com', '/ws/geocoder/v1', geocoderParams);
+    const geocoderRes = await axios.get(geocoderUrl);
+    console.log('[Geocoder] keyword:', keyword, 'status:', geocoderRes.data.status, 'message:', geocoderRes.data.message);
     if (geocoderRes.data.status === 0 && geocoderRes.data.result?.location) {
       const { lat, lng } = geocoderRes.data.result.location;
       const title = geocoderRes.data.result.title || keyword;
       return res.json({ success: true, data: { lat, lng, title } });
     }
 
-    const apiMsg = geocoderRes.data.message || '';
+    const apiMsg = placeRes.data.message || geocoderRes.data.message || '';
     res.json({ success: false, message: '未找到该地址' + (apiMsg ? `（${apiMsg}）` : '，请尝试更详细的关键字') });
   } catch (error) {
     console.error('Geocode search error:', error.message);
