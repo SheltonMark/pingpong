@@ -177,8 +177,6 @@ const recordFilter = ref({
 let map = null
 let marker = null
 let circle = null
-const QQ_MAP_KEY = 'ORNBZ-LB63J-CYOFT-XCIHE-ZMZCQ-NOBTU'
-
 const form = ref({
   name: '',
   latitude: '',
@@ -299,39 +297,6 @@ const updateCircle = () => {
 }
 
 // 搜索地址
-const requestTencentJsonp = (url) => {
-  return new Promise((resolve, reject) => {
-    const callbackName = `searchCallback_${Date.now()}_${Math.floor(Math.random() * 1000)}`
-    const script = document.createElement('script')
-    let timeoutId = null
-
-    const cleanup = () => {
-      if (timeoutId) clearTimeout(timeoutId)
-      delete window[callbackName]
-      if (script.parentNode) {
-        script.parentNode.removeChild(script)
-      }
-    }
-
-    window[callbackName] = (data) => {
-      cleanup()
-      resolve(data)
-    }
-
-    script.src = url.replace('callback=CALLBACK_PLACEHOLDER', `callback=${callbackName}`)
-    script.onerror = () => {
-      cleanup()
-      reject(new Error('请求失败'))
-    }
-    document.body.appendChild(script)
-
-    timeoutId = setTimeout(() => {
-      cleanup()
-      reject(new Error('请求超时'))
-    }, 10000)
-  })
-}
-
 const applySearchResult = (lat, lng, title) => {
   form.value.latitude = Number(lat).toFixed(6)
   form.value.longitude = Number(lng).toFixed(6)
@@ -350,51 +315,14 @@ const searchLocation = async () => {
   }
 
   try {
-    // 1) 优先使用地理编码，适合“学校/体育馆/详细地址”文本定位
-    const geocoderParams = new URLSearchParams({
-      address: keyword,
-      key: QQ_MAP_KEY,
-      output: 'jsonp',
-      callback: 'CALLBACK_PLACEHOLDER'
-    })
-    const geocoderUrl = `https://apis.map.qq.com/ws/geocoder/v1/?${geocoderParams.toString()}`
-    const geocoderResult = await requestTencentJsonp(geocoderUrl)
+    const res = await fetch(`/api/admin/geocode/search?keyword=${encodeURIComponent(keyword)}&user_id=${getUserId()}`)
+    const result = await res.json()
 
-    if (geocoderResult.status === 0 && geocoderResult.result?.location) {
-      const location = geocoderResult.result.location
-      const title = geocoderResult.result.title || keyword
-      applySearchResult(location.lat, location.lng, title)
-      return
+    if (result.success && result.data) {
+      applySearchResult(result.data.lat, result.data.lng, result.data.title)
+    } else {
+      ElMessage.warning(result.message || '未找到该地址，请尝试更详细的关键字')
     }
-
-    // 2) geocoder 无结果时，回退到 POI 搜索（按当前地图中心附近）
-    const center = map?.getCenter?.()
-    const boundary = (center && typeof center.getLat === 'function' && typeof center.getLng === 'function')
-      ? `nearby(${center.getLat()},${center.getLng()},50000,1)`
-      : 'region(杭州市,1)'
-    const placeParams = new URLSearchParams({
-      keyword,
-      boundary,
-      key: QQ_MAP_KEY,
-      output: 'jsonp',
-      callback: 'CALLBACK_PLACEHOLDER'
-    })
-    const placeUrl = `https://apis.map.qq.com/ws/place/v1/search?${placeParams.toString()}`
-    const placeResult = await requestTencentJsonp(placeUrl)
-
-    if (placeResult.status !== 0) {
-      ElMessage.error(placeResult.message || '地址搜索服务异常')
-      return
-    }
-
-    if (placeResult.data && placeResult.data.length > 0) {
-      const poi = placeResult.data[0]
-      const location = poi.location
-      applySearchResult(location.lat, location.lng, poi.title || keyword)
-      return
-    }
-
-    ElMessage.warning('未找到该地址，请尝试更完整的地址关键字')
   } catch (error) {
     console.error('搜索失败:', error)
     ElMessage.error('搜索失败，请重试')

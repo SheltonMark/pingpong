@@ -809,6 +809,42 @@ router.delete('/learning/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// 地址搜索代理（腾讯地图 WebService API 需要服务端调用）
+const QQ_MAP_KEY = 'ORNBZ-LB63J-CYOFT-XCIHE-ZMZCQ-NOBTU';
+router.get('/geocode/search', requireAdmin, async (req, res) => {
+  const { keyword } = req.query;
+  if (!keyword || !keyword.trim()) {
+    return res.json({ success: false, message: '请输入搜索关键字' });
+  }
+
+  const axios = require('axios');
+  try {
+    // 1) 优先地理编码
+    const geocoderRes = await axios.get('https://apis.map.qq.com/ws/geocoder/v1/', {
+      params: { address: keyword.trim(), key: QQ_MAP_KEY }
+    });
+    if (geocoderRes.data.status === 0 && geocoderRes.data.result?.location) {
+      const { lat, lng } = geocoderRes.data.result.location;
+      const title = geocoderRes.data.result.title || keyword;
+      return res.json({ success: true, data: { lat, lng, title } });
+    }
+
+    // 2) 回退 POI 搜索
+    const placeRes = await axios.get('https://apis.map.qq.com/ws/place/v1/search', {
+      params: { keyword: keyword.trim(), boundary: 'region(杭州市,0)', key: QQ_MAP_KEY, page_size: 5 }
+    });
+    if (placeRes.data.status === 0 && placeRes.data.data?.length > 0) {
+      const poi = placeRes.data.data[0];
+      return res.json({ success: true, data: { lat: poi.location.lat, lng: poi.location.lng, title: poi.title } });
+    }
+
+    res.json({ success: false, message: '未找到该地址，请尝试更详细的关键字' });
+  } catch (error) {
+    console.error('Geocode search error:', error.message);
+    res.json({ success: false, message: '地址搜索服务异常' });
+  }
+});
+
 // 获取签到点列表
 router.get('/checkin-points', requireAdmin, async (req, res) => {
   try {
