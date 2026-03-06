@@ -809,8 +809,19 @@ router.delete('/learning/:id', requireAdmin, async (req, res) => {
   }
 });
 
-// 地址搜索代理（腾讯地图 WebService API 需要服务端调用）
+// 地址搜索代理（腾讯地图 WebService API - 签名校验模式）
 const QQ_MAP_KEY = 'ORNBZ-LB63J-CYOFT-XCIHE-ZMZCQ-NOBTU';
+const QQ_MAP_SK = 'jxq6w0kpHa97DMAPD93JQh5JMyNGTKWk';
+const crypto = require('crypto');
+
+// 腾讯地图签名计算: MD5(请求路径?参数排序拼接 + SK)
+function signQQMapUrl(path, params) {
+  const sortedKeys = Object.keys(params).sort();
+  const queryStr = sortedKeys.map(k => `${k}=${params[k]}`).join('&');
+  const raw = `${path}?${queryStr}${QQ_MAP_SK}`;
+  return crypto.createHash('md5').update(raw).digest('hex');
+}
+
 router.get('/geocode/search', requireAdmin, async (req, res) => {
   const { keyword } = req.query;
   if (!keyword || !keyword.trim()) {
@@ -820,9 +831,9 @@ router.get('/geocode/search', requireAdmin, async (req, res) => {
   const axios = require('axios');
   try {
     // 1) 优先地理编码
-    const geocoderRes = await axios.get('https://apis.map.qq.com/ws/geocoder/v1/', {
-      params: { address: keyword.trim(), key: QQ_MAP_KEY }
-    });
+    const geocoderParams = { address: keyword.trim(), key: QQ_MAP_KEY };
+    geocoderParams.sig = signQQMapUrl('/ws/geocoder/v1/', geocoderParams);
+    const geocoderRes = await axios.get('https://apis.map.qq.com/ws/geocoder/v1/', { params: geocoderParams });
     console.log('[Geocoder] keyword:', keyword, 'status:', geocoderRes.data.status, 'message:', geocoderRes.data.message);
     if (geocoderRes.data.status === 0 && geocoderRes.data.result?.location) {
       const { lat, lng } = geocoderRes.data.result.location;
@@ -831,16 +842,15 @@ router.get('/geocode/search', requireAdmin, async (req, res) => {
     }
 
     // 2) 回退 POI 搜索
-    const placeRes = await axios.get('https://apis.map.qq.com/ws/place/v1/search', {
-      params: { keyword: keyword.trim(), boundary: 'region(杭州市,0)', key: QQ_MAP_KEY, page_size: 5 }
-    });
+    const placeParams = { boundary: 'region(杭州市,0)', key: QQ_MAP_KEY, keyword: keyword.trim(), page_size: 5 };
+    placeParams.sig = signQQMapUrl('/ws/place/v1/search', placeParams);
+    const placeRes = await axios.get('https://apis.map.qq.com/ws/place/v1/search', { params: placeParams });
     console.log('[PlaceSearch] keyword:', keyword, 'status:', placeRes.data.status, 'message:', placeRes.data.message, 'count:', placeRes.data.data?.length);
     if (placeRes.data.status === 0 && placeRes.data.data?.length > 0) {
       const poi = placeRes.data.data[0];
       return res.json({ success: true, data: { lat: poi.location.lat, lng: poi.location.lng, title: poi.title } });
     }
 
-    // 返回具体的API错误信息便于排查
     const apiMsg = geocoderRes.data.message || placeRes.data.message || '';
     res.json({ success: false, message: '未找到该地址' + (apiMsg ? `（${apiMsg}）` : '，请尝试更详细的关键字') });
   } catch (error) {
