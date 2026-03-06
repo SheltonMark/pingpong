@@ -839,7 +839,7 @@ router.get('/geocode/search', requireAdmin, async (req, res) => {
   const axios = require('axios');
   try {
     // 1) 优先 POI 搜索（适合地名/场馆名，配额200/天，管理后台够用）
-    const placeParams = { boundary: 'region(杭州市,0)', key: QQ_MAP_KEY, keyword: keyword.trim(), page_size: 5 };
+    const placeParams = { boundary: 'region(全国,0)', key: QQ_MAP_KEY, keyword: keyword.trim(), page_size: 5 };
     const placeUrl = buildSignedUrl('https://apis.map.qq.com', '/ws/place/v1/search', placeParams);
     const placeRes = await axios.get(placeUrl);
     console.log('[PlaceSearch] keyword:', keyword, 'status:', placeRes.data.status, 'message:', placeRes.data.message, 'count:', placeRes.data.data?.length);
