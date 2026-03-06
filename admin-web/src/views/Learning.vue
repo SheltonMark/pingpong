@@ -172,12 +172,15 @@ const getFullUrl = (url) => {
 }
 
 // 将完整URL转回相对路径（用于保存到数据库）
+// 仅转换本服务器的URL，云存储URL保持原样
 const toRelativePath = (url) => {
   if (!url) return url
-  // 如果是完整URL，提取相对路径
   if (url.startsWith('http')) {
-    const match = url.match(/\/uploads\/[^?#]+/)
-    if (match) return match[0]
+    if (url.startsWith(window.location.origin)) {
+      const match = url.match(/\/uploads\/[^?#]+/)
+      if (match) return match[0]
+    }
+    return url
   }
   return url
 }
