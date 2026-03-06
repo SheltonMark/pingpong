@@ -830,28 +830,19 @@ router.get('/geocode/search', requireAdmin, async (req, res) => {
 
   const axios = require('axios');
   try {
-    // 1) 优先地理编码
+    // 使用地址解析接口（配额6000/天），不再回退POI搜索（配额仅200/天）
     const geocoderParams = { address: keyword.trim(), key: QQ_MAP_KEY };
     geocoderParams.sig = signQQMapUrl('/ws/geocoder/v1/', geocoderParams);
     const geocoderRes = await axios.get('https://apis.map.qq.com/ws/geocoder/v1/', { params: geocoderParams });
     console.log('[Geocoder] keyword:', keyword, 'status:', geocoderRes.data.status, 'message:', geocoderRes.data.message);
+
     if (geocoderRes.data.status === 0 && geocoderRes.data.result?.location) {
       const { lat, lng } = geocoderRes.data.result.location;
       const title = geocoderRes.data.result.title || keyword;
       return res.json({ success: true, data: { lat, lng, title } });
     }
 
-    // 2) 回退 POI 搜索
-    const placeParams = { boundary: 'region(杭州市,0)', key: QQ_MAP_KEY, keyword: keyword.trim(), page_size: 5 };
-    placeParams.sig = signQQMapUrl('/ws/place/v1/search', placeParams);
-    const placeRes = await axios.get('https://apis.map.qq.com/ws/place/v1/search', { params: placeParams });
-    console.log('[PlaceSearch] keyword:', keyword, 'status:', placeRes.data.status, 'message:', placeRes.data.message, 'count:', placeRes.data.data?.length);
-    if (placeRes.data.status === 0 && placeRes.data.data?.length > 0) {
-      const poi = placeRes.data.data[0];
-      return res.json({ success: true, data: { lat: poi.location.lat, lng: poi.location.lng, title: poi.title } });
-    }
-
-    const apiMsg = geocoderRes.data.message || placeRes.data.message || '';
+    const apiMsg = geocoderRes.data.message || '';
     res.json({ success: false, message: '未找到该地址' + (apiMsg ? `（${apiMsg}）` : '，请尝试更详细的关键字') });
   } catch (error) {
     console.error('Geocode search error:', error.message);
