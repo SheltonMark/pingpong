@@ -961,6 +961,8 @@ router.delete('/checkin-points/:id', requireAdmin, async (req, res) => {
       }
     }
 
+    // 先删除关联的签到记录
+    await pool.execute('DELETE FROM check_ins WHERE point_id = ?', [id]);
     await pool.execute('DELETE FROM check_in_points WHERE id = ?', [id]);
     res.json({ success: true });
   } catch (error) {
