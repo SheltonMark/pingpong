@@ -33,7 +33,11 @@
               {{ row.radius }}米
             </template>
           </el-table-column>
-          <el-table-column prop="school_name" label="所属学校" width="150" />
+          <el-table-column label="所属学校" width="150">
+            <template #default="{ row }">
+              {{ row.school_name || '所有学校' }}
+            </template>
+          </el-table-column>
           <el-table-column prop="status" label="状态" width="80">
             <template #default="{ row }">
               <el-tag :type="row.status === 'active' ? 'success' : 'info'">
