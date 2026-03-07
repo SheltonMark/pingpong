@@ -867,16 +867,28 @@ router.get('/geocode/search', requireAdmin, async (req, res) => {
   }
 });
 
-// 获取签到点列表
+// 获取签到点列表（按角色过滤）
 router.get('/checkin-points', requireAdmin, async (req, res) => {
   try {
-    const [points] = await pool.execute(`
+    const { adminContext } = req;
+    let sql = `
       SELECT cp.*, s.name as school_name
       FROM check_in_points cp
       LEFT JOIN schools s ON cp.school_id = s.id
-      ORDER BY cp.created_at DESC
-    `);
+    `;
+    const params = [];
 
+    if (!adminContext.isSuperAdmin && adminContext.managedSchoolIds) {
+      const ids = adminContext.managedSchoolIds;
+      if (ids.length === 0) {
+        return res.json({ success: true, data: [] });
+      }
+      sql += ` WHERE (cp.school_id IN (${ids.map(() => '?').join(',')}) OR cp.school_id IS NULL)`;
+      params.push(...ids);
+    }
+
+    sql += ' ORDER BY cp.created_at DESC';
+    const [points] = await pool.query(sql, params);
     res.json({ success: true, data: points });
   } catch (error) {
     console.error('Get checkin points error:', error);
@@ -887,12 +899,18 @@ router.get('/checkin-points', requireAdmin, async (req, res) => {
 // 创建签到点
 router.post('/checkin-points', requireAdmin, async (req, res) => {
   try {
-    const { name, latitude, longitude, radius, school_id } = req.body;
+    const { adminContext } = req;
+    let { name, latitude, longitude, radius, school_id } = req.body;
+
+    // 学校管理员强制使用自己的学校
+    if (!adminContext.isSuperAdmin && adminContext.managedSchoolIds) {
+      school_id = adminContext.managedSchoolIds[0] || null;
+    }
 
     const [result] = await pool.execute(`
       INSERT INTO check_in_points (name, latitude, longitude, radius, school_id, status, created_at)
       VALUES (?, ?, ?, ?, ?, 'active', NOW())
-    `, [name, latitude, longitude, radius || 100, school_id]);
+    `, [name, latitude, longitude, radius || 100, school_id || null]);
 
     res.json({ success: true, data: { id: result.insertId } });
   } catch (error) {
@@ -904,13 +922,23 @@ router.post('/checkin-points', requireAdmin, async (req, res) => {
 // 更新签到点
 router.put('/checkin-points/:id', requireAdmin, async (req, res) => {
   try {
+    const { adminContext } = req;
     const { id } = req.params;
-    const { name, latitude, longitude, radius, school_id, status } = req.body;
+    let { name, latitude, longitude, radius, school_id, status } = req.body;
+
+    // 学校管理员只能改自己学校的签到点
+    if (!adminContext.isSuperAdmin && adminContext.managedSchoolIds) {
+      const [[point]] = await pool.execute('SELECT school_id FROM check_in_points WHERE id = ?', [id]);
+      if (point && point.school_id && !adminContext.managedSchoolIds.includes(point.school_id)) {
+        return res.json({ success: false, message: '无权修改该签到点' });
+      }
+      school_id = adminContext.managedSchoolIds[0] || null;
+    }
 
     await pool.execute(`
       UPDATE check_in_points SET name = ?, latitude = ?, longitude = ?, radius = ?, school_id = ?, status = ?
       WHERE id = ?
-    `, [name, latitude, longitude, radius || 100, school_id || null, status || 'active', id]);
+    `, [name, latitude, longitude, radius || 100, school_id !== undefined ? school_id : null, status || 'active', id]);
 
     res.json({ success: true });
   } catch (error) {
@@ -922,7 +950,17 @@ router.put('/checkin-points/:id', requireAdmin, async (req, res) => {
 // 删除签到点
 router.delete('/checkin-points/:id', requireAdmin, async (req, res) => {
   try {
+    const { adminContext } = req;
     const { id } = req.params;
+
+    // 学校管理员只能删自己学校的签到点
+    if (!adminContext.isSuperAdmin && adminContext.managedSchoolIds) {
+      const [[point]] = await pool.execute('SELECT school_id FROM check_in_points WHERE id = ?', [id]);
+      if (point && point.school_id && !adminContext.managedSchoolIds.includes(point.school_id)) {
+        return res.json({ success: false, message: '无权删除该签到点' });
+      }
+    }
+
     await pool.execute('DELETE FROM check_in_points WHERE id = ?', [id]);
     res.json({ success: true });
   } catch (error) {

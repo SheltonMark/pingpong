@@ -17,7 +17,7 @@ router.get('/points', async (req, res) => {
     const params = [lat || 0, lng || 0, lat || 0];
 
     if (school_id) {
-      sql += ' AND p.school_id = ?';
+      sql += ' AND (p.school_id = ? OR p.school_id IS NULL)';
       params.push(school_id);
     }
 

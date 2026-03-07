@@ -138,7 +138,8 @@
         </el-form-item>
 
         <el-form-item label="所属学校">
-          <el-select v-model="form.school_id" clearable placeholder="请选择（可选）">
+          <el-select v-model="form.school_id" :disabled="!isSuperAdmin" clearable placeholder="请选择（可选）">
+            <el-option v-if="isSuperAdmin" :label="'所有学校（通用）'" :value="null" />
             <el-option v-for="s in schools" :key="s.id" :label="s.name" :value="s.id" />
           </el-select>
         </el-form-item>
@@ -152,7 +153,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, watch } from 'vue'
+import { ref, onMounted, nextTick, watch, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { formatDateTime } from '../utils/format'
 
@@ -189,6 +190,15 @@ const getUserId = () => {
   const user = JSON.parse(localStorage.getItem('adminUser') || '{}')
   return user.id
 }
+
+// 角色判断
+const adminRoles = JSON.parse(localStorage.getItem('adminRoles') || '[]')
+const isSuperAdmin = computed(() => adminRoles.some(r => r.code === 'super_admin'))
+const adminSchoolId = computed(() => {
+  if (isSuperAdmin.value) return null
+  const schoolRole = adminRoles.find(r => r.code === 'school_admin')
+  return schoolRole?.school_id || JSON.parse(localStorage.getItem('adminUser') || '{}').school_id || null
+})
 
 // 初始化地图
 const initMap = () => {
@@ -369,7 +379,7 @@ const loadSchools = async () => {
 
 const showCreateDialog = () => {
   isEdit.value = false
-  form.value = { name: '', latitude: '', longitude: '', radius: 100, school_id: null }
+  form.value = { name: '', latitude: '', longitude: '', radius: 100, school_id: adminSchoolId.value }
   searchAddress.value = ''
   dialogVisible.value = true
 }
