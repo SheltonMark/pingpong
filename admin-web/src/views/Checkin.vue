@@ -142,8 +142,8 @@
         </el-form-item>
 
         <el-form-item label="所属学校">
-          <el-select v-model="form.school_id" :disabled="!isSuperAdmin" clearable placeholder="请选择（可选）">
-            <el-option v-if="isSuperAdmin" :label="'所有学校（通用）'" :value="null" />
+          <el-select v-model="form.school_id" :disabled="!isSuperAdmin" placeholder="请选择">
+            <el-option v-if="isSuperAdmin" label="所有学校（通用）" :value="0" />
             <el-option v-for="s in schools" :key="s.id" :label="s.name" :value="s.id" />
           </el-select>
         </el-form-item>
@@ -383,14 +383,14 @@ const loadSchools = async () => {
 
 const showCreateDialog = () => {
   isEdit.value = false
-  form.value = { name: '', latitude: '', longitude: '', radius: 100, school_id: adminSchoolId.value }
+  form.value = { name: '', latitude: '', longitude: '', radius: 100, school_id: isSuperAdmin.value ? 0 : adminSchoolId.value }
   searchAddress.value = ''
   dialogVisible.value = true
 }
 
 const editPoint = (row) => {
   isEdit.value = true
-  form.value = { ...row }
+  form.value = { ...row, school_id: row.school_id || 0 }
   searchAddress.value = ''
   dialogVisible.value = true
 }
@@ -412,10 +412,12 @@ const submitForm = async () => {
       : '/api/admin/checkin-points'
     const method = isEdit.value ? 'PUT' : 'POST'
 
+    const submitData = { ...form.value, user_id: getUserId(), school_id: form.value.school_id || null }
+
     const res = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form.value, user_id: getUserId() })
+      body: JSON.stringify(submitData)
     })
     const data = await res.json()
 
