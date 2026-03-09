@@ -88,6 +88,9 @@ Page({
       fullUrl = app.globalData.baseUrl + url;
     }
 
+    // 增加查看次数
+    this.request(`/api/learning/${id}`);
+
     if (type === 'video') {
       wx.navigateTo({
         url: `/pages/video-player/video-player?id=${id}&url=${encodeURIComponent(fullUrl)}`
