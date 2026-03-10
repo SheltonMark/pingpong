@@ -2,7 +2,7 @@
   <!-- 赛事信息 -->
   <view class="event-card">
     <text class="event-name">{{event.title}}</text>
-    <text class="event-info">团体赛 · {{event.format_label}}</text>
+    <text class="event-info">团体赛</text>
   </view>
 
   <!-- 队伍名称 -->
@@ -22,40 +22,35 @@
   <!-- 队员配置 -->
   <view class="team-card">
     <view class="card-header">
-      <text class="card-title">队员配置</text>
+      <text class="card-title">队员配置（{{members.length}} / {{maxMembers}}人）</text>
       <text class="card-subtitle">点击成员可标记单打（最多3人）</text>
     </view>
     <view class="team-list">
+      <!-- 已有成员 -->
       <view
-        class="team-slot {{item.status}} {{item.isSingles ? 'singles-marked' : ''}}"
-        wx:for="{{teamSlots}}"
-        wx:key="index"
+        class="team-slot confirmed {{item.isSingles ? 'singles-marked' : ''}}"
+        wx:for="{{members}}"
+        wx:key="user_id"
+        bindtap="onToggleSingles"
+        data-index="{{index}}"
       >
-        <!-- 已有成员 -->
-        <block wx:if="{{item.user}}">
-          <view class="slot-main" bindtap="onToggleSingles" data-index="{{index}}">
-            <view class="slot-avatar">{{item.isLeader ? '😎' : '🧑'}}</view>
-            <view class="slot-info">
-              <text class="slot-name">{{item.user.name}}{{item.isLeader ? '（你）' : ''}}</text>
-              <text class="slot-position">{{item.isLeader ? '领队 · ' : ''}}{{item.position}}</text>
-            </view>
-            <view class="slot-tags">
-              <text class="singles-tag" wx:if="{{item.isSingles}}">单打</text>
-              <text class="slot-status {{item.status}}">
-                {{item.status === 'confirmed' ? '已确认' : '待确认'}}
-              </text>
-            </view>
-          </view>
-        </block>
+        <image class="slot-avatar" src="{{item.avatar_url || '/assets/default-avatar.png'}}" mode="aspectFill" />
+        <view class="slot-info">
+          <text class="slot-name">{{item.name}}{{item.isLeader ? '（领队）' : ''}}</text>
+          <text class="slot-position">{{item.status === 'confirmed' ? '已确认' : '待确认'}}</text>
+        </view>
+        <view class="slot-tags">
+          <text class="singles-tag" wx:if="{{item.isSingles}}">单打</text>
+        </view>
+      </view>
 
-        <!-- 空位 -->
-        <block wx:else>
-          <view class="slot-avatar empty">+</view>
-          <view class="slot-info">
-            <text class="slot-position-empty">{{item.position}} - 待邀请</text>
-          </view>
-          <button class="invite-btn" open-type="share">分享邀请</button>
-        </block>
+      <!-- 邀请按钮（未满员时显示） -->
+      <view class="team-slot empty" wx:if="{{members.length < maxMembers}}">
+        <view class="slot-avatar-empty">+</view>
+        <view class="slot-info">
+          <text class="slot-position-empty">邀请队友</text>
+        </view>
+        <button class="invite-btn" open-type="share">分享邀请</button>
       </view>
     </view>
   </view>
@@ -65,11 +60,12 @@
     <button
       class="submit-btn"
       bindtap="onSubmit"
-      disabled="{{isSubmitting}}"
+      disabled="{{isSubmitting || members.length < 2}}"
       wx:if="{{!hasExistingTeam}}"
     >
       {{isSubmitting ? '提交中...' : '提交报名'}}
     </button>
+    <text class="submit-hint" wx:if="{{!hasExistingTeam}}">提交后需全员确认方可生效</text>
     <button
       class="submit-btn"
       bindtap="saveSinglesMarks"

@@ -2,7 +2,7 @@
   min-height: 100vh;
   background: #F5F5F5;
   padding: 24rpx;
-  padding-bottom: 180rpx;
+  padding-bottom: 220rpx;
 }
 
 .event-card {
@@ -31,7 +31,6 @@
   background: #FFFFFF;
   border-radius: 24rpx;
   margin-bottom: 24rpx;
-  overflow: hidden;
   box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.05);
 }
 
@@ -56,8 +55,10 @@
 
 .team-name-input {
   width: 100%;
-  padding: 24rpx 36rpx;
+  height: 100rpx;
+  padding: 0 36rpx;
   font-size: 28rpx;
+  line-height: 100rpx;
   color: #1A1A1A;
   box-sizing: border-box;
 }
@@ -79,10 +80,6 @@
   background: #ECFDF5;
 }
 
-.team-slot.pending {
-  background: #FFF5EB;
-}
-
 .team-slot.empty {
   border: 4rpx dashed #D1D5DB;
   background: transparent;
@@ -94,27 +91,24 @@
   border: 2rpx solid #F59E0B;
 }
 
-.slot-main {
-  display: flex;
-  align-items: center;
-  flex: 1;
-}
-
 .slot-avatar {
   width: 80rpx;
   height: 80rpx;
-  border-radius: 24rpx;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.slot-avatar-empty {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
   background: #E5E7EB;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 36rpx;
-  flex-shrink: 0;
-}
-
-.slot-avatar.empty {
-  font-size: 36rpx;
   color: #9CA3AF;
+  flex-shrink: 0;
 }
 
 .slot-info {
@@ -159,19 +153,6 @@
   border: 1rpx solid #F59E0B;
 }
 
-.slot-status {
-  font-size: 24rpx;
-  font-weight: 600;
-}
-
-.slot-status.confirmed {
-  color: #059669;
-}
-
-.slot-status.pending {
-  color: #FF6B00;
-}
-
 /* 分享邀请按钮（覆盖微信button默认样式） */
 .invite-btn {
   padding: 12rpx 24rpx;
@@ -204,6 +185,9 @@
 .submit-btn {
   width: 100%;
   height: 96rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: linear-gradient(135deg, #FF6B00, #E55D00);
   color: #FFFFFF;
   font-size: 32rpx;
@@ -211,10 +195,19 @@
   border: none;
   border-radius: 24rpx;
   box-shadow: 0 8rpx 24rpx rgba(255, 107, 0, 0.35);
+  padding: 0;
 }
 
 .submit-btn[disabled] {
   opacity: 0.5;
+}
+
+.submit-hint {
+  display: block;
+  text-align: center;
+  font-size: 24rpx;
+  color: #9CA3AF;
+  margin-top: 12rpx;
 }
 
 .empty-tip {
