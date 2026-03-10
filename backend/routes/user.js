@@ -291,7 +291,7 @@ router.post('/update', async (req, res) => {
     // 获取更新后的用户信息
     const [users] = await pool.query(`
       SELECT
-        u.id, u.name, u.gender, u.phone, u.avatar_url,
+        u.id, u.id as user_id, u.name, u.gender, u.phone, u.avatar_url,
         u.user_type, u.school_id, u.college_id, u.department_id,
         u.class_name, u.enrollment_year,
         u.points, u.wins, u.losses,
@@ -323,7 +323,7 @@ router.get('/profile', async (req, res) => {
 
     const [users] = await pool.query(`
       SELECT
-        u.id, u.name, u.gender, u.phone, u.avatar_url,
+        u.id, u.id as user_id, u.name, u.gender, u.phone, u.avatar_url,
         u.user_type, u.school_id, u.college_id, u.department_id,
         u.class_name, u.enrollment_year,
         u.points, u.wins, u.losses,
