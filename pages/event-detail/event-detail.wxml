@@ -74,11 +74,17 @@
       <view class="captain-content">
         <view wx:if="{{isCaptain}}" class="captain-status approved">
           <text class="status-icon">✓</text>
-          <text>您是该赛事的领队</text>
+          <view class="captain-status-texts">
+            <text>您是该赛事的领队</text>
+            <text class="captain-subtext">参赛设置：{{captainParticipating ? '领队参赛' : '领队不参赛'}}</text>
+          </view>
         </view>
         <view wx:elif="{{captainStatus === 'pending'}}" class="captain-status pending">
           <text class="status-icon">⏳</text>
-          <text>领队申请审批中</text>
+          <view class="captain-status-texts">
+            <text>领队申请审批中</text>
+            <text class="captain-subtext">已选择：{{captainParticipating ? '领队参赛' : '领队不参赛'}}</text>
+          </view>
         </view>
         <view wx:elif="{{captainStatus === 'rejected'}}" class="captain-status rejected">
           <text class="status-icon">✗</text>
@@ -135,19 +141,46 @@
       </view>
       <view class="empty-tip" wx:if="{{doublesPairs.length === 0 && waitingPlayers.length === 0}}">暂无报名</view>
     </block>
-    <!-- 单打/团体：原有列表 -->
+    <!-- 单打/团体 -->
     <block wx:else>
-      <view class="player-list" wx:if="{{registrations.length > 0}}">
-        <view class="player-item" wx:for="{{registrations}}" wx:key="id">
-          <view class="player-rank">{{index + 1}}</view>
-          <image class="player-avatar" src="{{item.avatar_url || '/images/default-avatar.png'}}" mode="aspectFill" />
-          <view class="player-info">
-            <text class="player-name">{{item.name}}</text>
-            <text class="player-college">{{item.school_name}}{{item.college_name ? ' · ' + item.college_name : ''}}</text>
+      <block wx:if="{{event.event_type === 'team'}}">
+        <view class="team-list-wrap" wx:if="{{teams.length > 0}}">
+          <view class="team-item" wx:for="{{teams}}" wx:key="team_name">
+            <view class="team-item-header" bindtap="onToggleTeamExpand" data-team-name="{{item.team_name}}">
+              <view class="team-item-main">
+                <text class="team-item-name">{{item.team_name}}</text>
+                <text class="team-item-count">{{item.member_count}}人</text>
+              </view>
+              <text class="team-item-arrow">{{teamExpanded[item.team_name] ? '收起' : '展开'}}</text>
+            </view>
+
+            <view class="team-members" wx:if="{{teamExpanded[item.team_name]}}">
+              <view class="team-member" wx:for="{{item.members}}" wx:key="user_id">
+                <image class="team-member-avatar" src="{{item.avatar_url || '/images/default-avatar.png'}}" mode="aspectFill" />
+                <view class="team-member-info">
+                  <text class="team-member-name">{{item.name}}{{item.is_team_leader ? '（领队）' : ''}}</text>
+                  <text class="team-member-meta">{{item.school_name || ''}}{{item.college_name ? ' · ' + item.college_name : ''}}</text>
+                </view>
+              </view>
+            </view>
           </view>
         </view>
-      </view>
-      <view class="empty-tip" wx:else>暂无报名</view>
+        <view class="empty-tip" wx:else>暂无报名</view>
+      </block>
+
+      <block wx:else>
+        <view class="player-list" wx:if="{{registrations.length > 0}}">
+          <view class="player-item" wx:for="{{registrations}}" wx:key="id">
+            <view class="player-rank">{{index + 1}}</view>
+            <image class="player-avatar" src="{{item.avatar_url || '/images/default-avatar.png'}}" mode="aspectFill" />
+            <view class="player-info">
+              <text class="player-name">{{item.name}}</text>
+              <text class="player-college">{{item.school_name}}{{item.college_name ? ' · ' + item.college_name : ''}}</text>
+            </view>
+          </view>
+        </view>
+        <view class="empty-tip" wx:else>暂无报名</view>
+      </block>
     </block>
   </view>
 
@@ -189,11 +222,11 @@
     </block>
     <!-- 团体赛：只有领队可以报名队伍，普通用户不能直接报名 -->
     <block wx:elif="{{event.event_type === 'team'}}">
-      <button class="register-btn" wx:if="{{isCaptain && !hasTeamRegistered}}" bindtap="onRegisterTeam">报名队伍</button>
-      <view class="team-tip" wx:elif="{{!isCaptain}}">
+      <button class="cancel-btn" wx:if="{{hasTeamRegistered}}" bindtap="onCancelTeamRegister">取消队伍报名</button>
+      <button class="register-btn" wx:elif="{{isCaptain}}" bindtap="onRegisterTeam">报名队伍</button>
+      <view class="team-tip" wx:else>
         <text>团体赛需要先申请成为领队，再组建队伍报名</text>
       </view>
-      <button class="cancel-btn" wx:elif="{{hasTeamRegistered}}" bindtap="onCancelTeamRegister">取消队伍报名</button>
     </block>
   </view>
 </view>

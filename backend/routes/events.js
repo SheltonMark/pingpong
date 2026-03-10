@@ -857,7 +857,8 @@ async function updatePlayerRatings(eventId, matchId, winnerId, loserId) {
 router.post('/:id/apply-captain', async (req, res) => {
   try {
     const { id } = req.params;
-    const { user_id, reason } = req.body;
+    const { user_id, reason, is_participating } = req.body;
+    const leaderParticipating = (is_participating === 0 || is_participating === '0' || is_participating === false) ? 0 : 1;
 
     if (!user_id) {
       return res.status(400).json({ success: false, message: '缺少用户ID' });
@@ -889,13 +890,13 @@ router.post('/:id/apply-captain', async (req, res) => {
       }
       // 如果之前被拒绝，可以重新申请
       await pool.execute(
-        'UPDATE captain_applications SET status = ?, reason = ?, reject_reason = NULL, reviewed_by = NULL, reviewed_at = NULL WHERE id = ?',
-        ['pending', reason || null, app.id]
+        'UPDATE captain_applications SET status = ?, reason = ?, is_participating = ?, reject_reason = NULL, reviewed_by = NULL, reviewed_at = NULL WHERE id = ?',
+        ['pending', reason || null, leaderParticipating, app.id]
       );
     } else {
       await pool.execute(
-        'INSERT INTO captain_applications (event_id, user_id, reason) VALUES (?, ?, ?)',
-        [id, user_id, reason || null]
+        'INSERT INTO captain_applications (event_id, user_id, reason, is_participating) VALUES (?, ?, ?, ?)',
+        [id, user_id, reason || null, leaderParticipating]
       );
     }
 
@@ -1072,6 +1073,7 @@ router.post('/:id/register-team', async (req, res) => {
     if (captainApps.length === 0) {
       return res.status(403).json({ success: false, message: '您不是该赛事的领队，无法组建队伍' });
     }
+    const leaderParticipating = captainApps[0].is_participating === 0 ? 0 : 1;
 
     // 检查队伍数量限制
     if (event.max_participants && event.team_count >= event.max_participants) {
@@ -1096,6 +1098,12 @@ router.post('/:id/register-team', async (req, res) => {
       return res.status(400).json({ success: false, message: '您已报名该赛事' });
     }
 
+    const participantCount = member_ids.length + (leaderParticipating ? 1 : 0);
+    const minParticipants = leaderParticipating ? 2 : 3;
+    if (participantCount < minParticipants) {
+      return res.status(400).json({ success: false, message: `当前设置下至少需要${minParticipants}名参赛队员` });
+    }
+
     // 检查队员是否已报名其他队伍
     const [memberRegs] = await pool.query(
       'SELECT er.*, u.name FROM event_registrations er JOIN users u ON er.user_id = u.id WHERE er.event_id = ? AND er.user_id IN (?) AND er.status != "cancelled"',
@@ -1112,22 +1120,31 @@ router.post('/:id/register-team', async (req, res) => {
 
     try {
       // 计算单打标记
-      const singlesIds = Array.isArray(singles_player_ids) ? singles_player_ids : [];
+      const singlesIds = (Array.isArray(singles_player_ids) ? singles_player_ids : [])
+        .map(v => parseInt(v, 10))
+        .filter(v => Number.isInteger(v));
+      if (singlesIds.length > 3) {
+        return res.status(400).json({ success: false, message: '最多选择3名单打选手' });
+      }
+      if (!leaderParticipating && singlesIds.includes(parseInt(user_id, 10))) {
+        return res.status(400).json({ success: false, message: '领队不参赛时不能标记为单打选手' });
+      }
 
       // 插入领队报名记录
-      const leaderIsSingles = singlesIds.includes(user_id) ? 1 : 0;
+      const leaderIsSingles = leaderParticipating && singlesIds.includes(parseInt(user_id, 10)) ? 1 : 0;
       await connection.execute(
-        `INSERT INTO event_registrations (event_id, user_id, team_name, is_team_leader, is_singles_player, status)
-         VALUES (?, ?, ?, 1, ?, 'confirmed')`,
-        [id, user_id, team_name, leaderIsSingles]
+        `INSERT INTO event_registrations (event_id, user_id, team_name, is_team_leader, is_participating, is_singles_player, status)
+         VALUES (?, ?, ?, 1, ?, ?, 'confirmed')`,
+        [id, user_id, team_name, leaderParticipating, leaderIsSingles]
       );
 
       // 插入队员报名记录（pending 状态，等待确认）
       for (const memberId of member_ids) {
-        const memberIsSingles = singlesIds.includes(memberId) ? 1 : 0;
+        const numericMemberId = parseInt(memberId, 10);
+        const memberIsSingles = singlesIds.includes(numericMemberId) ? 1 : 0;
         await connection.execute(
-          `INSERT INTO event_registrations (event_id, user_id, team_name, is_team_leader, team_leader_id, is_singles_player, status)
-           VALUES (?, ?, ?, 0, ?, ?, 'pending')`,
+          `INSERT INTO event_registrations (event_id, user_id, team_name, is_team_leader, team_leader_id, is_participating, is_singles_player, status)
+           VALUES (?, ?, ?, 0, ?, 1, ?, 'pending')`,
           [id, memberId, team_name, user_id, memberIsSingles]
         );
 
@@ -1147,7 +1164,7 @@ router.post('/:id/register-team', async (req, res) => {
         data: {
           team_name,
           leader_id: user_id,
-          member_count: member_ids.length + 1
+          member_count: participantCount
         }
       });
     } catch (error) {
@@ -1185,7 +1202,7 @@ router.get('/:id/teams', async (req, res) => {
     // 获取每个队伍的成员
     for (const team of teams) {
       const [members] = await pool.query(`
-        SELECT er.user_id, u.name, u.avatar_url, er.is_team_leader, er.is_singles_player
+        SELECT er.user_id, u.name, u.avatar_url, er.is_team_leader, er.is_participating, er.is_singles_player
         FROM event_registrations er
         JOIN users u ON er.user_id = u.id
         WHERE er.event_id = ? AND er.team_name = ? AND er.status != 'cancelled'
@@ -1224,7 +1241,7 @@ router.get('/:id/my-team', async (req, res) => {
     const teamName = leaderReg[0].team_name;
 
     const [members] = await pool.query(`
-      SELECT er.user_id, er.status, er.is_team_leader, er.is_singles_player,
+      SELECT er.user_id, er.status, er.is_team_leader, er.is_participating, er.is_singles_player,
              u.name, u.avatar_url, u.gender,
              s.name as school_name, c.name as college_name
       FROM event_registrations er
@@ -1297,8 +1314,8 @@ router.post('/:id/join-team', async (req, res) => {
 
     // 创建报名记录
     await pool.execute(
-      `INSERT INTO event_registrations (event_id, user_id, team_name, is_team_leader, team_leader_id, status)
-       VALUES (?, ?, ?, 0, ?, 'confirmed')`,
+      `INSERT INTO event_registrations (event_id, user_id, team_name, is_team_leader, team_leader_id, is_participating, status)
+       VALUES (?, ?, ?, 0, ?, 1, 'confirmed')`,
       [id, user_id, teamName, inviter_id]
     );
 
@@ -1385,14 +1402,20 @@ router.put('/:id/team-singles', async (req, res) => {
     if (singles_player_ids.length > 3) {
       return res.status(400).json({ success: false, message: '最多选择3名单打选手' });
     }
+    const singlesIds = singles_player_ids
+      .map(v => parseInt(v, 10))
+      .filter(v => Number.isInteger(v));
 
     // 验证是领队
     const [leaderReg] = await pool.query(
-      'SELECT team_name FROM event_registrations WHERE event_id = ? AND user_id = ? AND is_team_leader = 1 AND status != "cancelled"',
+      'SELECT team_name, is_participating FROM event_registrations WHERE event_id = ? AND user_id = ? AND is_team_leader = 1 AND status != "cancelled"',
       [id, user_id]
     );
     if (leaderReg.length === 0) {
       return res.status(403).json({ success: false, message: '你不是该赛事的领队' });
+    }
+    if (leaderReg[0].is_participating === 0 && singlesIds.includes(parseInt(user_id, 10))) {
+      return res.status(400).json({ success: false, message: '领队不参赛时不能标记为单打选手' });
     }
 
     const teamName = leaderReg[0].team_name;
@@ -1404,12 +1427,12 @@ router.put('/:id/team-singles', async (req, res) => {
     );
 
     // 设置选中的单打选手
-    if (singles_player_ids.length > 0) {
-      const placeholders = singles_player_ids.map(() => '?').join(',');
+    if (singlesIds.length > 0) {
+      const placeholders = singlesIds.map(() => '?').join(',');
       await pool.execute(
         `UPDATE event_registrations SET is_singles_player = 1
-         WHERE event_id = ? AND team_name = ? AND user_id IN (${placeholders}) AND status != 'cancelled'`,
-        [id, teamName, ...singles_player_ids]
+         WHERE event_id = ? AND team_name = ? AND user_id IN (${placeholders}) AND status != 'cancelled' AND is_participating = 1`,
+        [id, teamName, ...singlesIds]
       );
     }
 

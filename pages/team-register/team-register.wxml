@@ -17,13 +17,22 @@
       bindinput="onTeamNameInput"
       disabled="{{hasExistingTeam}}"
     />
+    <view class="leader-setting">
+      <text class="leader-setting-label">领队参赛设置</text>
+      <view class="leader-setting-value {{leaderParticipates ? 'on' : 'off'}}">
+        {{leaderParticipates ? '领队参赛' : '领队不参赛'}}
+      </view>
+    </view>
+    <text class="leader-setting-tip" wx:if="{{!leaderParticipates}}">
+      当前领队不参赛：队伍至少需要3名参赛队员，且不能将领队标记为单打
+    </text>
   </view>
 
   <!-- 队员配置 -->
   <view class="team-card">
     <view class="card-header">
       <text class="card-title">队员配置（{{members.length}} / {{maxMembers}}人）</text>
-      <text class="card-subtitle">点击成员可标记单打（最多3人）</text>
+      <text class="card-subtitle">参赛{{participatingCount}}人，单打最多3人</text>
     </view>
     <view class="team-list">
       <!-- 已有成员 -->
@@ -40,6 +49,7 @@
           <text class="slot-position">{{item.status === 'confirmed' ? '已确认' : '待确认'}}</text>
         </view>
         <view class="slot-tags">
+          <text class="not-playing-tag" wx:if="{{!item.isParticipating}}">不参赛</text>
           <text class="singles-tag" wx:if="{{item.isSingles}}">单打</text>
         </view>
       </view>
@@ -57,22 +67,39 @@
 
   <!-- 底部操作 -->
   <view class="bottom-actions">
-    <button
-      class="submit-btn"
-      bindtap="onSubmit"
-      disabled="{{isSubmitting || members.length < 2}}"
-      wx:if="{{!hasExistingTeam}}"
-    >
-      {{isSubmitting ? '提交中...' : '提交报名'}}
-    </button>
-    <text class="submit-hint" wx:if="{{!hasExistingTeam}}">提交后需全员确认方可生效</text>
-    <button
-      class="submit-btn"
-      bindtap="saveSinglesMarks"
-      wx:else
-    >
-      保存单打标记
-    </button>
+    <view class="action-row" wx:if="{{!hasExistingTeam}}">
+      <button
+        class="submit-btn"
+        bindtap="onSubmit"
+        disabled="{{isSubmitting || participatingCount < minRequiredParticipants}}"
+      >
+        {{isSubmitting ? '提交中...' : '提交报名'}}
+      </button>
+      <button
+        class="secondary-btn"
+        bindtap="onGoBack"
+        disabled="{{isSubmitting}}"
+      >
+        返回
+      </button>
+    </view>
+
+    <view class="action-row" wx:else>
+      <button
+        class="submit-btn"
+        bindtap="saveSinglesMarks"
+        disabled="{{isCanceling}}"
+      >
+        保存单打标记
+      </button>
+      <button
+        class="danger-btn"
+        bindtap="onCancelTeamRegister"
+        disabled="{{isCanceling}}"
+      >
+        {{isCanceling ? '取消中...' : '取消队伍报名'}}
+      </button>
+    </view>
   </view>
 </view>
 

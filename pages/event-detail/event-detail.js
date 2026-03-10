@@ -44,10 +44,12 @@ Page({
     // 领队申请相关
     captainStatus: null, // null: 未申请, pending: 待审批, approved: 已通过, rejected: 已拒绝
     isCaptain: false,
+    captainParticipating: true,
     // 团体赛相关
     teamCount: 0,
     hasTeamRegistered: false,
     teams: [],
+    teamExpanded: {},
     // 双打分组相关
     doublesPairs: [],
     waitingPlayers: []
@@ -103,6 +105,9 @@ Page({
         if (event.event_type === 'doubles') {
           this.processDoublesRegistrations(res.data.registrations);
         }
+        if (event.event_type === 'team') {
+          this.processTeamRegistrations(res.data.registrations);
+        }
         // 团体赛加载领队状态
         if (event.event_type === 'team') {
           this.loadCaptainStatus();
@@ -137,9 +142,11 @@ Page({
       const res = await app.request(`/api/events/${this.data.eventId}/captain-status`, { user_id: userId });
 
       if (res.success) {
+        const application = res.data.application || null;
         this.setData({
           isCaptain: res.data.isCaptain,
-          captainStatus: res.data.application?.status || null
+          captainStatus: application?.status || null,
+          captainParticipating: application ? application.is_participating !== 0 : true
         });
       }
     } catch (error) {
@@ -154,31 +161,53 @@ Page({
       return;
     }
 
+    const tapIndex = await new Promise(resolve => {
+      wx.showActionSheet({
+        itemList: ['领队参赛（可上场）', '领队不参赛（仅管理队伍）'],
+        success: (res) => resolve(res.tapIndex),
+        fail: () => resolve(null)
+      });
+    });
+
+    if (tapIndex === null) return;
+
+    const isParticipating = tapIndex === 0 ? 1 : 0;
+    const choiceLabel = isParticipating ? '领队参赛' : '领队不参赛';
+
     wx.showModal({
       title: '申请成为领队',
-      content: '领队可以组建队伍并管理队员报名。确定申请吗？',
+      content: `已选择：${choiceLabel}。提交后等待管理员审批，确定继续吗？`,
       success: async (res) => {
-        if (res.confirm) {
-          // 请求审核结果订阅消息授权
-          try {
-            await subscribe.requestApprovalSubscription();
-          } catch (err) {
-            console.log('订阅请求失败或用户拒绝:', err);
-          }
+        if (!res.confirm) return;
 
-          try {
-            const result = await app.request(`/api/events/${this.data.eventId}/apply-captain`, { user_id: app.globalData.userInfo.user_id }, 'POST');
+        try {
+          await subscribe.requestApprovalSubscription();
+        } catch (err) {
+          console.log('订阅请求失败或用户拒绝:', err);
+        }
 
-            if (result.success) {
-              wx.showToast({ title: '申请已提交', icon: 'success' });
-              this.setData({ captainStatus: 'pending' });
-            } else {
-              wx.showToast({ title: result.message || '申请失败', icon: 'none' });
-            }
-          } catch (error) {
-            console.error('申请领队失败:', error);
-            wx.showToast({ title: '申请失败', icon: 'none' });
+        try {
+          const result = await app.request(
+            `/api/events/${this.data.eventId}/apply-captain`,
+            {
+              user_id: app.globalData.userInfo.user_id,
+              is_participating: isParticipating
+            },
+            'POST'
+          );
+
+          if (result.success) {
+            wx.showToast({ title: '申请已提交', icon: 'success' });
+            this.setData({
+              captainStatus: 'pending',
+              captainParticipating: isParticipating === 1
+            });
+          } else {
+            wx.showToast({ title: result.message || '申请失败', icon: 'none' });
           }
+        } catch (error) {
+          console.error('申请领队失败:', error);
+          wx.showToast({ title: '申请失败', icon: 'none' });
         }
       }
     });
@@ -245,6 +274,63 @@ Page({
     }
 
     this.setData({ doublesPairs: pairs, waitingPlayers: waiting });
+  },
+
+  // 团体赛：聚合队伍和成员信息
+  processTeamRegistrations(registrations) {
+    const teamsMap = new Map();
+
+    for (const reg of registrations || []) {
+      if (!reg.team_name) continue;
+
+      if (!teamsMap.has(reg.team_name)) {
+        teamsMap.set(reg.team_name, {
+          team_name: reg.team_name,
+          members: []
+        });
+      }
+
+      teamsMap.get(reg.team_name).members.push({
+        user_id: reg.user_id,
+        name: reg.name,
+        avatar_url: reg.avatar_url,
+        school_name: reg.school_name,
+        college_name: reg.college_name,
+        is_team_leader: !!reg.is_team_leader
+      });
+    }
+
+    const teams = Array.from(teamsMap.values()).map(team => {
+      const members = [...team.members].sort((a, b) => {
+        return (b.is_team_leader ? 1 : 0) - (a.is_team_leader ? 1 : 0);
+      });
+      return {
+        ...team,
+        members,
+        member_count: members.length
+      };
+    });
+
+    const prevExpanded = this.data.teamExpanded || {};
+    const teamExpanded = {};
+    teams.forEach(team => {
+      teamExpanded[team.team_name] = !!prevExpanded[team.team_name];
+    });
+
+    this.setData({
+      teams,
+      teamCount: teams.length,
+      teamExpanded
+    });
+  },
+
+  onToggleTeamExpand(e) {
+    const teamName = e.currentTarget.dataset.teamName;
+    if (!teamName) return;
+
+    const teamExpanded = { ...(this.data.teamExpanded || {}) };
+    teamExpanded[teamName] = !teamExpanded[teamName];
+    this.setData({ teamExpanded });
   },
 
   // 切换标签

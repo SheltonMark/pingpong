@@ -63,6 +63,50 @@
   box-sizing: border-box;
 }
 
+.leader-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 36rpx 20rpx;
+}
+
+.leader-setting-label {
+  font-size: 24rpx;
+  color: #6B7280;
+}
+
+.leader-setting-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-height: 44rpx;
+  font-size: 24rpx;
+  font-weight: 600;
+  padding: 0 20rpx;
+  border-radius: 999rpx;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.leader-setting-value.on {
+  background: #ECFDF5;
+  color: #047857;
+}
+
+.leader-setting-value.off {
+  background: #FEF2F2;
+  color: #B91C1C;
+}
+
+.leader-setting-tip {
+  display: block;
+  padding: 0 36rpx 24rpx;
+  font-size: 22rpx;
+  color: #B45309;
+}
+
 .team-list {
   padding: 0 36rpx 36rpx;
 }
@@ -153,6 +197,16 @@
   border: 1rpx solid #F59E0B;
 }
 
+.not-playing-tag {
+  font-size: 22rpx;
+  font-weight: 600;
+  color: #B91C1C;
+  background: #FEE2E2;
+  padding: 4rpx 16rpx;
+  border-radius: 12rpx;
+  border: 1rpx solid #FCA5A5;
+}
+
 /* 分享邀请按钮（覆盖微信button默认样式） */
 .invite-btn {
   padding: 12rpx 24rpx;
@@ -182,8 +236,14 @@
   box-shadow: 0 -4rpx 20rpx rgba(0,0,0,0.05);
 }
 
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
 .submit-btn {
-  width: 100%;
+  flex: 1;
   height: 96rpx;
   display: flex;
   align-items: center;
@@ -198,16 +258,37 @@
   padding: 0;
 }
 
+.secondary-btn,
+.danger-btn {
+  flex: 1;
+  height: 96rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 24rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  padding: 0;
+}
+
+.secondary-btn {
+  background: #F3F4F6;
+  color: #4B5563;
+}
+
+.danger-btn {
+  background: #FEE2E2;
+  color: #B91C1C;
+}
+
 .submit-btn[disabled] {
   opacity: 0.5;
 }
 
-.submit-hint {
-  display: block;
-  text-align: center;
-  font-size: 24rpx;
-  color: #9CA3AF;
-  margin-top: 12rpx;
+.secondary-btn[disabled],
+.danger-btn[disabled] {
+  opacity: 0.5;
 }
 
 .empty-tip {

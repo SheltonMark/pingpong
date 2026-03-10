@@ -356,6 +356,17 @@
   font-size: 32rpx;
 }
 
+.captain-status-texts {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.captain-subtext {
+  font-size: 24rpx;
+  opacity: 0.85;
+}
+
 .captain-tip {
   text-align: center;
   padding: 24rpx;
@@ -403,6 +414,96 @@
   font-weight: 600;
   color: var(--gray-700);
   margin-bottom: 20rpx;
+}
+
+/* 团体赛队伍列表 */
+.team-list-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.team-item {
+  background: #fff;
+  border-radius: 24rpx;
+  overflow: hidden;
+}
+
+.team-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 28rpx;
+}
+
+.team-item-main {
+  display: flex;
+  align-items: baseline;
+  gap: 16rpx;
+  min-width: 0;
+}
+
+.team-item-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--gray-900);
+  max-width: 420rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-item-count {
+  font-size: 24rpx;
+  color: var(--gray-500);
+}
+
+.team-item-arrow {
+  font-size: 24rpx;
+  color: var(--orange);
+  flex-shrink: 0;
+}
+
+.team-members {
+  border-top: 1rpx solid var(--gray-100);
+  padding: 8rpx 0;
+}
+
+.team-member {
+  display: flex;
+  align-items: center;
+  padding: 18rpx 28rpx;
+}
+
+.team-member + .team-member {
+  border-top: 1rpx solid var(--gray-100);
+}
+
+.team-member-avatar {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: var(--gray-100);
+  flex-shrink: 0;
+}
+
+.team-member-info {
+  margin-left: 18rpx;
+  min-width: 0;
+}
+
+.team-member-name {
+  display: block;
+  font-size: 28rpx;
+  color: var(--gray-900);
+  font-weight: 500;
+}
+
+.team-member-meta {
+  display: block;
+  font-size: 23rpx;
+  color: var(--gray-400);
+  margin-top: 4rpx;
 }
 
 /* 双打配对卡片 */

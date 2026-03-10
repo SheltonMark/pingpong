@@ -7,11 +7,15 @@ Page({
     event: null,
     user: null,
     teamName: '',
-    members: [],       // 动态成员列表（领队 + 队友）
-    maxMembers: 10,    // 从 event.max_participants 取
+    members: [],
+    maxMembers: 10,
     isLoading: true,
     isSubmitting: false,
-    hasExistingTeam: false
+    isCanceling: false,
+    hasExistingTeam: false,
+    leaderParticipates: true,
+    minRequiredParticipants: 2,
+    participatingCount: 0
   },
 
   onLoad(options) {
@@ -29,10 +33,14 @@ Page({
 
   async loadData() {
     try {
-      const [eventRes, userRes] = await Promise.all([
+      const currentUserId = app.globalData.userInfo?.id || app.globalData.userInfo?.user_id;
+      const [eventRes, userRes, captainRes] = await Promise.all([
         this.request(`/api/events/${this.data.eventId}`),
         app.globalData.userInfo?.openid
           ? this.request('/api/user/profile', { openid: app.globalData.userInfo.openid })
+          : Promise.resolve({ success: false }),
+        currentUserId
+          ? this.request(`/api/events/${this.data.eventId}/captain-status`, { user_id: currentUserId })
           : Promise.resolve({ success: false })
       ]);
 
@@ -45,8 +53,12 @@ Page({
       }
 
       if (userRes.success) {
-        this.setData({ user: userRes.data });
-        // 检查是否已有队伍（通过分享加入的成员）
+        let leaderParticipates = true;
+        if (captainRes && captainRes.success && captainRes.data?.application) {
+          leaderParticipates = captainRes.data.application.is_participating !== 0;
+        }
+
+        this.setData({ user: userRes.data, leaderParticipates });
         await this.refreshTeamMembers();
       }
     } catch (error) {
@@ -56,7 +68,12 @@ Page({
     }
   },
 
-  // 从后端刷新队伍成员列表
+  buildParticipationStats(members, leaderParticipates) {
+    const participatingCount = (members || []).filter(m => m.isParticipating).length;
+    const minRequiredParticipants = leaderParticipates ? 2 : 3;
+    return { participatingCount, minRequiredParticipants };
+  },
+
   async refreshTeamMembers() {
     const userId = app.globalData.userInfo?.id || app.globalData.userInfo?.user_id;
     if (!userId) return;
@@ -72,13 +89,20 @@ Page({
           name: m.name,
           avatar_url: m.avatar_url,
           isLeader: !!m.is_team_leader,
+          isParticipating: m.is_participating !== 0,
           status: m.status || 'confirmed',
-          isSingles: !!m.is_singles_player
+          isSingles: (m.is_participating !== 0) && !!m.is_singles_player
         }));
+        const leader = members.find(m => m.isLeader);
+        const leaderParticipates = leader ? leader.isParticipating : this.data.leaderParticipates;
+        const stats = this.buildParticipationStats(members, leaderParticipates);
+
         this.setData({
           hasExistingTeam: true,
+          leaderParticipates,
           teamName: res.data.team_name || this.data.teamName,
-          members
+          members,
+          ...stats
         });
       } else {
         this.initMembers();
@@ -89,28 +113,38 @@ Page({
     }
   },
 
-  // 初始化成员列表（仅领队自己）
   initMembers() {
     if (!this.data.user) return;
+
+    const leaderParticipates = !!this.data.leaderParticipates;
+    const members = [{
+      user_id: this.data.user.id || this.data.user.user_id,
+      name: this.data.user.name,
+      avatar_url: this.data.user.avatar_url,
+      isLeader: true,
+      isParticipating: leaderParticipates,
+      status: 'confirmed',
+      isSingles: false
+    }];
+    const stats = this.buildParticipationStats(members, leaderParticipates);
+
     this.setData({
-      members: [{
-        user_id: this.data.user.id || this.data.user.user_id,
-        name: this.data.user.name,
-        avatar_url: this.data.user.avatar_url,
-        isLeader: true,
-        status: 'confirmed',
-        isSingles: false
-      }]
+      hasExistingTeam: false,
+      members,
+      ...stats
     });
   },
 
-  // 点击已确认成员，切换单打标记
   onToggleSingles(e) {
     const index = e.currentTarget.dataset.index;
     const member = this.data.members[index];
     if (!member) return;
+    if (!member.isParticipating) {
+      wx.showToast({ title: '该成员未参赛，不能标记单打', icon: 'none' });
+      return;
+    }
 
-    const currentSinglesCount = this.data.members.filter(m => m.isSingles).length;
+    const currentSinglesCount = this.data.members.filter(m => m.isParticipating && m.isSingles).length;
 
     if (!member.isSingles && currentSinglesCount >= 3) {
       wx.showToast({ title: '最多选择3名单打选手', icon: 'none' });
@@ -121,11 +155,11 @@ Page({
     this.setData({ [key]: !member.isSingles });
   },
 
-  // 微信分享（邀请队友）
   onShareAppMessage() {
     const userId = app.globalData.userInfo?.id || app.globalData.userInfo?.user_id;
     const teamName = this.data.teamName || '我的队伍';
     const eventTitle = this.data.event?.title || '团体赛';
+
     return {
       title: `邀请你加入「${teamName}」参加${eventTitle}`,
       path: `/pages/team-invite/team-invite?event_id=${this.data.eventId}&inviter_id=${userId}`
@@ -136,24 +170,38 @@ Page({
     this.setData({ teamName: e.detail.value });
   },
 
+  onGoBack() {
+    wx.navigateBack();
+  },
+
   async onSubmit() {
     if (!this.data.teamName.trim()) {
       wx.showToast({ title: '请输入队伍名称', icon: 'none' });
       return;
     }
 
-    if (this.data.members.length < 2) {
-      wx.showToast({ title: '至少需要2名队员', icon: 'none' });
+    if (this.data.participatingCount < this.data.minRequiredParticipants) {
+      wx.showToast({ title: `至少需要${this.data.minRequiredParticipants}名参赛队员`, icon: 'none' });
       return;
     }
 
-    if (this.data.isSubmitting) return;
+    const confirmed = await new Promise(resolve => {
+      wx.showModal({
+        title: '确认提交报名',
+        content: '提交后需要全员确认方可生效，是否继续？',
+        success: res => resolve(!!res.confirm),
+        fail: () => resolve(false)
+      });
+    });
+
+    if (!confirmed || this.data.isSubmitting) return;
+
     this.setData({ isSubmitting: true });
 
     try {
       await subscribe.requestEventSubscriptions();
     } catch (err) {
-      console.log('订阅请求失败或用户拒绝:', err);
+      console.log('订阅请求失败或用户拒绝', err);
     }
 
     try {
@@ -162,11 +210,11 @@ Page({
         .map(m => m.user_id);
 
       const singles_player_ids = this.data.members
-        .filter(m => m.isSingles)
+        .filter(m => m.isParticipating && m.isSingles)
         .map(m => m.user_id);
 
       const res = await this.request(`/api/events/${this.data.eventId}/register-team`, {
-        user_id: app.globalData.userInfo.id || app.globalData.userInfo.user_id,
+        user_id: app.globalData.userInfo?.id || app.globalData.userInfo?.user_id,
         team_name: this.data.teamName.trim(),
         member_ids,
         singles_player_ids
@@ -174,7 +222,7 @@ Page({
 
       if (res.success) {
         wx.showToast({ title: '报名成功', icon: 'success' });
-        setTimeout(() => wx.navigateBack(), 1500);
+        await this.refreshTeamMembers();
       } else {
         wx.showToast({ title: res.message || '报名失败', icon: 'none' });
       }
@@ -186,11 +234,45 @@ Page({
     }
   },
 
-  // 保存单打标记到后端（已提交报名的队伍）
+  async onCancelTeamRegister() {
+    if (!this.data.hasExistingTeam || this.data.isCanceling) return;
+
+    const confirmed = await new Promise(resolve => {
+      wx.showModal({
+        title: '取消队伍报名',
+        content: '确定要取消队伍报名吗？取消后将解散队伍并取消所有成员报名。',
+        success: res => resolve(!!res.confirm),
+        fail: () => resolve(false)
+      });
+    });
+
+    if (!confirmed) return;
+
+    this.setData({ isCanceling: true });
+
+    try {
+      const res = await this.request(`/api/events/${this.data.eventId}/cancel-team`, {
+        user_id: app.globalData.userInfo?.id || app.globalData.userInfo?.user_id
+      }, 'POST');
+
+      if (res.success) {
+        wx.showToast({ title: '已取消', icon: 'success' });
+        await this.refreshTeamMembers();
+      } else {
+        wx.showToast({ title: res.message || '取消失败', icon: 'none' });
+      }
+    } catch (error) {
+      console.error('取消队伍报名失败:', error);
+      wx.showToast({ title: '取消失败', icon: 'none' });
+    } finally {
+      this.setData({ isCanceling: false });
+    }
+  },
+
   async saveSinglesMarks() {
     const userId = app.globalData.userInfo?.id || app.globalData.userInfo?.user_id;
     const singlesIds = this.data.members
-      .filter(m => m.isSingles)
+      .filter(m => m.isParticipating && m.isSingles)
       .map(m => m.user_id);
 
     try {
@@ -201,6 +283,7 @@ Page({
       wx.showToast({ title: '已保存', icon: 'success' });
     } catch (error) {
       console.error('保存单打标记失败:', error);
+      wx.showToast({ title: '保存失败', icon: 'none' });
     }
   },
 
@@ -208,4 +291,3 @@ Page({
     return app.request(url, data, method);
   }
 });
-
