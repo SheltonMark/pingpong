@@ -1316,6 +1316,58 @@ router.post('/:id/join-team', async (req, res) => {
   }
 });
 
+// 取消团体赛报名（领队取消整个队伍）
+router.post('/:id/cancel-team', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id } = req.body;
+
+    if (!user_id) {
+      return res.status(400).json({ success: false, message: '缺少用户ID' });
+    }
+
+    // 检查用户是否是该赛事的领队且有队伍
+    const [leaderReg] = await pool.query(
+      'SELECT team_name FROM event_registrations WHERE event_id = ? AND user_id = ? AND is_team_leader = 1 AND status != "cancelled"',
+      [id, user_id]
+    );
+
+    if (leaderReg.length === 0) {
+      return res.status(403).json({ success: false, message: '您不是该赛事的领队或未组建队伍' });
+    }
+
+    const teamName = leaderReg[0].team_name;
+
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    try {
+      // 取消该队伍所有成员的报名
+      await connection.execute(
+        'UPDATE event_registrations SET status = "cancelled" WHERE event_id = ? AND team_name = ? AND status != "cancelled"',
+        [id, teamName]
+      );
+
+      // 将相关团队邀请设为过期
+      await connection.execute(
+        'UPDATE team_invitations SET status = "expired" WHERE event_id = ? AND inviter_id = ? AND status = "pending"',
+        [id, user_id]
+      );
+
+      await connection.commit();
+      res.json({ success: true, message: '已取消队伍报名' });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('取消团体赛报名失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
 // 领队更新队伍单打选手标记
 router.put('/:id/team-singles', async (req, res) => {
   try {

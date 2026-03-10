@@ -10,6 +10,8 @@ Page({
     monthlyCount: 0,
     isLoading: true,
     isCheckingIn: false,
+    timeStatus: 'ok',
+    timeRangeText: '',
     // 地图相关
     mapScale: 16,
     markers: [],
@@ -77,7 +79,26 @@ Page({
 
       if (res.success && res.data.length > 0) {
         const point = res.data[0];
-        const canCheckIn = point.distance <= point.radius;
+        const withinRange = point.distance <= point.radius;
+
+        // 检查签到时间范围
+        const now = new Date();
+        let timeStatus = 'ok'; // ok, not_started, ended
+        let timeRangeText = '';
+        if (point.start_time || point.end_time) {
+          const parts = [];
+          if (point.start_time) parts.push(this.formatDateTime(point.start_time));
+          if (point.end_time) parts.push(this.formatDateTime(point.end_time));
+          timeRangeText = parts.join(' ~ ');
+
+          if (point.start_time && now < new Date(point.start_time)) {
+            timeStatus = 'not_started';
+          } else if (point.end_time && now > new Date(point.end_time)) {
+            timeStatus = 'ended';
+          }
+        }
+
+        const canCheckIn = withinRange && timeStatus === 'ok';
 
         // 设置地图标记和范围圈
         const markers = [
@@ -133,6 +154,8 @@ Page({
           nearestPoint: point,
           distance: Math.round(point.distance),
           canCheckIn,
+          timeStatus,
+          timeRangeText,
           markers,
           circles
         });
@@ -238,6 +261,11 @@ Page({
   formatTime(dateStr) {
     const date = new Date(dateStr);
     return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  },
+
+  formatDateTime(dateStr) {
+    const d = new Date(dateStr);
+    return `${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   },
 
   request(url, data, method = 'GET') {

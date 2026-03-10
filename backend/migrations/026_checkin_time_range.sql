@@ -1,0 +1,3 @@
+ALTER TABLE check_in_points
+  ADD COLUMN start_time DATETIME DEFAULT NULL COMMENT '签到开始时间',
+  ADD COLUMN end_time DATETIME DEFAULT NULL COMMENT '签到结束时间';

@@ -190,9 +190,11 @@ Page({
     if (!userId) return;
 
     const myReg = this.data.registrations.find(r => r.user_id === userId);
+    const hasTeamRegistered = !!(myReg && myReg.is_team_leader && myReg.team_name);
     this.setData({
       isRegistered: !!myReg,
-      myRegistration: myReg || null
+      myRegistration: myReg || null,
+      hasTeamRegistered
     });
   },
 

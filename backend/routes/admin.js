@@ -900,7 +900,7 @@ router.get('/checkin-points', requireAdmin, async (req, res) => {
 router.post('/checkin-points', requireAdmin, async (req, res) => {
   try {
     const { adminContext } = req;
-    let { name, latitude, longitude, radius, school_id } = req.body;
+    let { name, latitude, longitude, radius, school_id, start_time, end_time } = req.body;
 
     // 学校管理员强制使用自己的学校
     if (!adminContext.isSuperAdmin && adminContext.managedSchoolIds) {
@@ -908,9 +908,9 @@ router.post('/checkin-points', requireAdmin, async (req, res) => {
     }
 
     const [result] = await pool.execute(`
-      INSERT INTO check_in_points (name, latitude, longitude, radius, school_id, status, created_at)
-      VALUES (?, ?, ?, ?, ?, 'active', NOW())
-    `, [name, latitude, longitude, radius || 100, school_id || null]);
+      INSERT INTO check_in_points (name, latitude, longitude, radius, school_id, start_time, end_time, status, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'active', NOW())
+    `, [name, latitude, longitude, radius || 100, school_id || null, start_time || null, end_time || null]);
 
     res.json({ success: true, data: { id: result.insertId } });
   } catch (error) {
@@ -924,7 +924,7 @@ router.put('/checkin-points/:id', requireAdmin, async (req, res) => {
   try {
     const { adminContext } = req;
     const { id } = req.params;
-    let { name, latitude, longitude, radius, school_id, status } = req.body;
+    let { name, latitude, longitude, radius, school_id, status, start_time, end_time } = req.body;
 
     // 学校管理员只能改自己学校的签到点
     if (!adminContext.isSuperAdmin && adminContext.managedSchoolIds) {
@@ -936,9 +936,9 @@ router.put('/checkin-points/:id', requireAdmin, async (req, res) => {
     }
 
     await pool.execute(`
-      UPDATE check_in_points SET name = ?, latitude = ?, longitude = ?, radius = ?, school_id = ?, status = ?
+      UPDATE check_in_points SET name = ?, latitude = ?, longitude = ?, radius = ?, school_id = ?, status = ?, start_time = ?, end_time = ?
       WHERE id = ?
-    `, [name, latitude, longitude, radius || 100, school_id !== undefined ? school_id : null, status || 'active', id]);
+    `, [name, latitude, longitude, radius || 100, school_id !== undefined ? school_id : null, status || 'active', start_time || null, end_time || null, id]);
 
     res.json({ success: true });
   } catch (error) {

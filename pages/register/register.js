@@ -4,6 +4,8 @@ Page({
   data: {
     // 编辑模式
     isEditMode: false,
+    // 注册后跳转地址
+    redirect: '',
 
     // 用户类型：student(在校生), graduate(毕业生), teacher(老师), staff(教职工)
     userTypes: [
@@ -44,7 +46,8 @@ Page({
 
   onLoad(options) {
     const isEditMode = options.mode === 'edit';
-    this.setData({ isEditMode });
+    const redirect = options.redirect ? decodeURIComponent(options.redirect) : '';
+    this.setData({ isEditMode, redirect });
 
     if (isEditMode) {
       wx.setNavigationBarTitle({ title: '编辑资料' });
@@ -343,6 +346,8 @@ Page({
         setTimeout(() => {
           if (isEditMode) {
             wx.navigateBack();
+          } else if (this.data.redirect) {
+            wx.redirectTo({ url: this.data.redirect });
           } else {
             wx.switchTab({ url: '/pages/index/index' });
           }

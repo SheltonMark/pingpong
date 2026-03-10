@@ -72,7 +72,19 @@
       "Bash(ls:*)",
       "WebFetch(domain:cloud.tencent.com)",
       "WebFetch(domain:blog.csdn.net)",
-      "Bash(git fetch)"
+      "Bash(git fetch)",
+      "Bash(pushd:*)",
+      "Bash(git -C \"D:/mast/pingpong\" add backend/public/admin/)",
+      "Bash(git -C \"D:/mast/pingpong\" commit -m \"$\\(cat <<''EOF''\nchore: rebuild admin-web 静态文件\nEOF\n\\)\")",
+      "Bash(git -C \"D:/mast/pingpong\" add backend/routes/adminAuth.js)",
+      "Bash(git -C \"D:/mast/pingpong\" commit -m \"$\\(cat <<''EOF''\nfeat: 添加批量创建学校管理员临时API接口\nEOF\n\\)\")",
+      "Bash(git -C \"D:/mast/pingpong\" add backend/routes/adminAuth.js backend/scripts/seed-school-admins.js)",
+      "Bash(git -C \"D:/mast/pingpong\" commit -m \"$\\(cat <<''EOF''\nfix: 湖州职业技术学院用户名改为huzyzyjsxy避免与杭州职业技术学院冲突\nEOF\n\\)\")",
+      "Bash(git -C \"D:/mast/pingpong\" commit -m \"$\\(cat <<''EOF''\nchore: 删除批量创建学校管理员临时接口\nEOF\n\\)\")",
+      "Bash(git -C \"D:/mast/pingpong\" add backend/routes/admin.js)",
+      "Bash(git -C \"D:/mast/pingpong\" commit -m \"$\\(cat <<''EOF''\nfix: 用户列表过滤无手机号账号，学校管理员仅可见本校用户\nEOF\n\\)\")",
+      "Bash(popd:*)",
+      "Bash(xcopy:*)"
     ],
     "deny": [],
     "ask": []

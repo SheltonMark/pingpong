@@ -52,6 +52,15 @@ router.post('/check-in', async (req, res) => {
 
     const point = points[0];
 
+    // 检查签到时间范围
+    const now = new Date();
+    if (point.start_time && now < new Date(point.start_time)) {
+      return res.json({ success: false, message: '签到尚未开始' });
+    }
+    if (point.end_time && now > new Date(point.end_time)) {
+      return res.json({ success: false, message: '签到已结束' });
+    }
+
     // 计算距离
     const distance = calculateDistance(
       latitude, longitude,

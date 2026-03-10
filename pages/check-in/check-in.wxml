@@ -30,14 +30,17 @@
     <block wx:elif="{{nearestPoint}}">
       <text class="status-title">{{nearestPoint.name}}</text>
       <text class="status-desc">当前位置距离签到点 {{distance}}m</text>
-      <text class="status-hint" wx:if="{{!canCheckIn}}">需要在{{nearestPoint.radius}}m范围内才能签到</text>
+      <text class="status-hint" wx:if="{{!canCheckIn && timeStatus === 'not_started'}}">签到尚未开始</text>
+      <text class="status-hint" wx:elif="{{!canCheckIn && timeStatus === 'ended'}}">签到已结束</text>
+      <text class="status-hint" wx:elif="{{!canCheckIn}}">需要在{{nearestPoint.radius}}m范围内才能签到</text>
+      <text class="time-range" wx:if="{{timeRangeText}}">签到时间：{{timeRangeText}}</text>
 
       <button
         class="check-in-btn {{canCheckIn ? 'active' : 'disabled'}}"
         bindtap="onCheckIn"
         disabled="{{!canCheckIn || isCheckingIn}}"
       >
-        {{isCheckingIn ? '签到中...' : (canCheckIn ? '立即签到' : '距离过远')}}
+        {{isCheckingIn ? '签到中...' : (canCheckIn ? '立即签到' : timeStatus === 'not_started' ? '未到时间' : timeStatus === 'ended' ? '已结束' : '距离过远')}}
       </button>
     </block>
     <block wx:else>

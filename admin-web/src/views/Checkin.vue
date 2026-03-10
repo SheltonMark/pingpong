@@ -38,6 +38,14 @@
               {{ row.school_name || '所有学校' }}
             </template>
           </el-table-column>
+          <el-table-column label="签到时间范围" min-width="200">
+            <template #default="{ row }">
+              <span v-if="row.start_time || row.end_time" class="time-range-text">
+                {{ row.start_time ? formatDateTime(row.start_time) : '不限' }} ~ {{ row.end_time ? formatDateTime(row.end_time) : '不限' }}
+              </span>
+              <span v-else class="time-range-text muted">不限</span>
+            </template>
+          </el-table-column>
           <el-table-column prop="status" label="状态" width="80">
             <template #default="{ row }">
               <el-tag :type="row.status === 'active' ? 'success' : 'info'">
@@ -146,6 +154,26 @@
             <el-option v-if="isSuperAdmin" label="所有学校（通用）" :value="0" />
             <el-option v-for="s in schools" :key="s.id" :label="s.name" :value="s.id" />
           </el-select>
+        </el-form-item>
+
+        <el-form-item label="签到开始时间">
+          <el-date-picker
+            v-model="form.start_time"
+            type="datetime"
+            placeholder="不限（留空则不限制）"
+            format="YYYY-MM-DD HH:mm"
+            value-format="YYYY-MM-DD HH:mm:ss"
+          />
+        </el-form-item>
+
+        <el-form-item label="签到结束时间">
+          <el-date-picker
+            v-model="form.end_time"
+            type="datetime"
+            placeholder="不限（留空则不限制）"
+            format="YYYY-MM-DD HH:mm"
+            value-format="YYYY-MM-DD HH:mm:ss"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -383,14 +411,14 @@ const loadSchools = async () => {
 
 const showCreateDialog = () => {
   isEdit.value = false
-  form.value = { name: '', latitude: '', longitude: '', radius: 100, school_id: isSuperAdmin.value ? 0 : adminSchoolId.value }
+  form.value = { name: '', latitude: '', longitude: '', radius: 100, school_id: isSuperAdmin.value ? 0 : adminSchoolId.value, start_time: null, end_time: null }
   searchAddress.value = ''
   dialogVisible.value = true
 }
 
 const editPoint = (row) => {
   isEdit.value = true
-  form.value = { ...row, school_id: row.school_id || 0 }
+  form.value = { ...row, school_id: row.school_id || 0, start_time: row.start_time || null, end_time: row.end_time || null }
   searchAddress.value = ''
   dialogVisible.value = true
 }
@@ -601,5 +629,12 @@ onMounted(() => {
   border-radius: 4px;
   color: #606266;
   font-size: 14px;
+}
+
+.time-range-text {
+  font-size: 13px;
+}
+.time-range-text.muted {
+  color: #c0c4cc;
 }
 </style>

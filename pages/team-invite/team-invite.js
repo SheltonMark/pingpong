@@ -83,7 +83,8 @@ Page({
   },
 
   onGoRegister() {
-    wx.navigateTo({ url: '/pages/register/register' });
+    const currentPath = `/pages/team-invite/team-invite?event_id=${this.data.eventId}&inviter_id=${this.data.inviterId}`;
+    wx.navigateTo({ url: `/pages/register/register?redirect=${encodeURIComponent(currentPath)}` });
   },
 
   async onJoinTeam() {
