@@ -87,10 +87,18 @@ router.post('/register', async (req, res) => {
     } = req.body;
 
     // 验证必填字段
-    if (!openid || !name || !gender || !phone || !user_type || !school_id) {
+    const missingFields = [];
+    if (!openid) missingFields.push('openid');
+    if (!name) missingFields.push('name');
+    if (!gender) missingFields.push('gender');
+    if (!phone) missingFields.push('phone');
+    if (!user_type) missingFields.push('user_type');
+    if (!school_id) missingFields.push('school_id');
+    if (missingFields.length > 0) {
+      console.log('[Register] missing fields:', missingFields, 'body:', JSON.stringify(req.body));
       return res.status(400).json({
         success: false,
-        message: '缺少必填字段'
+        message: '缺少必填字段: ' + missingFields.join(', ')
       });
     }
 
@@ -217,10 +225,18 @@ router.post('/update', async (req, res) => {
     } = req.body;
 
     // 验证必填字段
-    if (!user_id || !name || !gender || !phone || !user_type || !school_id) {
+    const missingFields = [];
+    if (!user_id) missingFields.push('user_id');
+    if (!name) missingFields.push('name');
+    if (!gender) missingFields.push('gender');
+    if (!phone) missingFields.push('phone');
+    if (!user_type) missingFields.push('user_type');
+    if (!school_id) missingFields.push('school_id');
+    if (missingFields.length > 0) {
+      console.log('[Update] missing fields:', missingFields, 'body:', JSON.stringify(req.body));
       return res.status(400).json({
         success: false,
-        message: '缺少必填字段'
+        message: '缺少必填字段: ' + missingFields.join(', ')
       });
     }
 
