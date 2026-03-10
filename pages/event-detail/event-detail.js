@@ -47,12 +47,21 @@ Page({
     // 团体赛相关
     teamCount: 0,
     hasTeamRegistered: false,
-    teams: []
+    teams: [],
+    // 双打分组相关
+    doublesPairs: [],
+    waitingPlayers: []
   },
 
   onLoad(options) {
     this.setData({ eventId: options.id });
     this.loadEventDetail();
+  },
+
+  onShow() {
+    if (this.data.eventId) {
+      this.loadEventDetail();
+    }
   },
 
   // 加载赛事详情
@@ -90,6 +99,10 @@ Page({
         });
         this.checkRegistrationStatus();
         this.loadMatches();
+        // 双打赛事分组处理
+        if (event.event_type === 'doubles') {
+          this.processDoublesRegistrations(res.data.registrations);
+        }
         // 团体赛加载领队状态
         if (event.event_type === 'team') {
           this.loadCaptainStatus();
@@ -181,6 +194,55 @@ Page({
       isRegistered: !!myReg,
       myRegistration: myReg || null
     });
+  },
+
+  // 双打赛事：将扁平报名列表分组为配对和等待配对
+  processDoublesRegistrations(registrations) {
+    const pairs = [];
+    const waiting = [];
+    const seen = new Set();
+
+    for (const reg of registrations) {
+      if (reg.status === 'waiting_partner') {
+        waiting.push({
+          id: reg.id,
+          name: reg.name,
+          avatar_url: reg.avatar_url,
+          school_name: reg.school_name,
+          college_name: reg.college_name
+        });
+        continue;
+      }
+
+      // 有搭档的记录，去重（每对只保留一条）
+      if (reg.partner_id) {
+        const pairKey = Math.min(reg.user_id, reg.partner_id) + '-' + Math.max(reg.user_id, reg.partner_id);
+        if (seen.has(pairKey)) continue;
+        seen.add(pairKey);
+
+        pairs.push({
+          id: pairKey,
+          status: reg.status,
+          partner_status: reg.partner_status,
+          player1: {
+            user_id: reg.user_id,
+            name: reg.name,
+            avatar_url: reg.avatar_url,
+            school_name: reg.school_name,
+            college_name: reg.college_name
+          },
+          player2: {
+            user_id: reg.partner_id,
+            name: reg.partner_name,
+            avatar_url: reg.partner_avatar_url,
+            school_name: reg.partner_school_name,
+            college_name: reg.partner_college_name
+          }
+        });
+      }
+    }
+
+    this.setData({ doublesPairs: pairs, waitingPlayers: waiting });
   },
 
   // 切换标签

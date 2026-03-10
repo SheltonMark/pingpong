@@ -1,7 +1,7 @@
 <view class="register-page" wx:if="{{event}}">
   <!-- 赛事信息 -->
   <view class="event-card">
-    <text class="event-name">{{event.name}}</text>
+    <text class="event-name">{{event.title}}</text>
     <text class="event-info">团体赛 · {{event.format_label}}</text>
   </view>
 
@@ -15,30 +15,37 @@
       placeholder="请输入队伍名称"
       value="{{teamName}}"
       bindinput="onTeamNameInput"
+      disabled="{{hasExistingTeam}}"
     />
   </view>
 
   <!-- 队员配置 -->
   <view class="team-card">
     <view class="card-header">
-      <text class="card-title">队员配置 (已邀请 {{teamSlots.length}}/{{teamSlots.length}})</text>
+      <text class="card-title">队员配置</text>
+      <text class="card-subtitle">点击成员可标记单打（最多3人）</text>
     </view>
     <view class="team-list">
       <view
-        class="team-slot {{item.status}}"
+        class="team-slot {{item.status}} {{item.isSingles ? 'singles-marked' : ''}}"
         wx:for="{{teamSlots}}"
         wx:key="index"
       >
-        <!-- 已确认/待确认的成员 -->
+        <!-- 已有成员 -->
         <block wx:if="{{item.user}}">
-          <view class="slot-avatar">{{item.isLeader ? '😎' : '🧑'}}</view>
-          <view class="slot-info">
-            <text class="slot-name">{{item.user.name}}{{item.isLeader ? '（你）' : ''}}</text>
-            <text class="slot-position">{{item.isLeader ? '领队 · ' : ''}}{{item.position}}</text>
+          <view class="slot-main" bindtap="onToggleSingles" data-index="{{index}}">
+            <view class="slot-avatar">{{item.isLeader ? '😎' : '🧑'}}</view>
+            <view class="slot-info">
+              <text class="slot-name">{{item.user.name}}{{item.isLeader ? '（你）' : ''}}</text>
+              <text class="slot-position">{{item.isLeader ? '领队 · ' : ''}}{{item.position}}</text>
+            </view>
+            <view class="slot-tags">
+              <text class="singles-tag" wx:if="{{item.isSingles}}">单打</text>
+              <text class="slot-status {{item.status}}">
+                {{item.status === 'confirmed' ? '已确认' : '待确认'}}
+              </text>
+            </view>
           </view>
-          <text class="slot-status {{item.status}}">
-            {{item.status === 'confirmed' ? '已确认' : '待确认'}}
-          </text>
         </block>
 
         <!-- 空位 -->
@@ -47,46 +54,29 @@
           <view class="slot-info">
             <text class="slot-position-empty">{{item.position}} - 待邀请</text>
           </view>
-          <button class="invite-btn" bindtap="onInvite" data-index="{{index}}">邀请</button>
+          <button class="invite-btn" open-type="share">分享邀请</button>
         </block>
       </view>
     </view>
   </view>
 
-  <button
-    class="submit-btn"
-    bindtap="onSubmit"
-    disabled="{{isSubmitting}}"
-  >
-    {{isSubmitting ? '提交中...' : '提交报名（需全员确认）'}}
-  </button>
-</view>
-
-<!-- 用户选择弹窗 -->
-<view class="picker-mask" wx:if="{{showUserPicker}}" bindtap="onClosePicker">
-  <view class="picker-content" catchtap="">
-    <view class="picker-header">
-      <text class="picker-title">选择队员</text>
-      <text class="picker-close" bindtap="onClosePicker">×</text>
-    </view>
-    <scroll-view class="picker-list" scroll-y>
-      <view
-        class="picker-item"
-        wx:for="{{availableUsers}}"
-        wx:key="id"
-        bindtap="onSelectUser"
-        data-user="{{item}}"
-      >
-        <view class="picker-avatar">🧑</view>
-        <view class="picker-info">
-          <text class="picker-name">{{item.name}}</text>
-          <text class="picker-college">{{item.college_name}}</text>
-        </view>
-      </view>
-      <view class="empty-tip" wx:if="{{availableUsers.length === 0}}">
-        <text>暂无可邀请的用户</text>
-      </view>
-    </scroll-view>
+  <!-- 底部操作 -->
+  <view class="bottom-actions">
+    <button
+      class="submit-btn"
+      bindtap="onSubmit"
+      disabled="{{isSubmitting}}"
+      wx:if="{{!hasExistingTeam}}"
+    >
+      {{isSubmitting ? '提交中...' : '提交报名'}}
+    </button>
+    <button
+      class="submit-btn"
+      bindtap="saveSinglesMarks"
+      wx:else
+    >
+      保存单打标记
+    </button>
   </view>
 </view>
 

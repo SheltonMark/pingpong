@@ -2472,4 +2472,133 @@ router.post('/invitations/:id/reject', requireAdmin, async (req, res) => {
   }
 });
 
+// ============ 赛事报名查看与导出 ============
+
+// 获取赛事报名详情
+router.get('/events/:id/registrations', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 获取赛事信息
+    const [events] = await pool.query('SELECT * FROM events WHERE id = ?', [id]);
+    if (events.length === 0) {
+      return res.status(404).json({ success: false, message: '赛事不存在' });
+    }
+    const event = events[0];
+
+    // 获取所有报名记录（含用户详情）
+    const [registrations] = await pool.query(`
+      SELECT er.*, u.name, u.gender, u.avatar_url,
+             s.name as school_name, c.name as college_name,
+             pu.name as partner_name, pu.gender as partner_gender,
+             ps.name as partner_school_name, pc.name as partner_college_name
+      FROM event_registrations er
+      JOIN users u ON er.user_id = u.id
+      LEFT JOIN schools s ON u.school_id = s.id
+      LEFT JOIN colleges c ON u.college_id = c.id
+      LEFT JOIN users pu ON er.partner_id = pu.id
+      LEFT JOIN schools ps ON pu.school_id = ps.id
+      LEFT JOIN colleges pc ON pu.college_id = pc.id
+      WHERE er.event_id = ? AND er.status != 'cancelled'
+      ORDER BY er.team_name, er.is_team_leader DESC, er.registered_at
+    `, [id]);
+
+    res.json({ success: true, data: { event, registrations } });
+  } catch (error) {
+    console.error('获取赛事报名详情失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
+// 导出赛事报名表（CSV）
+router.get('/events/:id/registrations/export', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [events] = await pool.query('SELECT * FROM events WHERE id = ?', [id]);
+    if (events.length === 0) {
+      return res.status(404).json({ success: false, message: '赛事不存在' });
+    }
+    const event = events[0];
+
+    const [registrations] = await pool.query(`
+      SELECT er.*, u.name, u.gender,
+             s.name as school_name, c.name as college_name,
+             pu.name as partner_name, pu.gender as partner_gender,
+             ps.name as partner_school_name, pc.name as partner_college_name
+      FROM event_registrations er
+      JOIN users u ON er.user_id = u.id
+      LEFT JOIN schools s ON u.school_id = s.id
+      LEFT JOIN colleges c ON u.college_id = c.id
+      LEFT JOIN users pu ON er.partner_id = pu.id
+      LEFT JOIN schools ps ON pu.school_id = ps.id
+      LEFT JOIN colleges pc ON pu.college_id = pc.id
+      WHERE er.event_id = ? AND er.status != 'cancelled'
+      ORDER BY er.team_name, er.is_team_leader DESC, er.registered_at
+    `, [id]);
+
+    const BOM = '\uFEFF';
+    const esc = (v) => `"${(v || '').toString().replace(/"/g, '""')}"`;
+    const genderLabel = (g) => g === 'male' ? '男' : g === 'female' ? '女' : (g || '');
+    let csv = BOM;
+
+    // 团体赛区域
+    const teamRegs = registrations.filter(r => r.team_name);
+    if (teamRegs.length > 0) {
+      csv += '团体赛\n';
+      csv += '组别,学校,队名/院名,名字,性别,是否参加单打\n';
+      const teams = {};
+      teamRegs.forEach(r => {
+        if (!teams[r.team_name]) teams[r.team_name] = [];
+        teams[r.team_name].push(r);
+      });
+      let groupNum = 1;
+      for (const [teamName, members] of Object.entries(teams)) {
+        for (const m of members) {
+          csv += [groupNum, esc(m.school_name), esc(m.college_name || teamName), esc(m.name), genderLabel(m.gender), m.is_singles_player ? '是' : '否'].join(',') + '\n';
+        }
+        groupNum++;
+      }
+      csv += '\n';
+    }
+
+    // 单打区域（非团体赛的单打报名 + 团体赛中标记为单打的选手）
+    const singlesFromTeam = teamRegs.filter(r => r.is_singles_player);
+    const singlesRegs = registrations.filter(r => !r.team_name && !r.partner_id);
+    const allSingles = [...singlesRegs, ...singlesFromTeam];
+    if (allSingles.length > 0) {
+      csv += '单打\n';
+      csv += '学校,学院,名字,性别\n';
+      for (const r of allSingles) {
+        csv += [esc(r.school_name), esc(r.college_name), esc(r.name), genderLabel(r.gender)].join(',') + '\n';
+      }
+      csv += '\n';
+    }
+
+    // 双打区域
+    const doublesRegs = registrations.filter(r => r.partner_id);
+    if (doublesRegs.length > 0) {
+      csv += '双打\n';
+      csv += '组别,学校,学院,姓名,性别\n';
+      const seen = new Set();
+      let pairNum = 1;
+      for (const r of doublesRegs) {
+        const key = Math.min(r.user_id, r.partner_id) + '-' + Math.max(r.user_id, r.partner_id);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        csv += [pairNum, esc(r.school_name), esc(r.college_name), esc(r.name), genderLabel(r.gender)].join(',') + '\n';
+        csv += [pairNum, esc(r.partner_school_name), esc(r.partner_college_name), esc(r.partner_name), genderLabel(r.partner_gender)].join(',') + '\n';
+        pairNum++;
+      }
+    }
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename=registrations_${id}.csv`);
+    res.send(csv);
+  } catch (error) {
+    console.error('导出报名表失败:', error);
+    res.status(500).json({ success: false, message: '导出失败' });
+  }
+});
+
 module.exports = router;

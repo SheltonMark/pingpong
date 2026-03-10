@@ -8,11 +8,9 @@ Page({
     user: null,
     teamName: '',
     teamSlots: [],
-    availableUsers: [],
     isLoading: true,
     isSubmitting: false,
-    showUserPicker: false,
-    currentSlotIndex: null
+    hasExistingTeam: false
   },
 
   onLoad(options) {
@@ -22,29 +20,31 @@ Page({
     }
   },
 
+  onShow() {
+    if (this.data.eventId && this.data.user) {
+      this.refreshTeamMembers();
+    }
+  },
+
   async loadData() {
     try {
-      const [eventRes, userRes, usersRes] = await Promise.all([
+      const [eventRes, userRes] = await Promise.all([
         this.request(`/api/events/${this.data.eventId}`),
         app.globalData.userInfo?.openid
           ? this.request('/api/user/profile', { openid: app.globalData.userInfo.openid })
-          : Promise.resolve({ success: false }),
-        this.request('/api/users/available')
+          : Promise.resolve({ success: false })
       ]);
 
       if (eventRes.success) {
-        const event = eventRes.data;
+        const event = eventRes.data.event;
         event.format_label = this.parseFormat(event.format);
         this.setData({ event });
-        this.initTeamSlots(event);
       }
 
       if (userRes.success) {
         this.setData({ user: userRes.data });
-      }
-
-      if (usersRes.success) {
-        this.setData({ availableUsers: usersRes.data || [] });
+        // 检查是否已有队伍（通过分享加入的成员）
+        await this.refreshTeamMembers();
       }
     } catch (error) {
       console.error('Load error:', error);
@@ -53,8 +53,92 @@ Page({
     }
   },
 
+  // 从后端刷新队伍成员列表
+  async refreshTeamMembers() {
+    const userId = app.globalData.userInfo?.id || app.globalData.userInfo?.user_id;
+    if (!userId) return;
+
+    try {
+      const res = await this.request(`/api/events/${this.data.eventId}/my-team`, {
+        user_id: userId
+      });
+
+      if (res.success && res.data.members && res.data.members.length > 0) {
+        this.setData({
+          hasExistingTeam: true,
+          teamName: res.data.team_name || this.data.teamName
+        });
+        this.fillSlotsFromMembers(res.data.members);
+      } else {
+        this.initTeamSlots(this.data.event);
+      }
+    } catch (error) {
+      console.error('刷新队伍失败:', error);
+      this.initTeamSlots(this.data.event);
+    }
+  },
+
+  // 用后端返回的成员数据填充槽位
+  fillSlotsFromMembers(members) {
+    if (!this.data.event) return;
+    const slots = [];
+    const format = this.data.event.format || '3S2D';
+    const singlesMatch = format.match(/(\d+)S/i);
+    const doublesMatch = format.match(/(\d+)D/i);
+    const singlesCount = singlesMatch ? parseInt(singlesMatch[1]) : 3;
+    const doublesCount = doublesMatch ? parseInt(doublesMatch[1]) : 2;
+    const totalSlots = singlesCount + doublesCount;
+
+    // 先放领队
+    const leader = members.find(m => m.is_team_leader);
+    const others = members.filter(m => !m.is_team_leader);
+
+    // 填充槽位
+    for (let i = 0; i < totalSlots; i++) {
+      const position = i < singlesCount ? `单打${i + 1}` : `双打${i - singlesCount + 1}`;
+      let member = null;
+
+      if (i === 0 && leader) {
+        member = leader;
+      } else if (i > 0 && i - 1 < others.length) {
+        member = others[i - 1];
+      } else if (i === 0 && !leader && this.data.user) {
+        // 领队还没提交报名，用本地用户信息
+        slots.push({
+          type: i < singlesCount ? 'singles' : 'doubles',
+          position,
+          user: this.data.user,
+          isLeader: true,
+          status: 'confirmed',
+          isSingles: false
+        });
+        continue;
+      }
+
+      if (member) {
+        slots.push({
+          type: i < singlesCount ? 'singles' : 'doubles',
+          position,
+          user: { id: member.user_id, name: member.name, avatar_url: member.avatar_url },
+          isLeader: !!member.is_team_leader,
+          status: member.status || 'confirmed',
+          isSingles: !!member.is_singles_player
+        });
+      } else {
+        slots.push({
+          type: i < singlesCount ? 'singles' : 'doubles',
+          position,
+          user: null,
+          status: 'empty',
+          isSingles: false
+        });
+      }
+    }
+
+    this.setData({ teamSlots: slots });
+  },
+
   parseFormat(format) {
-    // Parse format like "3S2D" -> "3单2双"
     if (!format) return '团体赛';
     const singles = format.match(/(\d+)S/i);
     const doubles = format.match(/(\d+)D/i);
@@ -65,6 +149,7 @@ Page({
   },
 
   initTeamSlots(event) {
+    if (!event) return;
     const slots = [];
     const format = event.format || '3S2D';
     const singlesMatch = format.match(/(\d+)S/i);
@@ -72,93 +157,54 @@ Page({
     const singlesCount = singlesMatch ? parseInt(singlesMatch[1]) : 3;
     const doublesCount = doublesMatch ? parseInt(doublesMatch[1]) : 2;
 
-    // Add leader as first slot
     if (this.data.user) {
       slots.push({
-        type: 'singles',
-        position: '单打1',
-        user: this.data.user,
-        isLeader: true,
-        status: 'confirmed'
+        type: 'singles', position: '单打1',
+        user: this.data.user, isLeader: true,
+        status: 'confirmed', isSingles: false
       });
     }
 
-    // Add remaining singles slots
     for (let i = slots.length; i < singlesCount; i++) {
-      slots.push({
-        type: 'singles',
-        position: `单打${i + 1}`,
-        user: null,
-        status: 'empty'
-      });
+      slots.push({ type: 'singles', position: `单打${i + 1}`, user: null, status: 'empty', isSingles: false });
     }
-
-    // Add doubles slots
     for (let i = 0; i < doublesCount; i++) {
-      slots.push({
-        type: 'doubles',
-        position: `双打${i + 1}`,
-        user: null,
-        status: 'empty'
-      });
+      slots.push({ type: 'doubles', position: `双打${i + 1}`, user: null, status: 'empty', isSingles: false });
     }
 
     this.setData({ teamSlots: slots });
   },
 
-  onInvite(e) {
-    const index = e.currentTarget.dataset.index;
-    this.setData({
-      showUserPicker: true,
-      currentSlotIndex: index
-    });
-  },
-
-  onSelectUser(e) {
-    const user = e.currentTarget.dataset.user;
-    const index = this.data.currentSlotIndex;
-
-    if (index !== null) {
-      const slots = [...this.data.teamSlots];
-      slots[index] = {
-        ...slots[index],
-        user: user,
-        status: 'pending'
-      };
-      this.setData({
-        teamSlots: slots,
-        showUserPicker: false,
-        currentSlotIndex: null
-      });
-
-      // Send invitation
-      this.sendInvitation(user.id, slots[index].position);
-    }
-  },
-
-  async sendInvitation(userId, position) {
-    try {
-      await this.request('/api/events/team/invite', {
-        event_id: this.data.eventId,
-        inviter_id: app.globalData.userInfo.id,
-        invitee_id: userId,
-        position: position
-      }, 'POST');
-      wx.showToast({ title: '邀请已发送', icon: 'success' });
-    } catch (error) {
-      console.error('Invitation error:', error);
-    }
-  },
-
-  onClosePicker() {
-    this.setData({
-      showUserPicker: false,
-      currentSlotIndex: null
-    });
-  },
-
   onTeamNameInput(e) {
     this.setData({ teamName: e.detail.value });
+  },
+
+  // 点击已确认成员，切换单打标记
+  onToggleSingles(e) {
+    const index = e.currentTarget.dataset.index;
+    const slot = this.data.teamSlots[index];
+    if (!slot || !slot.user) return;
+
+    const currentSinglesCount = this.data.teamSlots.filter(s => s.isSingles).length;
+
+    if (!slot.isSingles && currentSinglesCount >= 3) {
+      wx.showToast({ title: '最多选择3名单打选手', icon: 'none' });
+      return;
+    }
+
+    const key = `teamSlots[${index}].isSingles`;
+    this.setData({ [key]: !slot.isSingles });
+  },
+
+  // 微信分享（邀请队友）
+  onShareAppMessage() {
+    const userId = app.globalData.userInfo?.id || app.globalData.userInfo?.user_id;
+    const teamName = this.data.teamName || '我的队伍';
+    const eventTitle = this.data.event?.title || '团体赛';
+    return {
+      title: `邀请你加入「${teamName}」参加${eventTitle}`,
+      path: `/pages/team-invite/team-invite?event_id=${this.data.eventId}&inviter_id=${userId}`
+    };
   },
 
   async onSubmit() {
@@ -167,33 +213,35 @@ Page({
       return;
     }
 
-    const allConfirmed = this.data.teamSlots.every(slot => slot.status === 'confirmed');
-    if (!allConfirmed) {
-      wx.showToast({ title: '需全员确认后才能提交', icon: 'none' });
+    const filledSlots = this.data.teamSlots.filter(s => s.user);
+    if (filledSlots.length < this.data.teamSlots.length) {
+      wx.showToast({ title: '队伍人数不足', icon: 'none' });
       return;
     }
 
     if (this.data.isSubmitting) return;
     this.setData({ isSubmitting: true });
 
-    // 请求赛事相关订阅消息授权（比赛提醒、比分确认）
     try {
       await subscribe.requestEventSubscriptions();
     } catch (err) {
       console.log('订阅请求失败或用户拒绝:', err);
-      // 订阅失败不影响报名操作
     }
 
     try {
-      // 提取队员ID（不包含领队自己）
       const member_ids = this.data.teamSlots
         .filter(slot => slot.user && !slot.isLeader)
         .map(slot => slot.user.id);
 
+      const singles_player_ids = this.data.teamSlots
+        .filter(slot => slot.user && slot.isSingles)
+        .map(slot => slot.user.id);
+
       const res = await this.request(`/api/events/${this.data.eventId}/register-team`, {
-        user_id: app.globalData.userInfo.id,
+        user_id: app.globalData.userInfo.id || app.globalData.userInfo.user_id,
         team_name: this.data.teamName.trim(),
-        member_ids: member_ids
+        member_ids,
+        singles_player_ids
       }, 'POST');
 
       if (res.success) {
@@ -210,11 +258,26 @@ Page({
     }
   },
 
-  getConfirmedCount() {
-    return this.data.teamSlots.filter(s => s.status === 'confirmed').length;
+  // 保存单打标记到后端（已提交报名的队伍）
+  async saveSinglesMarks() {
+    const userId = app.globalData.userInfo?.id || app.globalData.userInfo?.user_id;
+    const singlesIds = this.data.teamSlots
+      .filter(s => s.user && s.isSingles)
+      .map(s => s.user.id);
+
+    try {
+      await this.request(`/api/events/${this.data.eventId}/team-singles`, {
+        user_id: userId,
+        singles_player_ids: singlesIds
+      }, 'PUT');
+      wx.showToast({ title: '已保存', icon: 'success' });
+    } catch (error) {
+      console.error('保存单打标记失败:', error);
+    }
   },
 
   request(url, data, method = 'GET') {
     return app.request(url, data, method);
   }
 });
+

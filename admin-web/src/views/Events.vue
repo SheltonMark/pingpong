@@ -41,8 +41,9 @@
         </el-table-column>
         <el-table-column prop="location" label="地点" width="120" />
         <el-table-column prop="participant_count" label="报名人数" width="100" />
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
+            <el-button size="small" type="primary" @click="viewRegistrations(row)">报名</el-button>
             <el-button size="small" @click="editEvent(row)">编辑</el-button>
             <el-button size="small" type="danger" @click="deleteEvent(row)">删除</el-button>
           </template>
@@ -135,6 +136,44 @@
         <el-button type="primary" @click="submitForm" :loading="submitting">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 报名详情对话框 -->
+    <el-dialog v-model="regDialogVisible" :title="regEvent ? regEvent.title + ' - 报名情况' : '报名情况'" width="800px">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <span>共 {{ regData.length }} 条报名记录</span>
+        <el-button type="success" @click="exportRegistrations">导出报名表</el-button>
+      </div>
+
+      <el-table :data="regData" v-loading="regLoading" stripe max-height="500">
+        <el-table-column prop="name" label="姓名" width="100" />
+        <el-table-column prop="gender" label="性别" width="60">
+          <template #default="{ row }">
+            {{ row.gender === 'male' ? '男' : row.gender === 'female' ? '女' : row.gender || '' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="school_name" label="学校" width="150" />
+        <el-table-column prop="college_name" label="学院" width="120" />
+        <el-table-column prop="team_name" label="队伍" width="120" v-if="regEvent && regEvent.event_type === 'team'" />
+        <el-table-column prop="is_team_leader" label="领队" width="60" v-if="regEvent && regEvent.event_type === 'team'">
+          <template #default="{ row }">
+            {{ row.is_team_leader ? '是' : '' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="is_singles_player" label="单打" width="60" v-if="regEvent && regEvent.event_type === 'team'">
+          <template #default="{ row }">
+            {{ row.is_singles_player ? '是' : '' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="partner_name" label="搭档" width="100" v-if="regEvent && regEvent.event_type === 'doubles'" />
+        <el-table-column prop="status" label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.status === 'confirmed' ? 'success' : row.status === 'waiting_partner' ? 'warning' : 'info'" size="small">
+              {{ row.status === 'confirmed' ? '已确认' : row.status === 'pending' ? '待确认' : row.status === 'waiting_partner' ? '等待配对' : row.status }}
+            </el-tag>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
   </div>
 </template>
 
@@ -151,6 +190,12 @@ const dialogVisible = ref(false)
 const isEdit = ref(false)
 const submitting = ref(false)
 const editorRef = shallowRef()
+
+// 报名详情
+const regDialogVisible = ref(false)
+const regLoading = ref(false)
+const regEvent = ref(null)
+const regData = ref([])
 
 const toolbarConfig = {
   excludeKeys: ['fullScreen', 'group-video']
@@ -340,6 +385,49 @@ const deleteEvent = async (row) => {
       console.error('删除失败:', error)
       ElMessage.error('删除失败')
     }
+  }
+}
+
+// 查看报名情况
+const viewRegistrations = async (row) => {
+  regEvent.value = row
+  regDialogVisible.value = true
+  regLoading.value = true
+  regData.value = []
+
+  try {
+    const user = getAdminUser()
+    const res = await fetch(`/api/admin/events/${row.id}/registrations?user_id=${user.id}`)
+    const data = await res.json()
+    if (data.success) {
+      regData.value = data.data.registrations || []
+    }
+  } catch (error) {
+    console.error('加载报名数据失败:', error)
+    ElMessage.error('加载报名数据失败')
+  } finally {
+    regLoading.value = false
+  }
+}
+
+// 导出报名表
+const exportRegistrations = async () => {
+  if (!regEvent.value) return
+  try {
+    const user = getAdminUser()
+    const res = await fetch(`/api/admin/events/${regEvent.value.id}/registrations/export?user_id=${user.id}`)
+    const blob = await res.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `报名表_${regEvent.value.title}_${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(url)
+    document.body.removeChild(a)
+  } catch (error) {
+    console.error('导出失败:', error)
+    ElMessage.error('导出失败')
   }
 }
 

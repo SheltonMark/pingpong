@@ -18,7 +18,7 @@
   <view class="tab-bar">
     <view class="tab-item {{currentTab === 'info' ? 'active' : ''}}" data-tab="info" bindtap="onTabChange">赛事信息</view>
     <view class="tab-item {{currentTab === 'players' ? 'active' : ''}}" data-tab="players" bindtap="onTabChange">
-      {{event.event_type === 'team' ? '参赛队伍' : '参赛选手'}} ({{event.event_type === 'team' ? (teamCount || 0) : registrations.length}})
+      {{event.event_type === 'team' ? '参赛队伍' : '参赛选手'}} ({{event.event_type === 'team' ? (teamCount || 0) : event.event_type === 'doubles' ? (doublesPairs.length + '组' + (waitingPlayers.length > 0 ? '+' + waitingPlayers.length : '')) : registrations.length}})
     </view>
     <view class="tab-item {{currentTab === 'matches' ? 'active' : ''}}" data-tab="matches" bindtap="onTabChange">对阵表</view>
   </view>
@@ -95,17 +95,60 @@
 
   <!-- 参赛选手 -->
   <view class="tab-content" wx:if="{{currentTab === 'players'}}">
-    <view class="player-list" wx:if="{{registrations.length > 0}}">
-      <view class="player-item" wx:for="{{registrations}}" wx:key="id">
-        <view class="player-rank">{{index + 1}}</view>
-        <image class="player-avatar" src="{{item.avatar_url || '/images/default-avatar.png'}}" mode="aspectFill" />
-        <view class="player-info">
-          <text class="player-name">{{item.name}}</text>
-          <text class="player-college">{{item.school_name}}{{item.college_name ? ' · ' + item.college_name : ''}}</text>
+    <!-- 双打赛事：配对显示 -->
+    <block wx:if="{{event.event_type === 'doubles'}}">
+      <!-- 已配对 -->
+      <view wx:if="{{doublesPairs.length > 0}}">
+        <view class="section-title">已配对 ({{doublesPairs.length}}组)</view>
+        <view class="doubles-pair-card" wx:for="{{doublesPairs}}" wx:key="id">
+          <view class="pair-status-tag {{item.status}}">
+            {{item.status === 'confirmed' ? '已确认' : '待确认'}}
+          </view>
+          <view class="pair-players">
+            <view class="pair-player">
+              <image class="pair-avatar" src="{{item.player1.avatar_url || '/images/default-avatar.png'}}" mode="aspectFill" />
+              <text class="pair-name">{{item.player1.name}}</text>
+              <text class="pair-college">{{item.player1.school_name || ''}}{{item.player1.college_name ? ' · ' + item.player1.college_name : ''}}</text>
+            </view>
+            <view class="pair-connector">&</view>
+            <view class="pair-player">
+              <image class="pair-avatar" src="{{item.player2.avatar_url || '/images/default-avatar.png'}}" mode="aspectFill" />
+              <text class="pair-name">{{item.player2.name}}</text>
+              <text class="pair-college">{{item.player2.school_name || ''}}{{item.player2.college_name ? ' · ' + item.player2.college_name : ''}}</text>
+            </view>
+          </view>
         </view>
       </view>
-    </view>
-    <view class="empty-tip" wx:else>暂无报名</view>
+      <!-- 等待配对 -->
+      <view wx:if="{{waitingPlayers.length > 0}}">
+        <view class="section-title">等待配对 ({{waitingPlayers.length}}人)</view>
+        <view class="player-list">
+          <view class="player-item" wx:for="{{waitingPlayers}}" wx:key="id">
+            <image class="player-avatar" src="{{item.avatar_url || '/images/default-avatar.png'}}" mode="aspectFill" />
+            <view class="player-info">
+              <text class="player-name">{{item.name}}</text>
+              <text class="player-college">{{item.school_name}}{{item.college_name ? ' · ' + item.college_name : ''}}</text>
+            </view>
+            <view class="waiting-tag">等待中</view>
+          </view>
+        </view>
+      </view>
+      <view class="empty-tip" wx:if="{{doublesPairs.length === 0 && waitingPlayers.length === 0}}">暂无报名</view>
+    </block>
+    <!-- 单打/团体：原有列表 -->
+    <block wx:else>
+      <view class="player-list" wx:if="{{registrations.length > 0}}">
+        <view class="player-item" wx:for="{{registrations}}" wx:key="id">
+          <view class="player-rank">{{index + 1}}</view>
+          <image class="player-avatar" src="{{item.avatar_url || '/images/default-avatar.png'}}" mode="aspectFill" />
+          <view class="player-info">
+            <text class="player-name">{{item.name}}</text>
+            <text class="player-college">{{item.school_name}}{{item.college_name ? ' · ' + item.college_name : ''}}</text>
+          </view>
+        </view>
+      </view>
+      <view class="empty-tip" wx:else>暂无报名</view>
+    </block>
   </view>
 
   <!-- 对阵表 -->

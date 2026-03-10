@@ -395,13 +395,19 @@ router.get('/:id', async (req, res) => {
     // 处理description中的图片URL
     event.description = processDescription(event.description, req);
 
-    // 获取报名列表
+    // 获取报名列表（双打赛事额外查询搭档信息）
     const [registrations] = await pool.query(`
-      SELECT er.*, u.name, u.avatar_url, u.college_id, c.name as college_name, s.name as school_name
+      SELECT er.*, u.name, u.avatar_url, u.college_id,
+             c.name as college_name, s.name as school_name,
+             pu.name as partner_name, pu.avatar_url as partner_avatar_url,
+             ps.name as partner_school_name, pc.name as partner_college_name
       FROM event_registrations er
       JOIN users u ON er.user_id = u.id
       LEFT JOIN colleges c ON u.college_id = c.id
       LEFT JOIN schools s ON u.school_id = s.id
+      LEFT JOIN users pu ON er.partner_id = pu.id
+      LEFT JOIN schools ps ON pu.school_id = ps.id
+      LEFT JOIN colleges pc ON pu.college_id = pc.id
       WHERE er.event_id = ? AND er.status != 'cancelled'
       ORDER BY er.registered_at
     `, [id]);
@@ -1023,8 +1029,9 @@ router.post('/team/invite', async (req, res) => {
 router.post('/:id/register-team', async (req, res) => {
   try {
     const { id } = req.params;
-    const { user_id, team_name, member_ids } = req.body;
+    const { user_id, team_name, member_ids, singles_player_ids } = req.body;
     // member_ids: 队员用户ID数组（不包含领队自己）
+    // singles_player_ids: 参加单打的选手ID数组（可包含领队，最多3人）
 
     if (!user_id) {
       return res.status(400).json({ success: false, message: '缺少用户ID' });
@@ -1104,19 +1111,24 @@ router.post('/:id/register-team', async (req, res) => {
     await connection.beginTransaction();
 
     try {
+      // 计算单打标记
+      const singlesIds = Array.isArray(singles_player_ids) ? singles_player_ids : [];
+
       // 插入领队报名记录
+      const leaderIsSingles = singlesIds.includes(user_id) ? 1 : 0;
       await connection.execute(
-        `INSERT INTO event_registrations (event_id, user_id, team_name, is_team_leader, status)
-         VALUES (?, ?, ?, 1, 'confirmed')`,
-        [id, user_id, team_name]
+        `INSERT INTO event_registrations (event_id, user_id, team_name, is_team_leader, is_singles_player, status)
+         VALUES (?, ?, ?, 1, ?, 'confirmed')`,
+        [id, user_id, team_name, leaderIsSingles]
       );
 
       // 插入队员报名记录（pending 状态，等待确认）
       for (const memberId of member_ids) {
+        const memberIsSingles = singlesIds.includes(memberId) ? 1 : 0;
         await connection.execute(
-          `INSERT INTO event_registrations (event_id, user_id, team_name, is_team_leader, team_leader_id, status)
-           VALUES (?, ?, ?, 0, ?, 'pending')`,
-          [id, memberId, team_name, user_id]
+          `INSERT INTO event_registrations (event_id, user_id, team_name, is_team_leader, team_leader_id, is_singles_player, status)
+           VALUES (?, ?, ?, 0, ?, ?, 'pending')`,
+          [id, memberId, team_name, user_id, memberIsSingles]
         );
 
         // 创建团体赛邀请记录
@@ -1173,7 +1185,7 @@ router.get('/:id/teams', async (req, res) => {
     // 获取每个队伍的成员
     for (const team of teams) {
       const [members] = await pool.query(`
-        SELECT er.user_id, u.name, u.avatar_url, er.is_team_leader
+        SELECT er.user_id, u.name, u.avatar_url, er.is_team_leader, er.is_singles_player
         FROM event_registrations er
         JOIN users u ON er.user_id = u.id
         WHERE er.event_id = ? AND er.team_name = ? AND er.status != 'cancelled'
@@ -1185,6 +1197,173 @@ router.get('/:id/teams', async (req, res) => {
     res.json({ success: true, data: teams });
   } catch (error) {
     console.error('获取队伍列表失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
+// 查询领队自己队伍的成员（用于 team-register 页面刷新）
+router.get('/:id/my-team', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id } = req.query;
+
+    if (!user_id) {
+      return res.status(400).json({ success: false, message: '缺少用户ID' });
+    }
+
+    // 查找领队的队伍名称
+    const [leaderReg] = await pool.query(
+      'SELECT team_name FROM event_registrations WHERE event_id = ? AND user_id = ? AND is_team_leader = 1 AND status != "cancelled"',
+      [id, user_id]
+    );
+
+    if (leaderReg.length === 0) {
+      return res.json({ success: true, data: { team_name: null, members: [] } });
+    }
+
+    const teamName = leaderReg[0].team_name;
+
+    const [members] = await pool.query(`
+      SELECT er.user_id, er.status, er.is_team_leader, er.is_singles_player,
+             u.name, u.avatar_url, u.gender,
+             s.name as school_name, c.name as college_name
+      FROM event_registrations er
+      JOIN users u ON er.user_id = u.id
+      LEFT JOIN schools s ON u.school_id = s.id
+      LEFT JOIN colleges c ON u.college_id = c.id
+      WHERE er.event_id = ? AND er.team_name = ? AND er.status != 'cancelled'
+      ORDER BY er.is_team_leader DESC, er.registered_at
+    `, [id, teamName]);
+
+    res.json({ success: true, data: { team_name: teamName, members } });
+  } catch (error) {
+    console.error('获取我的队伍失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
+// 通过分享链接加入队伍
+router.post('/:id/join-team', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id, inviter_id } = req.body;
+
+    if (!user_id || !inviter_id) {
+      return res.status(400).json({ success: false, message: '缺少参数' });
+    }
+
+    // 检查赛事
+    const [events] = await pool.query('SELECT * FROM events WHERE id = ?', [id]);
+    if (events.length === 0) {
+      return res.status(404).json({ success: false, message: '赛事不存在' });
+    }
+    const event = events[0];
+    if (event.event_type !== 'team') {
+      return res.status(400).json({ success: false, message: '该赛事不是团体赛' });
+    }
+
+    // 检查赛事状态
+    const status = computeEventStatus(event);
+    if (status !== 'registration') {
+      return res.status(400).json({ success: false, message: '赛事不在报名阶段' });
+    }
+
+    // 检查邀请人是否为已批准的领队
+    const [captainApp] = await pool.query(
+      'SELECT * FROM captain_applications WHERE event_id = ? AND user_id = ? AND status = "approved"',
+      [id, inviter_id]
+    );
+    if (captainApp.length === 0) {
+      return res.status(400).json({ success: false, message: '邀请人不是该赛事的领队' });
+    }
+
+    // 获取领队的队伍信息
+    const [leaderReg] = await pool.query(
+      'SELECT team_name FROM event_registrations WHERE event_id = ? AND user_id = ? AND is_team_leader = 1 AND status != "cancelled"',
+      [id, inviter_id]
+    );
+
+    // 领队可能还没提交报名，此时 team_name 可能为空，用领队ID作为临时标识
+    const teamName = leaderReg.length > 0 ? leaderReg[0].team_name : null;
+
+    // 检查用户是否已报名
+    const [existing] = await pool.query(
+      'SELECT * FROM event_registrations WHERE event_id = ? AND user_id = ? AND status != "cancelled"',
+      [id, user_id]
+    );
+    if (existing.length > 0) {
+      return res.status(400).json({ success: false, message: '你已报名该赛事' });
+    }
+
+    // 创建报名记录
+    await pool.execute(
+      `INSERT INTO event_registrations (event_id, user_id, team_name, is_team_leader, team_leader_id, status)
+       VALUES (?, ?, ?, 0, ?, 'confirmed')`,
+      [id, user_id, teamName, inviter_id]
+    );
+
+    // 创建邀请记录（自动接受）
+    await pool.execute(
+      `INSERT INTO team_invitations (event_id, inviter_id, invitee_id, type, status, responded_at)
+       VALUES (?, ?, ?, 'team', 'accepted', NOW())`,
+      [id, inviter_id, user_id]
+    );
+
+    res.json({ success: true, message: '已加入队伍' });
+  } catch (error) {
+    console.error('加入队伍失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
+// 领队更新队伍单打选手标记
+router.put('/:id/team-singles', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id, singles_player_ids } = req.body;
+
+    if (!user_id) {
+      return res.status(400).json({ success: false, message: '缺少用户ID' });
+    }
+
+    if (!Array.isArray(singles_player_ids)) {
+      return res.status(400).json({ success: false, message: '参数格式错误' });
+    }
+
+    if (singles_player_ids.length > 3) {
+      return res.status(400).json({ success: false, message: '最多选择3名单打选手' });
+    }
+
+    // 验证是领队
+    const [leaderReg] = await pool.query(
+      'SELECT team_name FROM event_registrations WHERE event_id = ? AND user_id = ? AND is_team_leader = 1 AND status != "cancelled"',
+      [id, user_id]
+    );
+    if (leaderReg.length === 0) {
+      return res.status(403).json({ success: false, message: '你不是该赛事的领队' });
+    }
+
+    const teamName = leaderReg[0].team_name;
+
+    // 先清除该队伍所有单打标记
+    await pool.execute(
+      'UPDATE event_registrations SET is_singles_player = 0 WHERE event_id = ? AND team_name = ? AND status != "cancelled"',
+      [id, teamName]
+    );
+
+    // 设置选中的单打选手
+    if (singles_player_ids.length > 0) {
+      const placeholders = singles_player_ids.map(() => '?').join(',');
+      await pool.execute(
+        `UPDATE event_registrations SET is_singles_player = 1
+         WHERE event_id = ? AND team_name = ? AND user_id IN (${placeholders}) AND status != 'cancelled'`,
+        [id, teamName, ...singles_player_ids]
+      );
+    }
+
+    res.json({ success: true, message: '已更新单打选手' });
+  } catch (error) {
+    console.error('更新单打选手失败:', error);
     res.status(500).json({ success: false, message: '服务器错误' });
   }
 });

@@ -396,3 +396,99 @@
   background: rgba(245, 158, 11, 0.1);
   border-radius: 16rpx;
 }
+
+/* 分区标题 */
+.section-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--gray-700);
+  margin-bottom: 20rpx;
+}
+
+/* 双打配对卡片 */
+.doubles-pair-card {
+  background: #fff;
+  border-radius: 24rpx;
+  padding: 32rpx 24rpx;
+  margin-bottom: 20rpx;
+  position: relative;
+}
+
+.pair-status-tag {
+  position: absolute;
+  top: 20rpx;
+  right: 20rpx;
+  font-size: 22rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 16rpx;
+}
+
+.pair-status-tag.confirmed {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--green);
+}
+
+.pair-status-tag.pending {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--orange);
+}
+
+.pair-players {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+}
+
+.pair-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.pair-avatar {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  background: var(--gray-100);
+  margin-bottom: 12rpx;
+}
+
+.pair-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--gray-900);
+  margin-bottom: 4rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.pair-college {
+  font-size: 22rpx;
+  color: var(--gray-400);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.pair-connector {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: var(--orange);
+  flex-shrink: 0;
+}
+
+/* 等待配对标签 */
+.waiting-tag {
+  font-size: 22rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 16rpx;
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--orange);
+  flex-shrink: 0;
+}

@@ -1,0 +1,39 @@
+<view class="invite-page">
+  <!-- 赛事信息卡片 -->
+  <view class="invite-card" wx:if="{{event}}">
+    <view class="invite-icon">🏓</view>
+    <view class="invite-title">{{inviterName}} 邀请你加入队伍</view>
+    <view class="team-name-display" wx:if="{{teamName}}">「{{teamName}}」</view>
+
+    <view class="event-info-card">
+      <view class="event-name">{{event.title}}</view>
+      <view class="event-meta">
+        <text>团体赛</text>
+        <text wx:if="{{event.location}}"> · {{event.location}}</text>
+      </view>
+    </view>
+
+    <!-- 未登录 -->
+    <view wx:if="{{!isLoggedIn}}" class="action-area">
+      <view class="tip-text">你还没有注册，请先注册账号</view>
+      <button class="action-btn primary" bindtap="onGoRegister">去注册</button>
+    </view>
+
+    <!-- 已报名 -->
+    <view wx:elif="{{isRegistered || joined}}" class="action-area">
+      <view class="success-icon">✓</view>
+      <view class="tip-text">{{joined ? '已成功加入队伍' : '你已报名该赛事'}}</view>
+    </view>
+
+    <!-- 可加入 -->
+    <view wx:else class="action-area">
+      <view class="tip-text" wx:if="{{errorMsg}}">{{errorMsg}}</view>
+      <button class="action-btn primary" bindtap="onJoinTeam" disabled="{{joining}}">
+        {{joining ? '加入中...' : '加入队伍'}}
+      </button>
+    </view>
+  </view>
+
+  <!-- 加载中 -->
+  <view class="loading" wx:if="{{!event}}">加载中...</view>
+</view>
