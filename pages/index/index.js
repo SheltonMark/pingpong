@@ -245,7 +245,7 @@ Page({
   async loadRankings() {
     try {
       const params = { limit: 5 };
-      const schoolId = this.data.isLoggedIn ? this.data.userInfo?.school_id : null;
+      const schoolId = this.data.currentSchoolId || (this.data.isLoggedIn ? this.data.userInfo?.school_id : null);
       if (schoolId) {
         params.school_id = schoolId;
       }
