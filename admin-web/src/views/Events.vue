@@ -27,7 +27,7 @@
             {{ typeLabels[row.event_type] || row.event_type }}
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column prop="status" label="状态" min-width="120">
           <template #default="{ row }">
             <el-tag :type="statusTypes[row.status]">
               {{ statusLabels[row.status] || row.status }}
@@ -43,7 +43,7 @@
         <el-table-column prop="participant_count" label="报名人数" width="100" />
         <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" type="primary" @click="viewRegistrations(row)">报名</el-button>
+            <el-button size="small" type="primary" @click="viewRegistrations(row)">查看报名</el-button>
             <el-button size="small" @click="editEvent(row)">编辑</el-button>
             <el-button size="small" type="danger" @click="deleteEvent(row)">删除</el-button>
           </template>
@@ -138,33 +138,38 @@
     </el-dialog>
 
     <!-- 报名详情对话框 -->
-    <el-dialog v-model="regDialogVisible" :title="regEvent ? regEvent.title + ' - 报名情况' : '报名情况'" width="800px">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <span>共 {{ regData.length }} 条报名记录</span>
+    <el-dialog
+      v-model="regDialogVisible"
+      :title="regEvent ? regEvent.title + ' - 报名情况' : '报名情况'"
+      width="min(900px, 92vw)"
+      class="registrations-dialog"
+    >
+      <div class="reg-toolbar">
+        <span class="reg-count">共 {{ regData.length }} 条报名记录</span>
         <el-button type="success" @click="exportRegistrations">导出报名表</el-button>
       </div>
 
-      <el-table :data="regData" v-loading="regLoading" stripe max-height="500">
-        <el-table-column prop="name" label="姓名" width="100" />
-        <el-table-column prop="gender" label="性别" width="60">
+      <el-table :data="regData" v-loading="regLoading" stripe max-height="500" table-layout="auto" class="reg-table">
+        <el-table-column prop="name" label="姓名" min-width="120" />
+        <el-table-column prop="gender" label="性别" width="80">
           <template #default="{ row }">
             {{ row.gender === 'male' ? '男' : row.gender === 'female' ? '女' : row.gender || '' }}
           </template>
         </el-table-column>
-        <el-table-column prop="school_name" label="学校" width="150" />
-        <el-table-column prop="college_name" label="学院" width="120" />
-        <el-table-column prop="team_name" label="队伍" width="120" v-if="regEvent && regEvent.event_type === 'team'" />
-        <el-table-column prop="is_team_leader" label="领队" width="60" v-if="regEvent && regEvent.event_type === 'team'">
+        <el-table-column prop="school_name" label="学校" min-width="220" />
+        <el-table-column prop="college_name" label="学院" min-width="180" />
+        <el-table-column prop="team_name" label="队伍" min-width="180" v-if="regEvent && regEvent.event_type === 'team'" />
+        <el-table-column prop="is_team_leader" label="队长" width="80" v-if="regEvent && regEvent.event_type === 'team'">
           <template #default="{ row }">
             {{ row.is_team_leader ? '是' : '' }}
           </template>
         </el-table-column>
-        <el-table-column prop="is_singles_player" label="单打" width="60" v-if="regEvent && regEvent.event_type === 'team'">
+        <el-table-column prop="is_singles_player" label="单打" width="80" v-if="regEvent && regEvent.event_type === 'team'">
           <template #default="{ row }">
             {{ row.is_singles_player ? '是' : '' }}
           </template>
         </el-table-column>
-        <el-table-column prop="partner_name" label="搭档" width="100" v-if="regEvent && regEvent.event_type === 'doubles'" />
+        <el-table-column prop="partner_name" label="搭档" min-width="140" v-if="regEvent && regEvent.event_type === 'doubles'" />
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
             <el-tag :type="row.status === 'confirmed' ? 'success' : row.status === 'waiting_partner' ? 'warning' : 'info'" size="small">
@@ -437,6 +442,24 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.reg-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.reg-count {
+  color: #606266;
+  font-size: 14px;
+}
+
+.reg-table {
+  width: 100%;
+}
+
 .page {
   padding: 20px;
 }
