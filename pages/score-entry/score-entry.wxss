@@ -54,7 +54,58 @@
   font-size: 28rpx;
   font-weight: 600;
   color: var(--gray-700);
+}
+
+.card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 24rpx;
+}
+
+.validation-switch {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.switch-label {
+  font-size: 24rpx;
+  color: var(--gray-500);
+}
+
+.switch-help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32rpx;
+  height: 32rpx;
+  border-radius: 50%;
+  background: var(--gray-200);
+  color: var(--gray-500);
+  font-size: 20rpx;
+  font-weight: 600;
+}
+
+.validation-tip {
+  font-size: 22rpx;
+  color: var(--gray-500);
+  background: var(--gray-50);
+  padding: 12rpx 16rpx;
+  border-radius: 12rpx;
+  margin-bottom: 16rpx;
+}
+
+.score-input-error {
+  border-color: #EF4444 !important;
+}
+
+.score-error {
+  display: block;
+  font-size: 22rpx;
+  color: #EF4444;
+  text-align: center;
+  padding: 4rpx 0 8rpx;
 }
 
 .score-rows {

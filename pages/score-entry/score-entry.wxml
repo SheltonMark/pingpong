@@ -15,32 +15,45 @@
 
   <!-- 每局比分输入 -->
   <view class="scores-card">
-    <view class="card-title">每局比分</view>
+    <view class="card-title-row">
+      <text class="card-title">每局比分</text>
+      <view class="validation-switch">
+        <text class="switch-label">比分校验</text>
+        <text class="switch-help" catchtouchstart="onValidationHelp" catchtouchend="onValidationHelpEnd">?</text>
+        <switch checked="{{scoreValidation}}" bindchange="onToggleValidation" color="#FF6B00" style="transform: scale(0.7);" />
+      </view>
+    </view>
+    <view class="validation-tip" wx:if="{{showValidationTip}}">
+      11分制：先到11分胜出，10平后需净胜2分（如12:10）
+    </view>
 
     <view class="score-rows">
-      <view class="score-row" wx:for="{{scores}}" wx:key="game_number">
-        <text class="game-label">第{{item.game_number}}局</text>
-        <view class="score-inputs">
-          <input
-            class="score-input"
-            type="number"
-            placeholder="--"
-            value="{{item.player1_score}}"
-            data-game="{{item.game_number}}"
-            data-player="1"
-            bindinput="onScoreInput"
-          />
-          <text class="score-colon">:</text>
-          <input
-            class="score-input"
-            type="number"
-            placeholder="--"
-            value="{{item.player2_score}}"
-            data-game="{{item.game_number}}"
-            data-player="2"
-            bindinput="onScoreInput"
-          />
+      <view wx:for="{{scores}}" wx:key="game_number">
+        <view class="score-row">
+          <text class="game-label">第{{item.game_number}}局</text>
+          <view class="score-inputs">
+            <input
+              class="score-input {{scoreErrors[index] ? 'score-input-error' : ''}}"
+              type="number"
+              placeholder="--"
+              value="{{item.player1_score}}"
+              data-game="{{item.game_number}}"
+              data-player="1"
+              bindinput="onScoreInput"
+            />
+            <text class="score-colon">:</text>
+            <input
+              class="score-input {{scoreErrors[index] ? 'score-input-error' : ''}}"
+              type="number"
+              placeholder="--"
+              value="{{item.player2_score}}"
+              data-game="{{item.game_number}}"
+              data-player="2"
+              bindinput="onScoreInput"
+            />
+          </view>
         </view>
+        <text class="score-error" wx:if="{{scoreErrors[index]}}">{{scoreErrors[index]}}</text>
       </view>
     </view>
 

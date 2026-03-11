@@ -10,13 +10,57 @@ Page({
     scores: [],
     totalScore: { player1: 0, player2: 0 },
     loading: true,
-    submitting: false
+    submitting: false,
+    scoreValidation: true,
+    scoreErrors: [],
+    showValidationTip: false
   },
 
   onLoad(options) {
     this._scores = []; // 本地缓存比分，避免setData导致输入闪烁
     this.setData({ matchId: options.match_id });
     this.loadMatchDetail();
+  },
+
+  onToggleValidation(e) {
+    const on = e.detail.value;
+    this.setData({ scoreValidation: on });
+    if (on) {
+      this.validateAllScores();
+    } else {
+      this.setData({ scoreErrors: this._scores.map(() => '') });
+    }
+  },
+
+  onValidationHelp() {
+    this.setData({ showValidationTip: true });
+  },
+
+  onValidationHelpEnd() {
+    this.setData({ showValidationTip: false });
+  },
+
+  // 校验单局比分是否符合11分制规则
+  validateGameScore(p1, p2) {
+    if (p1 === '' || p2 === '' || isNaN(p1) || isNaN(p2)) {
+      return { valid: true, message: '' }; // 未填完不校验
+    }
+    const a = parseInt(p1), b = parseInt(p2);
+    if (a < 0 || b < 0) return { valid: false, message: '分数不能为负' };
+    const high = Math.max(a, b), low = Math.min(a, b);
+    if (high < 11) return { valid: false, message: '至少一方需达到11分' };
+    if (low < 10 && high !== 11) return { valid: false, message: '未到deuce时，胜方应恰好11分' };
+    if (high - low !== 2 && (low >= 10 || high > 11)) return { valid: false, message: 'deuce后需净胜2分' };
+    if (high - low < 2) return { valid: false, message: '需净胜2分' };
+    return { valid: true, message: '' };
+  },
+
+  validateAllScores() {
+    const errors = this._scores.map(s => {
+      const result = this.validateGameScore(s.player1_score, s.player2_score);
+      return result.message;
+    });
+    this.setData({ scoreErrors: errors });
   },
 
   // 加载比赛详情
@@ -30,6 +74,7 @@ Page({
           match: res.data,
           bestOf: res.data.best_of || 5,
           scores: this._scores,
+          scoreErrors: this._scores.map(() => ''),
           loading: false
         });
       }
@@ -57,16 +102,26 @@ Page({
   onScoreInput(e) {
     const { game, player } = e.currentTarget.dataset;
     const value = e.detail.value;
+    const idx = game - 1;
 
     if (player == 1) {
-      this._scores[game - 1].player1_score = value;
+      this._scores[idx].player1_score = value;
     } else {
-      this._scores[game - 1].player2_score = value;
+      this._scores[idx].player2_score = value;
     }
 
     // 只更新总比分，不回写scores，避免input重新渲染闪烁
     const totalScore = this.calculateTotalScore(this._scores);
     this.setData({ totalScore });
+
+    // 实时校验当前局
+    if (this.data.scoreValidation) {
+      const s = this._scores[idx];
+      const result = this.validateGameScore(s.player1_score, s.player2_score);
+      const errors = this.data.scoreErrors.slice();
+      errors[idx] = result.message;
+      this.setData({ scoreErrors: errors });
+    }
   },
 
   // 计算总比分
@@ -100,6 +155,25 @@ Page({
     if (validScores.length === 0) {
       wx.showToast({ title: '请输入比分', icon: 'none' });
       return;
+    }
+
+    // 比分合法性校验
+    if (this.data.scoreValidation) {
+      const invalidGames = [];
+      for (const s of validScores) {
+        const result = this.validateGameScore(s.player1_score, s.player2_score);
+        if (!result.valid) {
+          invalidGames.push(`第${s.game_number}局: ${result.message}`);
+        }
+      }
+      if (invalidGames.length > 0) {
+        wx.showModal({
+          title: '比分不合法',
+          content: invalidGames.join('\n'),
+          showCancel: false
+        });
+        return;
+      }
     }
 
     // 检查是否有胜者
