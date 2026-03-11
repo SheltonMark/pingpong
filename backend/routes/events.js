@@ -621,6 +621,13 @@ router.post('/:id/register-doubles', async (req, res) => {
       return res.status(400).json({ success: false, message: '已报名该赛事' });
     }
 
+    // 检查是否有已取消的记录（唯一键冲突处理）
+    const [cancelled] = await pool.query(
+      'SELECT id FROM event_registrations WHERE event_id = ? AND user_id = ? AND status = "cancelled"',
+      [id, user_id]
+    );
+    const hasCancelledRecord = cancelled.length > 0;
+
     let status, partnerStatus;
 
     if (partner_mode === 'select') {
@@ -643,12 +650,21 @@ router.post('/:id/register-doubles', async (req, res) => {
       status = 'pending';
       partnerStatus = 'pending';
 
-      await pool.execute(
-        `INSERT INTO event_registrations
-          (event_id, user_id, partner_id, partner_status, status)
-         VALUES (?, ?, ?, ?, ?)`,
-        [id, user_id, partner_id, partnerStatus, status]
-      );
+      if (hasCancelledRecord) {
+        await pool.execute(
+          `UPDATE event_registrations
+           SET partner_id = ?, partner_status = ?, status = ?, team_name = NULL, is_team_leader = 0, team_leader_id = NULL
+           WHERE event_id = ? AND user_id = ?`,
+          [partner_id, partnerStatus, status, id, user_id]
+        );
+      } else {
+        await pool.execute(
+          `INSERT INTO event_registrations
+            (event_id, user_id, partner_id, partner_status, status)
+           VALUES (?, ?, ?, ?, ?)`,
+          [id, user_id, partner_id, partnerStatus, status]
+        );
+      }
 
       // 更新搭档的记录，关联到当前用户
       await pool.execute(
@@ -675,12 +691,21 @@ router.post('/:id/register-doubles', async (req, res) => {
       // 等待配对模式
       status = 'waiting_partner';
 
-      await pool.execute(
-        `INSERT INTO event_registrations
-          (event_id, user_id, status)
-         VALUES (?, ?, ?)`,
-        [id, user_id, status]
-      );
+      if (hasCancelledRecord) {
+        await pool.execute(
+          `UPDATE event_registrations
+           SET status = ?, partner_id = NULL, partner_status = NULL, team_name = NULL, is_team_leader = 0, team_leader_id = NULL
+           WHERE event_id = ? AND user_id = ?`,
+          [status, id, user_id]
+        );
+      } else {
+        await pool.execute(
+          `INSERT INTO event_registrations
+            (event_id, user_id, status)
+           VALUES (?, ?, ?)`,
+          [id, user_id, status]
+        );
+      }
 
       res.json({
         success: true,
@@ -1240,7 +1265,8 @@ router.get('/:id/my-team', async (req, res) => {
 
     const teamName = leaderReg[0].team_name;
 
-    const [members] = await pool.query(`
+    // 用 team_name 或 team_leader_id 匹配成员（team_name 为 null 时用 leader_id 兜底）
+    let memberSql = `
       SELECT er.user_id, er.status, er.is_team_leader, er.is_participating, er.is_singles_player,
              u.name, u.avatar_url, u.gender,
              s.name as school_name, c.name as college_name
@@ -1248,9 +1274,11 @@ router.get('/:id/my-team', async (req, res) => {
       JOIN users u ON er.user_id = u.id
       LEFT JOIN schools s ON u.school_id = s.id
       LEFT JOIN colleges c ON u.college_id = c.id
-      WHERE er.event_id = ? AND er.team_name = ? AND er.status != 'cancelled'
+      WHERE er.event_id = ? AND er.status != 'cancelled'
+        AND (er.team_name = ? OR (er.team_leader_id = ? AND er.is_team_leader = 0) OR (er.user_id = ? AND er.is_team_leader = 1))
       ORDER BY er.is_team_leader DESC, er.registered_at
-    `, [id, teamName]);
+    `;
+    const [members] = await pool.query(memberSql, [id, teamName, user_id, user_id]);
 
     res.json({ success: true, data: { team_name: teamName, members } });
   } catch (error) {
@@ -1312,12 +1340,28 @@ router.post('/:id/join-team', async (req, res) => {
       return res.status(400).json({ success: false, message: '你已报名该赛事' });
     }
 
-    // 创建报名记录
-    await pool.execute(
-      `INSERT INTO event_registrations (event_id, user_id, team_name, is_team_leader, team_leader_id, is_participating, status)
-       VALUES (?, ?, ?, 0, ?, 1, 'confirmed')`,
-      [id, user_id, teamName, inviter_id]
+    // 检查是否有已取消的记录（唯一键冲突处理）
+    const [cancelled] = await pool.query(
+      'SELECT id FROM event_registrations WHERE event_id = ? AND user_id = ? AND status = "cancelled"',
+      [id, user_id]
     );
+
+    // 创建或更新报名记录
+    if (cancelled.length > 0) {
+      await pool.execute(
+        `UPDATE event_registrations
+         SET team_name = ?, is_team_leader = 0, team_leader_id = ?, is_participating = 1, status = 'confirmed',
+             partner_id = NULL, partner_status = NULL
+         WHERE event_id = ? AND user_id = ?`,
+        [teamName, inviter_id, id, user_id]
+      );
+    } else {
+      await pool.execute(
+        `INSERT INTO event_registrations (event_id, user_id, team_name, is_team_leader, team_leader_id, is_participating, status)
+         VALUES (?, ?, ?, 0, ?, 1, 'confirmed')`,
+        [id, user_id, teamName, inviter_id]
+      );
+    }
 
     // 创建邀请记录（自动接受）
     await pool.execute(
