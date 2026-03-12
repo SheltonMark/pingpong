@@ -1293,7 +1293,7 @@ router.get('/:id/my-team', async (req, res) => {
     `;
     const [members] = await pool.query(memberSql, [id, teamName, user_id, user_id]);
 
-    res.json({ success: true, data: { team_name: teamName, members, submitted: true } });
+    res.json({ success: true, data: { team_name: teamName, members, submitted: !!teamName } });
   } catch (error) {
     console.error('获取我的队伍失败:', error);
     res.status(500).json({ success: false, message: '服务器错误' });
