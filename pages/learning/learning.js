@@ -92,9 +92,11 @@ Page({
     this.request(`/api/learning/${id}`);
 
     if (type === 'video') {
-      wx.navigateTo({
-        url: `/pages/video-player/video-player?id=${id}&url=${encodeURIComponent(fullUrl)}`
-      });
+      // 视频功能暂时屏蔽，待视频类目审核通过后恢复
+      // wx.navigateTo({
+      //   url: `/pages/video-player/video-player?id=${id}&url=${encodeURIComponent(fullUrl)}`
+      // });
+      wx.showToast({ title: '视频功能暂未开放', icon: 'none' });
     } else if (type === 'ppt') {
       // PPT 下载并打开
       wx.showModal({

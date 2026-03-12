@@ -16,7 +16,8 @@
     scroll-y
     bindscrolltolower="onLoadMore"
   >
-    <!-- 视频列表 -->
+    <!-- 视频列表（暂时屏蔽，待视频类目审核通过后恢复）-->
+    <!--
     <block wx:if="{{currentTab === 'video'}}">
       <view
         class="video-card"
@@ -39,9 +40,10 @@
         </view>
       </view>
     </block>
+    -->
 
     <!-- PDF文档列表 -->
-    <block wx:elif="{{currentTab === 'document'}}">
+    <block wx:if="{{currentTab === 'document'}}">
       <view
         class="doc-card"
         wx:for="{{materials}}"
