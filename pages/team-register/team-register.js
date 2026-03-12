@@ -95,17 +95,30 @@ Page({
         }));
 
         const hasExistingTeam = !!res.data.submitted;
-        // 领队未提交时，成员列表里没有领队自己，需要补上
-        if (!hasExistingTeam && !members.find(m => m.isLeader) && this.data.user) {
-          members = [{
-            user_id: this.data.user.id || this.data.user.user_id,
-            name: this.data.user.name,
-            avatar_url: this.data.user.avatar_url,
-            isLeader: true,
-            isParticipating: this.data.leaderParticipates,
-            status: 'confirmed',
-            isSingles: false
-          }, ...members];
+        // 领队未提交时，确保领队在列表中且标记正确
+        if (!hasExistingTeam && this.data.user) {
+          const leaderUserId = this.data.user.id || this.data.user.user_id;
+          const existingLeaderIdx = members.findIndex(m => m.user_id === leaderUserId);
+          if (existingLeaderIdx >= 0) {
+            // 领队已在列表中（通过分享链接自己加入），标记为领队并移到首位
+            members[existingLeaderIdx].isLeader = true;
+            members[existingLeaderIdx].isParticipating = this.data.leaderParticipates;
+            if (existingLeaderIdx > 0) {
+              const [leader] = members.splice(existingLeaderIdx, 1);
+              members.unshift(leader);
+            }
+          } else {
+            // 领队不在列表中，补上
+            members.unshift({
+              user_id: leaderUserId,
+              name: this.data.user.name,
+              avatar_url: this.data.user.avatar_url,
+              isLeader: true,
+              isParticipating: this.data.leaderParticipates,
+              status: 'confirmed',
+              isSingles: false
+            });
+          }
         }
 
         const leader = members.find(m => m.isLeader);
