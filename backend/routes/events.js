@@ -126,7 +126,8 @@ router.get('/', async (req, res) => {
 
     let sql = `
       SELECT e.*, s.name as school_name, u.name as creator_name,
-        (SELECT COUNT(*) FROM event_registrations WHERE event_id = e.id AND status != 'cancelled') as participant_count
+        (SELECT COUNT(*) FROM event_registrations WHERE event_id = e.id AND status != 'cancelled') as participant_count,
+        (SELECT COUNT(DISTINCT team_name) FROM event_registrations WHERE event_id = e.id AND status != 'cancelled' AND team_name IS NOT NULL) as team_count
       FROM events e
       LEFT JOIN schools s ON e.school_id = s.id
       LEFT JOIN users u ON e.created_by = u.id
@@ -1260,7 +1261,19 @@ router.get('/:id/my-team', async (req, res) => {
     );
 
     if (leaderReg.length === 0) {
-      return res.json({ success: true, data: { team_name: null, members: [] } });
+      // 领队未提交报名，但可能已有成员通过分享链接加入
+      const [pendingMembers] = await pool.query(`
+        SELECT er.user_id, er.status, er.is_team_leader, er.is_participating, er.is_singles_player,
+               u.name, u.avatar_url, u.gender,
+               s.name as school_name, c.name as college_name
+        FROM event_registrations er
+        JOIN users u ON er.user_id = u.id
+        LEFT JOIN schools s ON u.school_id = s.id
+        LEFT JOIN colleges c ON u.college_id = c.id
+        WHERE er.event_id = ? AND er.team_leader_id = ? AND er.status != 'cancelled'
+        ORDER BY er.registered_at
+      `, [id, user_id]);
+      return res.json({ success: true, data: { team_name: null, members: pendingMembers, submitted: false } });
     }
 
     const teamName = leaderReg[0].team_name;
@@ -1280,7 +1293,7 @@ router.get('/:id/my-team', async (req, res) => {
     `;
     const [members] = await pool.query(memberSql, [id, teamName, user_id, user_id]);
 
-    res.json({ success: true, data: { team_name: teamName, members } });
+    res.json({ success: true, data: { team_name: teamName, members, submitted: true } });
   } catch (error) {
     console.error('获取我的队伍失败:', error);
     res.status(500).json({ success: false, message: '服务器错误' });

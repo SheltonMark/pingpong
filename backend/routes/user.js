@@ -414,7 +414,8 @@ router.get('/:id/events', async (req, res) => {
 
     let sql = `
       SELECT e.*, r.status as reg_status,
-        (SELECT COUNT(*) FROM event_registrations WHERE event_id = e.id) as participant_count,
+        (SELECT COUNT(*) FROM event_registrations WHERE event_id = e.id AND status != 'cancelled') as participant_count,
+        (SELECT COUNT(DISTINCT team_name) FROM event_registrations WHERE event_id = e.id AND status != 'cancelled' AND team_name IS NOT NULL) as team_count,
         (SELECT COUNT(*) FROM matches m WHERE (m.player1_id = ? OR m.player2_id = ?) AND m.event_id = e.id AND m.status IN ('confirmed','finished') AND ((m.player1_id = ? AND m.player1_games > m.player2_games) OR (m.player2_id = ? AND m.player2_games > m.player1_games))) as my_wins,
         (SELECT COUNT(*) FROM matches m WHERE (m.player1_id = ? OR m.player2_id = ?) AND m.event_id = e.id AND m.status IN ('confirmed','finished') AND ((m.player1_id = ? AND m.player1_games < m.player2_games) OR (m.player2_id = ? AND m.player2_games < m.player1_games))) as my_losses
       FROM events e

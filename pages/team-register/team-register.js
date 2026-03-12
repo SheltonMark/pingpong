@@ -48,7 +48,7 @@ Page({
         const event = eventRes.data.event;
         this.setData({
           event,
-          maxMembers: event.max_participants || 10
+          maxMembers: event.max_team_size || 10
         });
       }
 
@@ -84,7 +84,7 @@ Page({
       });
 
       if (res.success && res.data.members && res.data.members.length > 0) {
-        const members = res.data.members.map(m => ({
+        let members = res.data.members.map(m => ({
           user_id: m.user_id,
           name: m.name,
           avatar_url: m.avatar_url,
@@ -93,18 +93,33 @@ Page({
           status: m.status || 'confirmed',
           isSingles: (m.is_participating !== 0) && !!m.is_singles_player
         }));
+
+        const hasExistingTeam = !!res.data.submitted;
+        // 领队未提交时，成员列表里没有领队自己，需要补上
+        if (!hasExistingTeam && !members.find(m => m.isLeader) && this.data.user) {
+          members = [{
+            user_id: this.data.user.id || this.data.user.user_id,
+            name: this.data.user.name,
+            avatar_url: this.data.user.avatar_url,
+            isLeader: true,
+            isParticipating: this.data.leaderParticipates,
+            status: 'confirmed',
+            isSingles: false
+          }, ...members];
+        }
+
         const leader = members.find(m => m.isLeader);
         const leaderParticipates = leader ? leader.isParticipating : this.data.leaderParticipates;
         const stats = this.buildParticipationStats(members, leaderParticipates);
 
         this.setData({
-          hasExistingTeam: true,
+          hasExistingTeam,
           leaderParticipates,
           teamName: res.data.team_name || this.data.teamName,
           members,
           ...stats
         });
-      } else {
+      } else if (res.success && !res.data.submitted) {
         this.initMembers();
       }
     } catch (error) {

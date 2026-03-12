@@ -48,8 +48,8 @@
 
       <view class="event-footer">
         <view class="participant-info">
-          <text class="participant-count">{{item.participant_count}}</text>
-          <text class="participant-total">/{{item.max_participants}}人</text>
+          <text class="participant-count">{{item.event_type === 'team' ? (item.team_count || 0) : item.participant_count}}</text>
+          <text class="participant-total">/{{item.max_participants}}{{item.event_type === 'team' ? '队' : '人'}}</text>
         </view>
         <view class="action-btn" wx:if="{{item.status === 'registration'}}">查看详情</view>
         <view class="action-btn secondary" wx:elif="{{item.status === 'ongoing'}}">查看对阵</view>
