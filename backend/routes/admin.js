@@ -235,7 +235,10 @@ router.post('/events', requireAdmin, async (req, res) => {
       title, description, description_images, event_type, event_format, scope,
       best_of, games_to_win, points_per_game, counts_for_ranking,
       registration_start, registration_end, event_start, event_end,
-      location, max_participants, school_id, user_id, status
+      location, max_participants, school_id, user_id, status,
+      // 团体赛配置
+      min_team_players, max_team_players, singles_player_count,
+      gender_rule, required_male_count, required_female_count
     } = req.body;
 
     const [result] = await pool.execute(`
@@ -243,15 +246,20 @@ router.post('/events', requireAdmin, async (req, res) => {
         title, description, description_images, event_type, event_format, scope,
         best_of, games_to_win, points_per_game, counts_for_ranking,
         registration_start, registration_end, event_start, event_end,
-        location, max_participants, school_id, created_by, status, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        location, max_participants, school_id, created_by, status,
+        min_team_players, max_team_players, singles_player_count,
+        gender_rule, required_male_count, required_female_count,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `, [
       title, description || null,
       description_images ? JSON.stringify(description_images) : null,
       event_type, event_format, scope || 'school',
       best_of || 5, games_to_win || 3, points_per_game || 11, counts_for_ranking ? 1 : 0,
       formatDateForMySQL(registration_start), formatDateForMySQL(registration_end), formatDateForMySQL(event_start), formatDateForMySQL(event_end),
-      location || null, max_participants || 32, school_id || null, user_id, status || 'draft'
+      location || null, max_participants || 32, school_id || null, user_id, status || 'draft',
+      min_team_players || null, max_team_players || null, singles_player_count || null,
+      gender_rule || null, required_male_count || null, required_female_count || null
     ]);
 
     res.json({ success: true, data: { id: result.insertId } });
@@ -269,7 +277,10 @@ router.put('/events/:id', requireAdmin, async (req, res) => {
       title, description, description_images, event_type, event_format, scope,
       best_of, games_to_win, points_per_game, counts_for_ranking,
       registration_start, registration_end, event_start, event_end,
-      location, max_participants, status
+      location, max_participants, status,
+      // 团体赛配置
+      min_team_players, max_team_players, singles_player_count,
+      gender_rule, required_male_count, required_female_count
     } = req.body;
 
     await pool.execute(`
@@ -277,7 +288,10 @@ router.put('/events/:id', requireAdmin, async (req, res) => {
         title = ?, description = ?, description_images = ?, event_type = ?, event_format = ?, scope = ?,
         best_of = ?, games_to_win = ?, points_per_game = ?, counts_for_ranking = ?,
         registration_start = ?, registration_end = ?, event_start = ?, event_end = ?,
-        location = ?, max_participants = ?, status = ?, updated_at = NOW()
+        location = ?, max_participants = ?, status = ?,
+        min_team_players = ?, max_team_players = ?, singles_player_count = ?,
+        gender_rule = ?, required_male_count = ?, required_female_count = ?,
+        updated_at = NOW()
       WHERE id = ?
     `, [
       title, description || null,
@@ -285,7 +299,10 @@ router.put('/events/:id', requireAdmin, async (req, res) => {
       event_type, event_format, scope || 'school',
       best_of || 5, games_to_win || 3, points_per_game || 11, counts_for_ranking ? 1 : 0,
       formatDateForMySQL(registration_start), formatDateForMySQL(registration_end), formatDateForMySQL(event_start), formatDateForMySQL(event_end),
-      location || null, max_participants || 32, status || 'draft', id
+      location || null, max_participants || 32, status || 'draft',
+      min_team_players || null, max_team_players || null, singles_player_count || null,
+      gender_rule || null, required_male_count || null, required_female_count || null,
+      id
     ]);
 
     res.json({ success: true });
