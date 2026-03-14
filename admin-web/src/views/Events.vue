@@ -93,6 +93,78 @@
             </div>
           </el-form-item>
 
+          <el-form-item label="比赛项目配置">
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <el-checkbox v-model="form.team_event_config.projects.men_singles.enabled">
+                男单
+                <el-input-number
+                  v-if="form.team_event_config.projects.men_singles.enabled"
+                  v-model="form.team_event_config.projects.men_singles.count"
+                  :min="1"
+                  :max="5"
+                  size="small"
+                  style="margin-left: 10px; width: 120px;"
+                />
+                <span v-if="form.team_event_config.projects.men_singles.enabled" style="margin-left: 5px;">人</span>
+              </el-checkbox>
+
+              <el-checkbox v-model="form.team_event_config.projects.women_singles.enabled">
+                女单
+                <el-input-number
+                  v-if="form.team_event_config.projects.women_singles.enabled"
+                  v-model="form.team_event_config.projects.women_singles.count"
+                  :min="1"
+                  :max="5"
+                  size="small"
+                  style="margin-left: 10px; width: 120px;"
+                />
+                <span v-if="form.team_event_config.projects.women_singles.enabled" style="margin-left: 5px;">人</span>
+              </el-checkbox>
+
+              <el-checkbox v-model="form.team_event_config.projects.men_doubles.enabled">
+                男双
+                <el-input-number
+                  v-if="form.team_event_config.projects.men_doubles.enabled"
+                  v-model="form.team_event_config.projects.men_doubles.count"
+                  :min="1"
+                  :max="5"
+                  size="small"
+                  style="margin-left: 10px; width: 120px;"
+                />
+                <span v-if="form.team_event_config.projects.men_doubles.enabled" style="margin-left: 5px;">对</span>
+              </el-checkbox>
+
+              <el-checkbox v-model="form.team_event_config.projects.women_doubles.enabled">
+                女双
+                <el-input-number
+                  v-if="form.team_event_config.projects.women_doubles.enabled"
+                  v-model="form.team_event_config.projects.women_doubles.count"
+                  :min="1"
+                  :max="5"
+                  size="small"
+                  style="margin-left: 10px; width: 120px;"
+                />
+                <span v-if="form.team_event_config.projects.women_doubles.enabled" style="margin-left: 5px;">对</span>
+              </el-checkbox>
+
+              <el-checkbox v-model="form.team_event_config.projects.mixed_doubles.enabled">
+                混双
+                <el-input-number
+                  v-if="form.team_event_config.projects.mixed_doubles.enabled"
+                  v-model="form.team_event_config.projects.mixed_doubles.count"
+                  :min="1"
+                  :max="5"
+                  size="small"
+                  style="margin-left: 10px; width: 120px;"
+                />
+                <span v-if="form.team_event_config.projects.mixed_doubles.enabled" style="margin-left: 5px;">对</span>
+              </el-checkbox>
+            </div>
+            <div style="margin-top: 8px; color: #909399; font-size: 12px;">
+              勾选启用的项目，并设置每个项目需要的人数/对数
+            </div>
+          </el-form-item>
+
           <el-form-item label="性别规则" required>
             <el-select v-model="form.gender_rule" placeholder="请选择性别规则" @change="onGenderRuleChange">
               <el-option label="不限" value="unlimited" />
@@ -224,6 +296,18 @@
             {{ row.is_singles_player ? '是' : '' }}
           </template>
         </el-table-column>
+        <el-table-column prop="projects" label="参赛项目" min-width="200" v-if="regEvent && regEvent.event_type === 'team' && regEvent.team_event_config">
+          <template #default="{ row }">
+            <el-tag
+              v-for="project in row.projects"
+              :key="project"
+              size="small"
+              style="margin-right: 4px;"
+            >
+              {{ getProjectLabel(project) }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="partner_name" label="搭档" min-width="140" v-if="regEvent && regEvent.event_type === 'doubles'" />
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
@@ -305,6 +389,15 @@ const form = ref({
   gender_rule: 'unlimited',
   required_male_count: 0,
   required_female_count: 0,
+  team_event_config: {
+    projects: {
+      men_singles: { enabled: false, count: 2 },
+      women_singles: { enabled: false, count: 2 },
+      men_doubles: { enabled: false, count: 2 },
+      women_doubles: { enabled: false, count: 0 },
+      mixed_doubles: { enabled: false, count: 1 }
+    }
+  }
 })
 
 // 赛事类型改变时重置团体赛配置
@@ -316,6 +409,15 @@ const onEventTypeChange = (value) => {
     form.value.gender_rule = 'unlimited'
     form.value.required_male_count = 0
     form.value.required_female_count = 0
+    form.value.team_event_config = {
+      projects: {
+        men_singles: { enabled: false, count: 2 },
+        women_singles: { enabled: false, count: 2 },
+        men_doubles: { enabled: false, count: 2 },
+        women_doubles: { enabled: false, count: 0 },
+        mixed_doubles: { enabled: false, count: 1 }
+      }
+    }
   }
 }
 
@@ -355,6 +457,18 @@ const statusTypes = {
   pending_start: 'primary',
   ongoing: 'success',
   finished: ''
+}
+
+const projectLabels = {
+  men_singles: '男单',
+  women_singles: '女单',
+  men_doubles: '男双',
+  women_doubles: '女双',
+  mixed_doubles: '混双'
+}
+
+const getProjectLabel = (project) => {
+  return projectLabels[project] || project
 }
 
 const getAdminUser = () => {
@@ -419,6 +533,15 @@ const editEvent = (row) => {
     gender_rule: row.gender_rule || 'unlimited',
     required_male_count: row.required_male_count || 0,
     required_female_count: row.required_female_count || 0,
+    team_event_config: row.team_event_config || {
+      projects: {
+        men_singles: { enabled: false, count: 2 },
+        women_singles: { enabled: false, count: 2 },
+        men_doubles: { enabled: false, count: 2 },
+        women_doubles: { enabled: false, count: 0 },
+        mixed_doubles: { enabled: false, count: 1 }
+      }
+    }
   }
   dialogVisible.value = true
 }
@@ -553,16 +676,18 @@ const viewRegistrations = async (row) => {
         const registrations = []
         teams.forEach(team => {
           // 添加领队
+          const captainMember = team.members?.find(m => m.user_id === team.captain_id)
           registrations.push({
             name: team.captain_name,
             gender: team.captain_gender,
             phone: team.captain_phone,
-            school_name: team.school_name || '',
-            college_name: team.college_name || '',
+            school_name: captainMember?.school_name || '',
+            college_name: captainMember?.college_name || '',
             team_name: team.team_name,
             is_team_leader: 1,
             is_participating: team.leader_participating,
-            is_singles_player: team.members?.find(m => m.user_id === team.captain_id)?.is_singles_player || 0,
+            is_singles_player: captainMember?.is_singles_player || 0,
+            projects: captainMember?.projects || [],
             status: 'confirmed'
           })
           // 添加队员
@@ -579,6 +704,7 @@ const viewRegistrations = async (row) => {
                   is_team_leader: 0,
                   is_participating: member.is_participating,
                   is_singles_player: member.is_singles_player,
+                  projects: member.projects || [],
                   status: member.status
                 })
               }
@@ -615,40 +741,53 @@ const exportRegistrations = async () => {
       const data = await res.json()
 
       if (data.success) {
-        // 将JSON数据转换为CSV
-        const rows = data.data || []
+        const rows = data.data.rows || []
+        const config = data.data.config || null
+
         if (rows.length === 0) {
           ElMessage.warning('暂无报名数据')
           return
         }
 
-        // CSV表头
-        const headers = [
-          '队伍序号', '队伍名称', '领队姓名', '领队是否参赛',
-          '实际参赛人数', '性别构成', '单打人数', '单打名单',
-          '成员序号', '成员姓名', '成员性别', '成员身份', '是否单打', '手机号', '提交时间'
-        ]
+        // 动态构建表头
+        const baseHeaders = ['姓名', '性别', '电话号码', '学校', '学院', '团体']
+        const projectHeaders = []
+
+        // 根据配置添加项目列
+        if (config && config.projects) {
+          if (config.projects.men_singles?.enabled) projectHeaders.push('男单')
+          if (config.projects.women_singles?.enabled) projectHeaders.push('女单')
+          if (config.projects.men_doubles?.enabled) projectHeaders.push('男双')
+          if (config.projects.women_doubles?.enabled) projectHeaders.push('女双')
+          if (config.projects.mixed_doubles?.enabled) projectHeaders.push('混双')
+        }
+
+        const headers = [...baseHeaders, ...projectHeaders]
 
         // 构建CSV内容
         const csvContent = [
           headers.join(','),
-          ...rows.map(row => [
-            row.team_index,
-            `"${row.team_name}"`,
-            `"${row.leader_name}"`,
-            row.leader_is_participating,
-            row.actual_player_count,
-            `"${row.gender_summary}"`,
-            row.singles_player_count,
-            `"${row.singles_player_names}"`,
-            row.member_index,
-            `"${row.member_name}"`,
-            row.member_gender,
-            row.member_role,
-            row.member_is_singles,
-            row.member_phone,
-            row.submitted_at
-          ].join(','))
+          ...rows.map(row => {
+            const baseData = [
+              `"${row.name}"`,
+              row.gender,
+              row.phone,
+              `"${row.school_name}"`,
+              `"${row.college_name}"`,
+              row.is_team
+            ]
+
+            const projectData = []
+            if (config && config.projects) {
+              if (config.projects.men_singles?.enabled) projectData.push(row.men_singles || '')
+              if (config.projects.women_singles?.enabled) projectData.push(row.women_singles || '')
+              if (config.projects.men_doubles?.enabled) projectData.push(row.men_doubles || '')
+              if (config.projects.women_doubles?.enabled) projectData.push(row.women_doubles || '')
+              if (config.projects.mixed_doubles?.enabled) projectData.push(row.mixed_doubles || '')
+            }
+
+            return [...baseData, ...projectData].join(',')
+          })
         ].join('\n')
 
         // 添加BOM以支持Excel正确显示中文
