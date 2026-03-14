@@ -205,6 +205,36 @@
   border-radius: 8rpx;
 }
 
+.member-projects-row {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  flex-wrap: wrap;
+  margin-top: 10rpx;
+}
+
+.project-tag {
+  font-size: 20rpx;
+  padding: 4rpx 10rpx;
+}
+
+.project-tag.men-singles,
+.project-tag.men-doubles {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.project-tag.women-singles,
+.project-tag.women-doubles {
+  color: #be185d;
+  background: #fce7f3;
+}
+
+.project-tag.mixed-doubles {
+  color: #7c3aed;
+  background: #ede9fe;
+}
+
 .member-meta,
 .pending-meta {
   display: block;
@@ -359,3 +389,84 @@
 .small-btn[disabled] {
   opacity: 0.45;
 }
+
+/* 项目分配样式 */
+.project-section {
+  padding: 0 32rpx 32rpx;
+  border-bottom: 1rpx solid #f3f4f6;
+}
+
+.project-section:last-child {
+  border-bottom: none;
+}
+
+.project-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+}
+
+.project-title {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #111827;
+}
+
+.project-subtitle {
+  font-size: 22rpx;
+  color: #9ca3af;
+}
+
+.project-positions {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.position-item {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.position-label {
+  flex-shrink: 0;
+  width: 100rpx;
+  font-size: 24rpx;
+  color: #6b7280;
+}
+
+.doubles-item {
+  background: #f9fafb;
+  border-radius: 16rpx;
+  padding: 20rpx;
+}
+
+.doubles-label {
+  display: block;
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 16rpx;
+}
+
+.doubles-players {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.player-select {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.player-label {
+  flex-shrink: 0;
+  width: 100rpx;
+  font-size: 24rpx;
+  color: #6b7280;
+}
+

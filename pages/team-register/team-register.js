@@ -136,7 +136,20 @@ Page({
     occupiedSlots: 0,
     maleCount: 0,
     femaleCount: 0,
-    singlesCount: 0
+    singlesCount: 0,
+    // 项目配置
+    projectConfig: null,
+    // 项目分配
+    projectAssignments: {
+      men_singles: [],
+      women_singles: [],
+      men_doubles: [],
+      women_doubles: [],
+      mixed_doubles: []
+    },
+    // 队员选项列表
+    maleMembers: [],
+    femaleMembers: []
   },
 
   onLoad(options) {
@@ -162,7 +175,8 @@ Page({
 
     try {
       const requests = [
-        this.request(`/api/events/${eventId}`)
+        this.request(`/api/events/${eventId}`),
+        this.request(`/api/events/${eventId}/team-project-config`)
       ];
 
       if (app.globalData.userInfo?.openid) {
@@ -177,8 +191,9 @@ Page({
         requests.push(Promise.resolve({ success: false }));
       }
 
-      const [eventRes, userRes, captainRes] = await Promise.all(requests);
+      const [eventRes, projectConfigRes, userRes, captainRes] = await Promise.all(requests);
       const event = eventRes.success ? eventRes.data.event : null;
+      const projectConfig = projectConfigRes.success ? projectConfigRes.data : null;
       const user = userRes.success ? userRes.data : {
         ...(app.globalData.userInfo || {}),
         id: currentUserId,
@@ -192,6 +207,7 @@ Page({
         event,
         user,
         leaderParticipates,
+        projectConfig,
         config: normalizeConfig(event),
         ruleText: buildRuleText(normalizeConfig(event))
       });
@@ -218,6 +234,21 @@ Page({
     const normalizedPendingInvitations = pendingInvitations || [];
     const stats = calcStats(normalizedMembers, normalizedPendingInvitations);
 
+    // 构建队员选项列表
+    const maleMembers = normalizedMembers
+      .filter(m => m.gender === 'male' && m.isParticipating)
+      .map(m => ({
+        label: m.name,
+        value: m.user_id
+      }));
+
+    const femaleMembers = normalizedMembers
+      .filter(m => m.gender === 'female' && m.isParticipating)
+      .map(m => ({
+        label: m.name,
+        value: m.user_id
+      }));
+
     this.setData({
       teamName,
       hasTeamName: !!(teamName || '').trim(),
@@ -227,6 +258,8 @@ Page({
       submitted: !!submitted,
       config: nextConfig,
       ruleText: buildRuleText(nextConfig),
+      maleMembers,
+      femaleMembers,
       ...stats
     });
   },
@@ -301,6 +334,9 @@ Page({
         submitted: draft.submitted,
         config
       });
+
+      // 加载项目分配
+      await this.loadProjectAssignments();
     } catch (error) {
       console.error('加载队伍草稿失败:', error);
       if (!options.silent) {
@@ -631,6 +667,13 @@ Page({
       return;
     }
 
+    // 保存项目分配
+    const projectSaved = await this.saveProjectAssignments();
+    if (!projectSaved) {
+      wx.showToast({ title: '保存项目分配失败', icon: 'none' });
+      return;
+    }
+
     this.setData({ isSubmitting: true });
 
     try {
@@ -672,6 +715,187 @@ Page({
 
   onStopPropagation() {
     // Prevent event bubbling
+  },
+
+  onProjectPlayerSelect(e) {
+    if (this.data.submitted) {
+      return;
+    }
+
+    const { project, position, player } = e.currentTarget.dataset;
+    const selectedValue = e.detail.value;
+
+    if (!project || position === undefined) {
+      return;
+    }
+
+    const pos = parseInt(position, 10);
+    const projectAssignments = { ...this.data.projectAssignments };
+
+    // 确保该项目的数组存在
+    if (!projectAssignments[project]) {
+      projectAssignments[project] = [];
+    }
+
+    // 确保该位置的对象存在
+    if (!projectAssignments[project][pos]) {
+      projectAssignments[project][pos] = { player_a: null, player_b: null };
+    }
+
+    // 单打项目或双打的选手A/B
+    if (player === 'a' || !player) {
+      projectAssignments[project][pos].player_a = selectedValue || null;
+    } else if (player === 'b') {
+      projectAssignments[project][pos].player_b = selectedValue || null;
+    }
+
+    // 验证双打项目的两个选手不能相同
+    if (player && projectAssignments[project][pos].player_a && projectAssignments[project][pos].player_b) {
+      if (projectAssignments[project][pos].player_a === projectAssignments[project][pos].player_b) {
+        wx.showToast({ title: '双打选手A和选手B不能是同一人', icon: 'none' });
+        if (player === 'b') {
+          projectAssignments[project][pos].player_b = null;
+        } else {
+          projectAssignments[project][pos].player_a = null;
+        }
+      }
+    }
+
+    this.setData({ projectAssignments });
+
+    // 更新队员的项目信息
+    this.updateMemberProjects();
+  },
+
+  updateMemberProjects() {
+    const { projectAssignments, members } = this.data;
+    const memberProjects = {};
+
+    // 遍历所有项目分配，构建每个队员参加的项目列表
+    Object.keys(projectAssignments).forEach(projectType => {
+      const positions = projectAssignments[projectType];
+      positions.forEach(assignment => {
+        if (assignment && assignment.player_a) {
+          if (!memberProjects[assignment.player_a]) {
+            memberProjects[assignment.player_a] = [];
+          }
+          if (!memberProjects[assignment.player_a].includes(projectType)) {
+            memberProjects[assignment.player_a].push(projectType);
+          }
+        }
+        if (assignment && assignment.player_b) {
+          if (!memberProjects[assignment.player_b]) {
+            memberProjects[assignment.player_b] = [];
+          }
+          if (!memberProjects[assignment.player_b].includes(projectType)) {
+            memberProjects[assignment.player_b].push(projectType);
+          }
+        }
+      });
+    });
+
+    // 更新队员的项目信息
+    const updatedMembers = members.map(member => ({
+      ...member,
+      projects: memberProjects[member.user_id] || []
+    }));
+
+    this.setData({ members: updatedMembers });
+  },
+
+  async loadProjectAssignments() {
+    const currentUserId = getCurrentUserId();
+    if (!currentUserId || !this.data.eventId) {
+      return;
+    }
+
+    try {
+      const res = await this.request(`/api/events/${this.data.eventId}/team-project-assignments`, {
+        user_id: currentUserId
+      });
+
+      if (res.success && res.data) {
+        const assignments = res.data.assignments || [];
+        const memberProjects = res.data.member_projects || {};
+
+        // 构建项目分配数据结构
+        const projectAssignments = {
+          men_singles: [],
+          women_singles: [],
+          men_doubles: [],
+          women_doubles: [],
+          mixed_doubles: []
+        };
+
+        assignments.forEach(assignment => {
+          const { project_type, position, player_a_id, player_b_id } = assignment;
+          if (!projectAssignments[project_type]) {
+            projectAssignments[project_type] = [];
+          }
+          projectAssignments[project_type][position - 1] = {
+            player_a: player_a_id,
+            player_b: player_b_id
+          };
+        });
+
+        // 更新队员的项目信息
+        const members = this.data.members.map(member => ({
+          ...member,
+          projects: memberProjects[member.user_id] || []
+        }));
+
+        this.setData({
+          projectAssignments,
+          members
+        });
+      }
+    } catch (error) {
+      console.error('加载项目分配失败:', error);
+    }
+  },
+
+  async saveProjectAssignments() {
+    const currentUserId = getCurrentUserId();
+    const teamName = (this.data.teamName || '').trim();
+
+    if (!currentUserId || !teamName) {
+      return false;
+    }
+
+    try {
+      // 构建assignments数组
+      const assignments = [];
+      const { projectAssignments } = this.data;
+
+      Object.keys(projectAssignments).forEach(projectType => {
+        const positions = projectAssignments[projectType];
+        positions.forEach((assignment, index) => {
+          if (assignment && assignment.player_a) {
+            assignments.push({
+              project: projectType,
+              position: index + 1,
+              player_a: assignment.player_a,
+              player_b: assignment.player_b || null
+            });
+          }
+        });
+      });
+
+      const res = await this.request(
+        `/api/events/${this.data.eventId}/team-project-assignments`,
+        {
+          user_id: currentUserId,
+          team_name: teamName,
+          assignments
+        },
+        'PUT'
+      );
+
+      return res.success;
+    } catch (error) {
+      console.error('保存项目分配失败:', error);
+      return false;
+    }
   },
 
   onGoBack() {

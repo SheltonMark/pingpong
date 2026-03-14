@@ -106,6 +106,13 @@
             <text class="member-info-item">{{item.school_name}}</text>
             <text class="member-info-item" wx:if="{{item.college_name}}">{{item.college_name}}</text>
           </view>
+          <view class="member-projects-row" wx:if="{{item.projects && item.projects.length}}">
+            <text class="mini-tag project-tag men-singles" wx:for="{{item.projects}}" wx:for-item="project" wx:key="project" wx:if="{{project === 'men_singles'}}">男单</text>
+            <text class="mini-tag project-tag women-singles" wx:for="{{item.projects}}" wx:for-item="project" wx:key="project" wx:if="{{project === 'women_singles'}}">女单</text>
+            <text class="mini-tag project-tag men-doubles" wx:for="{{item.projects}}" wx:for-item="project" wx:key="project" wx:if="{{project === 'men_doubles'}}">男双</text>
+            <text class="mini-tag project-tag women-doubles" wx:for="{{item.projects}}" wx:for-item="project" wx:key="project" wx:if="{{project === 'women_doubles'}}">女双</text>
+            <text class="mini-tag project-tag mixed-doubles" wx:for="{{item.projects}}" wx:for-item="project" wx:key="project" wx:if="{{project === 'mixed_doubles'}}">混双</text>
+          </view>
         </view>
         <view class="member-actions" wx:if="{{!submitted && !item.isLeader}}" catchtap="onStopPropagation">
           <button
@@ -141,6 +148,181 @@
     </view>
 
     <view class="empty-tip" wx:else>当前没有待处理邀请</view>
+  </view>
+
+  <!-- 项目分配 -->
+  <view class="team-card" wx:if="{{projectConfig && projectConfig.projects}}">
+    <view class="card-header">
+      <text class="card-title">项目分配</text>
+      <text class="card-subtitle">为每个项目指定参赛人员</text>
+    </view>
+
+    <!-- 男单 -->
+    <view class="project-section" wx:if="{{projectConfig.projects.men_singles && projectConfig.projects.men_singles.enabled}}">
+      <view class="project-header">
+        <text class="project-title">男单</text>
+        <text class="project-subtitle">需要 {{projectConfig.projects.men_singles.count}} 人</text>
+      </view>
+      <view class="project-positions">
+        <view class="position-item" wx:for="{{projectConfig.projects.men_singles.count}}" wx:key="index" wx:for-index="idx">
+          <text class="position-label">{{idx + 1}}号位</text>
+          <custom-picker
+            placeholder="请选择队员"
+            options="{{maleMembers}}"
+            value="{{projectAssignments.men_singles[idx] ? projectAssignments.men_singles[idx].player_a : ''}}"
+            data-project="men_singles"
+            data-position="{{idx}}"
+            bind:change="onProjectPlayerSelect"
+            disabled="{{submitted}}"
+          />
+        </view>
+      </view>
+    </view>
+
+    <!-- 女单 -->
+    <view class="project-section" wx:if="{{projectConfig.projects.women_singles && projectConfig.projects.women_singles.enabled}}">
+      <view class="project-header">
+        <text class="project-title">女单</text>
+        <text class="project-subtitle">需要 {{projectConfig.projects.women_singles.count}} 人</text>
+      </view>
+      <view class="project-positions">
+        <view class="position-item" wx:for="{{projectConfig.projects.women_singles.count}}" wx:key="index" wx:for-index="idx">
+          <text class="position-label">{{idx + 1}}号位</text>
+          <custom-picker
+            placeholder="请选择队员"
+            options="{{femaleMembers}}"
+            value="{{projectAssignments.women_singles[idx] ? projectAssignments.women_singles[idx].player_a : ''}}"
+            data-project="women_singles"
+            data-position="{{idx}}"
+            bind:change="onProjectPlayerSelect"
+            disabled="{{submitted}}"
+          />
+        </view>
+      </view>
+    </view>
+
+    <!-- 男双 -->
+    <view class="project-section" wx:if="{{projectConfig.projects.men_doubles && projectConfig.projects.men_doubles.enabled}}">
+      <view class="project-header">
+        <text class="project-title">男双</text>
+        <text class="project-subtitle">需要 {{projectConfig.projects.men_doubles.count}} 对</text>
+      </view>
+      <view class="project-positions">
+        <view class="doubles-item" wx:for="{{projectConfig.projects.men_doubles.count}}" wx:key="index" wx:for-index="idx">
+          <text class="doubles-label">第{{idx + 1}}对</text>
+          <view class="doubles-players">
+            <view class="player-select">
+              <text class="player-label">选手A</text>
+              <custom-picker
+                placeholder="请选择队员"
+                options="{{maleMembers}}"
+                value="{{projectAssignments.men_doubles[idx] ? projectAssignments.men_doubles[idx].player_a : ''}}"
+                data-project="men_doubles"
+                data-position="{{idx}}"
+                data-player="a"
+                bind:change="onProjectPlayerSelect"
+                disabled="{{submitted}}"
+              />
+            </view>
+            <view class="player-select">
+              <text class="player-label">选手B</text>
+              <custom-picker
+                placeholder="请选择队员"
+                options="{{maleMembers}}"
+                value="{{projectAssignments.men_doubles[idx] ? projectAssignments.men_doubles[idx].player_b : ''}}"
+                data-project="men_doubles"
+                data-position="{{idx}}"
+                data-player="b"
+                bind:change="onProjectPlayerSelect"
+                disabled="{{submitted}}"
+              />
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 女双 -->
+    <view class="project-section" wx:if="{{projectConfig.projects.women_doubles && projectConfig.projects.women_doubles.enabled}}">
+      <view class="project-header">
+        <text class="project-title">女双</text>
+        <text class="project-subtitle">需要 {{projectConfig.projects.women_doubles.count}} 对</text>
+      </view>
+      <view class="project-positions">
+        <view class="doubles-item" wx:for="{{projectConfig.projects.women_doubles.count}}" wx:key="index" wx:for-index="idx">
+          <text class="doubles-label">第{{idx + 1}}对</text>
+          <view class="doubles-players">
+            <view class="player-select">
+              <text class="player-label">选手A</text>
+              <custom-picker
+                placeholder="请选择队员"
+                options="{{femaleMembers}}"
+                value="{{projectAssignments.women_doubles[idx] ? projectAssignments.women_doubles[idx].player_a : ''}}"
+                data-project="women_doubles"
+                data-position="{{idx}}"
+                data-player="a"
+                bind:change="onProjectPlayerSelect"
+                disabled="{{submitted}}"
+              />
+            </view>
+            <view class="player-select">
+              <text class="player-label">选手B</text>
+              <custom-picker
+                placeholder="请选择队员"
+                options="{{femaleMembers}}"
+                value="{{projectAssignments.women_doubles[idx] ? projectAssignments.women_doubles[idx].player_b : ''}}"
+                data-project="women_doubles"
+                data-position="{{idx}}"
+                data-player="b"
+                bind:change="onProjectPlayerSelect"
+                disabled="{{submitted}}"
+              />
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 混双 -->
+    <view class="project-section" wx:if="{{projectConfig.projects.mixed_doubles && projectConfig.projects.mixed_doubles.enabled}}">
+      <view class="project-header">
+        <text class="project-title">混双</text>
+        <text class="project-subtitle">需要 {{projectConfig.projects.mixed_doubles.count}} 对</text>
+      </view>
+      <view class="project-positions">
+        <view class="doubles-item" wx:for="{{projectConfig.projects.mixed_doubles.count}}" wx:key="index" wx:for-index="idx">
+          <text class="doubles-label">第{{idx + 1}}对</text>
+          <view class="doubles-players">
+            <view class="player-select">
+              <text class="player-label">男选手</text>
+              <custom-picker
+                placeholder="请选择队员"
+                options="{{maleMembers}}"
+                value="{{projectAssignments.mixed_doubles[idx] ? projectAssignments.mixed_doubles[idx].player_a : ''}}"
+                data-project="mixed_doubles"
+                data-position="{{idx}}"
+                data-player="a"
+                bind:change="onProjectPlayerSelect"
+                disabled="{{submitted}}"
+              />
+            </view>
+            <view class="player-select">
+              <text class="player-label">女选手</text>
+              <custom-picker
+                placeholder="请选择队员"
+                options="{{femaleMembers}}"
+                value="{{projectAssignments.mixed_doubles[idx] ? projectAssignments.mixed_doubles[idx].player_b : ''}}"
+                data-project="mixed_doubles"
+                data-position="{{idx}}"
+                data-player="b"
+                bind:change="onProjectPlayerSelect"
+                disabled="{{submitted}}"
+              />
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
   </view>
 
   <view class="bottom-actions">
