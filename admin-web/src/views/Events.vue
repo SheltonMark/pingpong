@@ -365,7 +365,9 @@ const loadEvents = async () => {
   loading.value = true
   try {
     const user = getAdminUser()
-    const res = await fetch(`/api/admin/events?user_id=${user.id}`)
+    // 添加时间戳避免缓存
+    const timestamp = new Date().getTime()
+    const res = await fetch(`/api/admin/events?user_id=${user.id}&_t=${timestamp}`)
     const data = await res.json()
     if (data.success) {
       events.value = data.data || []
@@ -410,6 +412,13 @@ const editEvent = (row) => {
   form.value = {
     ...row,
     description: row.description || '',
+    // 确保团体赛配置字段有默认值
+    min_team_players: row.min_team_players || 3,
+    max_team_players: row.max_team_players || 5,
+    singles_player_count: row.singles_player_count || 2,
+    gender_rule: row.gender_rule || 'unlimited',
+    required_male_count: row.required_male_count || 0,
+    required_female_count: row.required_female_count || 0,
   }
   dialogVisible.value = true
 }
