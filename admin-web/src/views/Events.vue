@@ -344,6 +344,7 @@ const typeLabels = {
 const statusLabels = {
   draft: '草稿',
   registration: '报名中',
+  pending_start: '待开始',
   ongoing: '进行中',
   finished: '已结束'
 }
@@ -351,6 +352,7 @@ const statusLabels = {
 const statusTypes = {
   draft: 'info',
   registration: 'warning',
+  pending_start: 'primary',
   ongoing: 'success',
   finished: ''
 }

@@ -84,7 +84,10 @@
       "Bash(git -C \"D:/mast/pingpong\" add backend/routes/admin.js)",
       "Bash(git -C \"D:/mast/pingpong\" commit -m \"$\\(cat <<''EOF''\nfix: 用户列表过滤无手机号账号，学校管理员仅可见本校用户\nEOF\n\\)\")",
       "Bash(popd:*)",
-      "Bash(xcopy:*)"
+      "Bash(xcopy:*)",
+      "Bash(del nul)",
+      "Bash(tasklist:*)",
+      "Bash(taskkill:*)"
     ],
     "deny": [],
     "ask": []
