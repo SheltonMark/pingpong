@@ -148,8 +148,11 @@
         <el-form-item label="地点">
           <el-input v-model="form.location" placeholder="请输入比赛地点" />
         </el-form-item>
-        <el-form-item label="最大人数">
+        <el-form-item :label="form.event_type === 'team' ? '最大队伍数' : '最大人数'">
           <el-input-number v-model="form.max_participants" :min="2" :max="256" />
+          <span v-if="form.event_type === 'team'" style="margin-left: 10px; color: #909399">
+            限制参赛队伍的数量
+          </span>
         </el-form-item>
         <el-form-item label="报名截止">
           <el-date-picker
