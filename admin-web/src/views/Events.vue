@@ -93,82 +93,77 @@
             </div>
           </el-form-item>
 
-          <el-form-item label="比赛项目配置" required>
+          <el-form-item label="比赛项目" required>
             <div style="display: flex; flex-direction: column; gap: 12px;">
-              <el-checkbox v-model="form.team_event_config.projects.men_singles.enabled">
-                男单
-                <span v-if="form.team_event_config.projects.men_singles.enabled" @click.stop style="display: inline-flex; align-items: center; margin-left: 10px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <el-checkbox v-model="form.team_event_config.projects.men_singles.enabled">男单</el-checkbox>
+                <template v-if="form.team_event_config.projects.men_singles.enabled">
                   <el-input-number
                     v-model="form.team_event_config.projects.men_singles.count"
                     :min="1"
                     :max="5"
                     size="small"
                     style="width: 120px;"
-                    @click.stop
                   />
-                  <span style="margin-left: 5px;">人</span>
-                </span>
-              </el-checkbox>
+                  <span>人</span>
+                </template>
+              </div>
 
-              <el-checkbox v-model="form.team_event_config.projects.women_singles.enabled">
-                女单
-                <span v-if="form.team_event_config.projects.women_singles.enabled" @click.stop style="display: inline-flex; align-items: center; margin-left: 10px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <el-checkbox v-model="form.team_event_config.projects.women_singles.enabled">女单</el-checkbox>
+                <template v-if="form.team_event_config.projects.women_singles.enabled">
                   <el-input-number
                     v-model="form.team_event_config.projects.women_singles.count"
                     :min="1"
                     :max="5"
                     size="small"
                     style="width: 120px;"
-                    @click.stop
                   />
-                  <span style="margin-left: 5px;">人</span>
-                </span>
-              </el-checkbox>
+                  <span>人</span>
+                </template>
+              </div>
 
-              <el-checkbox v-model="form.team_event_config.projects.men_doubles.enabled">
-                男双
-                <span v-if="form.team_event_config.projects.men_doubles.enabled" @click.stop style="display: inline-flex; align-items: center; margin-left: 10px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <el-checkbox v-model="form.team_event_config.projects.men_doubles.enabled">男双</el-checkbox>
+                <template v-if="form.team_event_config.projects.men_doubles.enabled">
                   <el-input-number
                     v-model="form.team_event_config.projects.men_doubles.count"
                     :min="1"
                     :max="5"
                     size="small"
                     style="width: 120px;"
-                    @click.stop
                   />
-                  <span style="margin-left: 5px;">对</span>
-                </span>
-              </el-checkbox>
+                  <span>对</span>
+                </template>
+              </div>
 
-              <el-checkbox v-model="form.team_event_config.projects.women_doubles.enabled">
-                女双
-                <span v-if="form.team_event_config.projects.women_doubles.enabled" @click.stop style="display: inline-flex; align-items: center; margin-left: 10px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <el-checkbox v-model="form.team_event_config.projects.women_doubles.enabled">女双</el-checkbox>
+                <template v-if="form.team_event_config.projects.women_doubles.enabled">
                   <el-input-number
                     v-model="form.team_event_config.projects.women_doubles.count"
                     :min="1"
                     :max="5"
                     size="small"
                     style="width: 120px;"
-                    @click.stop
                   />
-                  <span style="margin-left: 5px;">对</span>
-                </span>
-              </el-checkbox>
+                  <span>对</span>
+                </template>
+              </div>
 
-              <el-checkbox v-model="form.team_event_config.projects.mixed_doubles.enabled">
-                混双
-                <span v-if="form.team_event_config.projects.mixed_doubles.enabled" @click.stop style="display: inline-flex; align-items: center; margin-left: 10px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <el-checkbox v-model="form.team_event_config.projects.mixed_doubles.enabled">混双</el-checkbox>
+                <template v-if="form.team_event_config.projects.mixed_doubles.enabled">
                   <el-input-number
                     v-model="form.team_event_config.projects.mixed_doubles.count"
                     :min="1"
                     :max="5"
                     size="small"
                     style="width: 120px;"
-                    @click.stop
                   />
-                  <span style="margin-left: 5px;">对</span>
-                </span>
-              </el-checkbox>
+                  <span>对</span>
+                </template>
+              </div>
             </div>
             <div style="margin-top: 8px; color: #909399; font-size: 12px;">
               勾选启用的项目，并设置每个项目需要的人数/对数
