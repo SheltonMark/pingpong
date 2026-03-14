@@ -1,34 +1,23 @@
 <view class="register-page" wx:if="{{event && !isLoading}}">
   <view class="event-card">
     <text class="event-name">{{event.title}}</text>
-    <text class="event-info">团体赛报名</text>
-    <text class="event-rule">{{ruleText}}</text>
+    <text class="event-info">团体赛</text>
   </view>
 
   <view class="team-card">
     <view class="card-header">
-      <text class="card-title">队伍信息</text>
-      <text class="status-tag submitted" wx:if="{{submitted}}">已正式提交</text>
-      <text class="status-tag draft" wx:else>草稿中</text>
+      <text class="card-title">队伍名称</text>
     </view>
-
-    <view class="form-row">
-      <text class="form-label">队伍名称</text>
-      <input
-        class="team-name-input"
-        placeholder="请先填写队伍名称，再邀请队友"
-        value="{{teamName}}"
-        bindinput="onTeamNameInput"
-        bindblur="onTeamNameBlur"
-        disabled="{{submitted}}"
-      />
-    </view>
-
+    <input
+      class="team-name-input"
+      placeholder="请输入队伍名称"
+      value="{{teamName}}"
+      bindinput="onTeamNameInput"
+      bindblur="onTeamNameBlur"
+      disabled="{{submitted}}"
+    />
     <view class="form-row switch-row">
-      <view>
-        <text class="form-label">领队是否参赛</text>
-        <text class="form-tip">参赛则计入人数、性别和单打候选；不参赛则不计入</text>
-      </view>
+      <text class="form-label">领队参赛设置</text>
       <switch
         color="#FF6B00"
         checked="{{leaderParticipates}}"
@@ -36,76 +25,76 @@
         bindchange="onLeaderParticipatingChange"
       />
     </view>
+  </view>
 
-    <view class="summary-grid">
-      <view class="summary-item">
-        <text class="summary-label">实际参赛</text>
-        <text class="summary-value">{{actualPlayerCount}} / {{config.maxTeamPlayers}}</text>
+  <!-- 邀请队友 - 移到这里 -->
+  <view class="team-card" wx:if="{{!submitted}}">
+    <view class="invite-section">
+      <view class="invite-header">
+        <text class="invite-icon">➕</text>
+        <text class="invite-title">邀请队友</text>
       </view>
-      <view class="summary-item">
-        <text class="summary-label">占用名额</text>
-        <text class="summary-value">{{occupiedSlots}} / {{config.maxTeamPlayers}}</text>
-      </view>
-      <view class="summary-item">
-        <text class="summary-label">单打名单</text>
-        <text class="summary-value">{{singlesCount}} / {{config.singlesPlayerCount}}</text>
-      </view>
-      <view class="summary-item">
-        <text class="summary-label">男 / 女</text>
-        <text class="summary-value">{{maleCount}} / {{femaleCount}}</text>
-      </view>
+      <button
+        class="invite-btn {{teamName.trim() && occupiedSlots < config.maxTeamPlayers ? '' : 'disabled'}}"
+        bindtap="onCreateInvitation"
+        disabled="{{submitted || !teamName.trim() || occupiedSlots >= config.maxTeamPlayers || isCreatingInvitation}}"
+      >
+        {{isCreatingInvitation ? '创建中...' : '分享邀请'}}
+      </button>
     </view>
   </view>
 
   <view class="team-card">
     <view class="card-header">
-      <text class="card-title">已加入队员</text>
-      <text class="card-subtitle">正式提交前可删除或替换</text>
+      <text class="card-title">队员配置（{{actualPlayerCount}} / {{config.maxTeamPlayers}}人）</text>
+      <text class="card-subtitle">参赛{{actualPlayerCount}}人，单打最多{{config.singlesPlayerCount}}人</text>
     </view>
 
     <view class="member-list" wx:if="{{members.length}}">
-      <view class="member-item" wx:for="{{members}}" wx:key="user_id">
+      <view
+        class="member-item {{item.isSingles ? 'selected' : ''}}"
+        wx:for="{{members}}"
+        wx:key="user_id"
+      >
         <image class="member-avatar" src="{{item.avatar_url || '/assets/default-avatar.png'}}" mode="aspectFill" />
-        <view class="member-main">
-          <view class="member-title-row">
+        <view class="member-info">
+          <view class="member-name-row">
             <text class="member-name">{{item.name}}</text>
-            <text class="mini-tag leader" wx:if="{{item.isLeader}}">领队</text>
-            <text class="mini-tag muted" wx:if="{{item.gender === 'male'}}">男</text>
-            <text class="mini-tag muted" wx:if="{{item.gender === 'female'}}">女</text>
-            <text class="mini-tag warning" wx:if="{{item.isLeader && !item.isParticipating}}">不参赛</text>
-            <text class="mini-tag singles" wx:if="{{item.isSingles}}">单打</text>
+            <text class="leader-tag" wx:if="{{item.isLeader}}">领队</text>
           </view>
-          <text class="member-meta">{{item.school_name}}{{item.college_name ? ' · ' + item.college_name : ''}}</text>
+          <text class="member-meta">{{item.isParticipating || !item.isLeader ? '已确认' : '不参赛'}}</text>
         </view>
-        <view class="member-actions">
+        <view class="member-actions" wx:if="{{!submitted}}">
           <button
-            class="text-btn"
+            class="action-btn"
             bindtap="onToggleSingles"
             data-user-id="{{item.user_id}}"
-            wx:if="{{!submitted && (item.isParticipating || !item.isLeader)}}"
+            wx:if="{{item.isParticipating || !item.isLeader}}"
           >
             {{item.isSingles ? '取消单打' : '设为单打'}}
           </button>
           <button
-            class="text-btn danger"
+            class="action-btn danger"
             bindtap="onRemoveMember"
             data-member-id="{{item.user_id}}"
-            wx:if="{{!submitted && !item.isLeader}}"
+            wx:if="{{!item.isLeader}}"
           >
             删除
           </button>
         </view>
       </view>
     </view>
+
+    <view class="empty-tip" wx:else>暂无队员</view>
   </view>
 
-  <view class="team-card">
+  <view class="team-card" wx:if="{{pendingInvitations.length}}">
     <view class="card-header">
       <text class="card-title">待处理邀请</text>
       <text class="card-subtitle">待处理邀请占用名额，提交前必须清空</text>
     </view>
 
-    <view class="pending-list" wx:if="{{pendingInvitations.length}}">
+    <view class="pending-list">
       <view class="pending-item" wx:for="{{pendingInvitations}}" wx:key="id">
         <view class="pending-main">
           <text class="pending-name">{{item.display_name}}</text>
@@ -116,29 +105,6 @@
           <button class="small-btn danger" bindtap="onCancelInvitation" data-invitation-id="{{item.id}}">取消邀请</button>
         </view>
       </view>
-    </view>
-
-    <view class="empty-tip" wx:else>当前没有待处理邀请</view>
-  </view>
-
-  <view class="team-card">
-    <view class="card-header">
-      <text class="card-title">邀请队友</text>
-      <text class="card-subtitle">先写队名，达到上限后入口会立刻锁死</text>
-    </view>
-
-    <view class="invite-panel">
-      <text class="invite-tip" wx:if="{{!teamName.trim()}}">请先填写并保存队伍名称，再创建邀请。</text>
-      <text class="invite-tip" wx:elif="{{occupiedSlots >= config.maxTeamPlayers}}">已达队伍人数上限，请先删除队员或取消邀请。</text>
-      <text class="invite-tip" wx:else>每点击一次“新增邀请”，都会占用 1 个名额，直到队员拒绝或你取消。</text>
-
-      <button
-        class="invite-create-btn"
-        bindtap="onCreateInvitation"
-        disabled="{{submitted || !teamName.trim() || occupiedSlots >= config.maxTeamPlayers || isCreatingInvitation}}"
-      >
-        {{isCreatingInvitation ? '创建中...' : '新增邀请'}}
-      </button>
     </view>
   </view>
 

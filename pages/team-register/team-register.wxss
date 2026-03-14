@@ -3,337 +3,302 @@
   background: #f5f5f5;
   padding: 24rpx;
   padding-bottom: 220rpx;
-  box-sizing: border-box;
 }
 
 .event-card,
 .team-card {
-  background: #ffffff;
-  border-radius: 24rpx;
+  background: #fff;
+  border-radius: 16rpx;
   margin-bottom: 24rpx;
-  box-shadow: 0 4rpx 20rpx rgba(15, 23, 42, 0.05);
-}
-
-.event-card {
   padding: 32rpx;
 }
 
 .event-name {
-  display: block;
-  font-size: 34rpx;
-  font-weight: 700;
-  color: #1f2937;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
 }
 
-.event-info,
-.event-rule {
-  display: block;
-  margin-top: 12rpx;
+.event-info {
+  margin-top: 8rpx;
   font-size: 24rpx;
-  color: #6b7280;
-  line-height: 1.6;
+  color: #999;
 }
 
 .card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16rpx;
-  padding: 32rpx 32rpx 20rpx;
+  margin-bottom: 24rpx;
 }
 
 .card-title {
   font-size: 28rpx;
   font-weight: 600;
-  color: #111827;
+  color: #333;
 }
 
 .card-subtitle {
+  margin-top: 8rpx;
   font-size: 22rpx;
-  color: #9ca3af;
+  color: #999;
 }
 
-.status-tag {
-  flex-shrink: 0;
-  padding: 8rpx 18rpx;
-  border-radius: 999rpx;
-  font-size: 22rpx;
-  font-weight: 600;
-}
-
-.status-tag.draft {
-  color: #b45309;
-  background: #fffbeb;
-}
-
-.status-tag.submitted {
-  color: #047857;
-  background: #ecfdf5;
+.team-name-input {
+  width: 100%;
+  height: 88rpx;
+  padding: 0 24rpx;
+  background: #f8f8f8;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  color: #333;
+  box-sizing: border-box;
 }
 
 .form-row {
-  padding: 0 32rpx 24rpx;
+  margin-top: 24rpx;
 }
 
 .switch-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24rpx;
 }
 
 .form-label {
-  display: block;
+  font-size: 26rpx;
+  color: #666;
+}
+
+/* 邀请队友 */
+.invite-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24rpx;
+}
+
+.invite-header {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.invite-icon {
+  font-size: 32rpx;
+}
+
+.invite-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.invite-btn {
+  flex-shrink: 0;
+  padding: 16rpx 48rpx;
+  background: #FF6B00;
+  color: #fff;
+  border-radius: 999rpx;
   font-size: 26rpx;
   font-weight: 600;
-  color: #374151;
-  margin-bottom: 12rpx;
+  border: none;
 }
 
-.form-tip {
-  display: block;
-  font-size: 22rpx;
-  color: #9ca3af;
-  line-height: 1.6;
+.invite-btn.disabled {
+  background: #e5e5e5;
+  color: #999;
 }
 
-.team-name-input {
-  width: 100%;
-  height: 92rpx;
-  padding: 0 24rpx;
-  border-radius: 20rpx;
-  background: #f9fafb;
-  box-sizing: border-box;
-  font-size: 28rpx;
-  color: #111827;
-}
-
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20rpx;
-  padding: 8rpx 32rpx 32rpx;
-}
-
-.summary-item {
-  background: #f9fafb;
-  border-radius: 20rpx;
-  padding: 24rpx;
-}
-
-.summary-label {
-  display: block;
-  font-size: 22rpx;
-  color: #9ca3af;
-  margin-bottom: 12rpx;
-}
-
-.summary-value {
-  display: block;
-  font-size: 30rpx;
-  font-weight: 700;
-  color: #111827;
-}
-
-.member-list,
-.pending-list {
-  padding: 0 24rpx 24rpx;
-}
-
-.member-item,
-.pending-item {
+/* 队员列表 */
+.member-list {
   display: flex;
-  align-items: flex-start;
-  gap: 20rpx;
-  padding: 24rpx;
-  border-radius: 20rpx;
-  background: #f9fafb;
+  flex-direction: column;
+  gap: 16rpx;
 }
 
-.member-item + .member-item,
-.pending-item + .pending-item {
-  margin-top: 16rpx;
+.member-item {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 24rpx;
+  background: #f8f8f8;
+  border-radius: 12rpx;
+  transition: all 0.3s;
+}
+
+.member-item.selected {
+  background: #e6f4ff;
+  border: 2rpx solid #1890ff;
 }
 
 .member-avatar {
-  width: 84rpx;
-  height: 84rpx;
+  width: 88rpx;
+  height: 88rpx;
   border-radius: 50%;
-  background: #e5e7eb;
   flex-shrink: 0;
 }
 
-.member-main,
-.pending-main {
+.member-info {
   flex: 1;
   min-width: 0;
 }
 
-.member-title-row {
+.member-name-row {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 8rpx;
+  gap: 12rpx;
+  margin-bottom: 8rpx;
 }
 
-.member-name,
-.pending-name {
+.member-name {
   font-size: 28rpx;
   font-weight: 600;
-  color: #111827;
+  color: #333;
 }
 
-.member-meta,
-.pending-meta {
-  display: block;
-  margin-top: 10rpx;
+.leader-tag {
+  padding: 4rpx 12rpx;
+  background: #1890ff;
+  color: #fff;
+  border-radius: 4rpx;
+  font-size: 20rpx;
+  font-weight: 600;
+}
+
+.member-meta {
   font-size: 22rpx;
-  color: #9ca3af;
-  line-height: 1.5;
+  color: #999;
 }
 
-.member-actions,
-.pending-actions {
+.member-actions {
   display: flex;
-  flex-direction: column;
-  gap: 12rpx;
+  gap: 16rpx;
   flex-shrink: 0;
 }
 
-.mini-tag {
-  padding: 4rpx 12rpx;
-  border-radius: 12rpx;
-  font-size: 20rpx;
-  line-height: 1.4;
-}
-
-.mini-tag.leader {
-  color: #1d4ed8;
-  background: #dbeafe;
-}
-
-.mini-tag.muted {
-  color: #6b7280;
-  background: #f3f4f6;
-}
-
-.mini-tag.warning {
-  color: #b91c1c;
-  background: #fee2e2;
-}
-
-.mini-tag.singles {
-  color: #b45309;
-  background: #fffbeb;
-}
-
-.text-btn,
-.small-btn,
-.invite-create-btn,
-.submit-btn,
-.secondary-btn {
-  border: none;
-  border-radius: 18rpx;
+.action-btn {
+  padding: 12rpx 24rpx;
+  background: #fff;
+  border: 2rpx solid #d9d9d9;
+  border-radius: 8rpx;
   font-size: 24rpx;
-  font-weight: 600;
-  padding: 0;
+  color: #666;
+  line-height: 1;
 }
 
-.text-btn,
-.small-btn {
-  min-width: 136rpx;
-  height: 64rpx;
+.action-btn.danger {
+  color: #ff4d4f;
+  border-color: #ff4d4f;
+}
+
+/* 待处理邀请 */
+.pending-list {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #fff7ed;
-  color: #ea580c;
+  flex-direction: column;
+  gap: 16rpx;
 }
 
-.text-btn::after,
-.small-btn::after,
-.invite-create-btn::after,
-.submit-btn::after,
-.secondary-btn::after {
-  border: none;
-}
-
-.text-btn.danger,
-.small-btn.danger {
-  background: #fee2e2;
-  color: #b91c1c;
-}
-
-.invite-panel {
-  padding: 0 32rpx 32rpx;
-}
-
-.invite-tip {
-  display: block;
-  font-size: 24rpx;
-  color: #6b7280;
-  line-height: 1.6;
-  margin-bottom: 20rpx;
-}
-
-.invite-create-btn {
-  width: 100%;
-  height: 88rpx;
-  background: linear-gradient(135deg, #ff8a00, #ff6b00);
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.empty-tip,
-.loading {
-  text-align: center;
-  padding: 48rpx 32rpx;
-  font-size: 26rpx;
-  color: #9ca3af;
-}
-
-.bottom-actions {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+.pending-item {
   padding: 24rpx;
-  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
-  background: #ffffff;
-  box-shadow: 0 -4rpx 24rpx rgba(15, 23, 42, 0.08);
+  background: #fffbe6;
+  border-radius: 12rpx;
+  border: 2rpx solid #ffe58f;
 }
 
-.action-row {
+.pending-main {
+  margin-bottom: 16rpx;
+}
+
+.pending-name {
+  display: block;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.pending-meta {
+  display: block;
+  font-size: 22rpx;
+  color: #999;
+}
+
+.pending-actions {
   display: flex;
   gap: 16rpx;
 }
 
-.submit-btn,
-.secondary-btn {
+.small-btn {
   flex: 1;
-  height: 96rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 30rpx;
+  padding: 16rpx;
+  background: #fff;
+  border: 2rpx solid #d9d9d9;
+  border-radius: 8rpx;
+  font-size: 24rpx;
+  color: #666;
+  line-height: 1;
 }
 
-.submit-btn {
-  background: linear-gradient(135deg, #ff8a00, #ff6b00);
-  color: #ffffff;
+.small-btn.danger {
+  color: #ff4d4f;
+  border-color: #ff4d4f;
+}
+
+.empty-tip {
+  padding: 48rpx;
+  text-align: center;
+  font-size: 24rpx;
+  color: #999;
+}
+
+/* 底部操作 */
+.bottom-actions {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 24rpx;
+  background: #fff;
+  border-top: 2rpx solid #f0f0f0;
+  box-shadow: 0 -4rpx 20rpx rgba(0, 0, 0, 0.05);
+}
+
+.action-row {
+  display: flex;
+  gap: 24rpx;
+}
+
+.secondary-btn,
+.primary-btn {
+  flex: 1;
+  height: 88rpx;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  border: none;
+  line-height: 88rpx;
 }
 
 .secondary-btn {
-  background: #f3f4f6;
-  color: #4b5563;
+  background: #f5f5f5;
+  color: #666;
 }
 
-.invite-create-btn[disabled],
-.submit-btn[disabled],
-.secondary-btn[disabled],
-.text-btn[disabled],
-.small-btn[disabled] {
-  opacity: 0.45;
+.primary-btn {
+  background: #FF6B00;
+  color: #fff;
+}
+
+.back-btn {
+  width: 100%;
+  height: 88rpx;
+  background: #f5f5f5;
+  color: #666;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  border: none;
+  line-height: 88rpx;
+}
+
+button[disabled] {
+  opacity: 0.5;
 }
