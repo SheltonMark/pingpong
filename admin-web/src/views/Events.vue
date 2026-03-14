@@ -64,12 +64,59 @@
           </el-select>
         </el-form-item>
         <el-form-item label="赛事类型" required>
-          <el-select v-model="form.event_type" placeholder="请选择类型">
+          <el-select v-model="form.event_type" placeholder="请选择类型" @change="onEventTypeChange">
             <el-option label="单打" value="singles" />
             <el-option label="双打" value="doubles" />
             <el-option label="团体" value="team" />
           </el-select>
         </el-form-item>
+
+        <!-- 团体赛配置 -->
+        <template v-if="form.event_type === 'team'">
+          <el-divider content-position="left">团体赛配置</el-divider>
+
+          <el-form-item label="队伍人数" required>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span>最少</span>
+              <el-input-number v-model="form.min_team_players" :min="2" :max="20" />
+              <span>人，最多</span>
+              <el-input-number v-model="form.max_team_players" :min="2" :max="20" />
+              <span>人</span>
+            </div>
+          </el-form-item>
+
+          <el-form-item label="单打人数" required>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span>每队</span>
+              <el-input-number v-model="form.singles_player_count" :min="1" :max="10" />
+              <span>名单打队员</span>
+            </div>
+          </el-form-item>
+
+          <el-form-item label="性别规则" required>
+            <el-select v-model="form.gender_rule" placeholder="请选择性别规则" @change="onGenderRuleChange">
+              <el-option label="不限" value="unlimited" />
+              <el-option label="仅男生" value="male_only" />
+              <el-option label="仅女生" value="female_only" />
+              <el-option label="固定男女人数" value="fixed" />
+              <el-option label="最少男女人数" value="minimum" />
+            </el-select>
+          </el-form-item>
+
+          <el-form-item
+            v-if="form.gender_rule === 'fixed' || form.gender_rule === 'minimum'"
+            :label="form.gender_rule === 'fixed' ? '固定人数' : '最少人数'"
+          >
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span>男生</span>
+              <el-input-number v-model="form.required_male_count" :min="0" :max="20" />
+              <span>人，女生</span>
+              <el-input-number v-model="form.required_female_count" :min="0" :max="20" />
+              <span>人</span>
+            </div>
+          </el-form-item>
+        </template>
+
         <el-form-item label="赛制" required>
           <el-select v-model="form.event_format" placeholder="请选择赛制">
             <el-option label="淘汰赛" value="knockout" />
@@ -243,7 +290,37 @@ const form = ref({
   max_participants: 32,
   registration_end: '',
   description: '',
+  // 团体赛配置
+  min_team_players: 3,
+  max_team_players: 5,
+  singles_player_count: 2,
+  gender_rule: 'unlimited',
+  required_male_count: 0,
+  required_female_count: 0,
 })
+
+// 赛事类型改变时重置团体赛配置
+const onEventTypeChange = (value) => {
+  if (value === 'team') {
+    form.value.min_team_players = 3
+    form.value.max_team_players = 5
+    form.value.singles_player_count = 2
+    form.value.gender_rule = 'unlimited'
+    form.value.required_male_count = 0
+    form.value.required_female_count = 0
+  }
+}
+
+// 性别规则改变时重置人数
+const onGenderRuleChange = (value) => {
+  if (value === 'unlimited' || value === 'male_only' || value === 'female_only') {
+    form.value.required_male_count = 0
+    form.value.required_female_count = 0
+  } else if (value === 'fixed' || value === 'minimum') {
+    form.value.required_male_count = 1
+    form.value.required_female_count = 1
+  }
+}
 
 const scopeLabels = {
   school: '校内赛',
@@ -306,7 +383,14 @@ const showCreateDialog = () => {
     max_participants: 32,
     registration_end: '',
     description: '',
-    status: 'registration'
+    status: 'registration',
+    // 团体赛配置
+    min_team_players: 3,
+    max_team_players: 5,
+    singles_player_count: 2,
+    gender_rule: 'unlimited',
+    required_male_count: 0,
+    required_female_count: 0,
   }
   dialogVisible.value = true
 }
@@ -328,6 +412,37 @@ const submitForm = async () => {
   if (!form.value.event_start) {
     ElMessage.warning('请选择开始时间')
     return
+  }
+
+  // 团体赛校验
+  if (form.value.event_type === 'team') {
+    if (!form.value.min_team_players || !form.value.max_team_players) {
+      ElMessage.warning('请设置队伍人数范围')
+      return
+    }
+    if (form.value.min_team_players > form.value.max_team_players) {
+      ElMessage.warning('最少人数不能大于最多人数')
+      return
+    }
+    if (!form.value.singles_player_count) {
+      ElMessage.warning('请设置单打人数')
+      return
+    }
+    if (form.value.singles_player_count > form.value.max_team_players) {
+      ElMessage.warning('单打人数不能超过队伍最多人数')
+      return
+    }
+    if (form.value.gender_rule === 'fixed' || form.value.gender_rule === 'minimum') {
+      const totalRequired = form.value.required_male_count + form.value.required_female_count
+      if (totalRequired > form.value.max_team_players) {
+        ElMessage.warning('要求的男女人数总和不能超过队伍最多人数')
+        return
+      }
+      if (form.value.gender_rule === 'fixed' && totalRequired !== form.value.min_team_players) {
+        ElMessage.warning('固定性别规则下，男女人数总和应等于最少人数')
+        return
+      }
+    }
   }
 
   submitting.value = true
