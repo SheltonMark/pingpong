@@ -479,6 +479,12 @@ const submitForm = async () => {
       school_id: user.school_id || null
     }
 
+    // 处理动态计算的状态：pending_start 不是数据库中的真实状态
+    // 编辑时如果状态是 pending_start，转换为 registration
+    if (saveData.status === 'pending_start') {
+      saveData.status = 'registration'
+    }
+
     const res = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
