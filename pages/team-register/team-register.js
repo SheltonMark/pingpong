@@ -498,44 +498,6 @@ Page({
     }
   },
 
-  onToggleSingles(e) {
-    if (this.data.submitted) {
-      return;
-    }
-
-    const userId = parseInt(e.currentTarget.dataset.userId, 10);
-    const members = [...(this.data.members || [])];
-    const memberIndex = members.findIndex((member) => member.user_id === userId);
-    if (memberIndex < 0) {
-      return;
-    }
-
-    const member = members[memberIndex];
-    if (member.isLeader && !member.isParticipating) {
-      wx.showToast({ title: '领队未参赛，不能设为单打', icon: 'none' });
-      return;
-    }
-
-    const singlesCount = members.filter((item) => item.isSingles).length;
-    if (!member.isSingles && singlesCount >= this.data.config.singlesPlayerCount) {
-      wx.showToast({ title: `最多指定 ${this.data.config.singlesPlayerCount} 名单打`, icon: 'none' });
-      return;
-    }
-
-    members[memberIndex] = {
-      ...member,
-      isSingles: !member.isSingles
-    };
-
-    this.syncState({
-      teamName: this.data.teamName,
-      leaderParticipates: this.data.leaderParticipates,
-      members,
-      pendingInvitations: this.data.pendingInvitations,
-      submitted: false
-    });
-  },
-
   async onRemoveMember(e) {
     const memberId = parseInt(e.currentTarget.dataset.memberId, 10);
     if (!memberId) {

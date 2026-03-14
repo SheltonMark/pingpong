@@ -151,11 +151,6 @@
   transition: all 0.3s;
 }
 
-.member-item.singles-selected {
-  background: #fffbeb;
-  border: 2rpx solid #fbbf24;
-}
-
 .member-item + .member-item,
 .pending-item + .pending-item {
   margin-top: 16rpx;

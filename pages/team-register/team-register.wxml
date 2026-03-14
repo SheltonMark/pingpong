@@ -82,16 +82,14 @@
   <view class="team-card">
     <view class="card-header">
       <text class="card-title">已加入队员</text>
-      <text class="card-subtitle">点击队员设置单打，正式提交前可删除</text>
+      <text class="card-subtitle">正式提交前可删除</text>
     </view>
 
     <view class="member-list" wx:if="{{members.length}}">
       <view
-        class="member-item {{item.isSingles ? 'singles-selected' : ''}}"
+        class="member-item"
         wx:for="{{members}}"
         wx:key="user_id"
-        bindtap="onToggleSingles"
-        data-user-id="{{item.user_id}}"
       >
         <image class="member-avatar" src="{{item.avatar_url || '/assets/default-avatar.png'}}" mode="aspectFill" />
         <view class="member-main">
