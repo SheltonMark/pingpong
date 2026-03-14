@@ -664,6 +664,10 @@ Page({
     }
   },
 
+  onStopPropagation() {
+    // Prevent event bubbling
+  },
+
   onGoBack() {
     wx.navigateBack();
   },

@@ -148,6 +148,12 @@
   padding: 24rpx;
   border-radius: 20rpx;
   background: #f9fafb;
+  transition: all 0.3s;
+}
+
+.member-item.singles-selected {
+  background: #fffbeb;
+  border: 2rpx solid #fbbf24;
 }
 
 .member-item + .member-item,
@@ -174,6 +180,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 8rpx;
+  margin-bottom: 12rpx;
 }
 
 .member-name,
@@ -181,6 +188,21 @@
   font-size: 28rpx;
   font-weight: 600;
   color: #111827;
+}
+
+.member-info-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  flex-wrap: wrap;
+}
+
+.member-info-item {
+  font-size: 24rpx;
+  color: #6b7280;
+  padding: 4rpx 12rpx;
+  background: #fff;
+  border-radius: 8rpx;
 }
 
 .member-meta,
