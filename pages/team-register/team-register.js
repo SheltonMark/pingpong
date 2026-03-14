@@ -711,6 +711,25 @@ Page({
       projectAssignments[project][pos].player_b = selectedValue || null;
     }
 
+    // 验证单打项目：同一项目的不同位置不能选择同一人
+    if (!player && project.includes('singles')) {
+      const selectedPlayers = projectAssignments[project]
+        .map(assignment => assignment?.player_a)
+        .filter(id => id);
+
+      const duplicates = selectedPlayers.filter((id, index) =>
+        selectedPlayers.indexOf(id) !== index
+      );
+
+      if (duplicates.length > 0) {
+        wx.showToast({
+          title: '同一项目不能选择同一人',
+          icon: 'none'
+        });
+        projectAssignments[project][pos].player_a = null;
+      }
+    }
+
     // 验证双打项目的两个选手不能相同
     if (player && projectAssignments[project][pos].player_a && projectAssignments[project][pos].player_b) {
       if (projectAssignments[project][pos].player_a === projectAssignments[project][pos].player_b) {
