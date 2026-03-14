@@ -293,13 +293,34 @@ async function test4_SubmitValidation() {
     ) VALUES (?, ?, NULL, ?, 'team', 'pending')`,
     [testEventId, USER_LEADER, inviteToken4]
   );
-  await pool.query(
-    `INSERT INTO event_registrations (
-      event_id, user_id, team_name, is_team_leader, team_leader_id,
-      is_participating, is_singles_player, status, team_submit_status, team_submitted_at
-    ) VALUES (?, ?, ?, 0, ?, 1, 0, 'confirmed', 'draft', NULL)`,
-    [testEventId, USER_MEMBER2, '测试队伍_新流程', USER_LEADER]
+
+  // 检查是否已有记录（被删除的）
+  const [existing4] = await pool.query(
+    'SELECT * FROM event_registrations WHERE event_id = ? AND user_id = ?',
+    [testEventId, USER_MEMBER2]
   );
+
+  if (existing4.length > 0) {
+    // UPDATE已有记录
+    await pool.query(
+      `UPDATE event_registrations
+       SET team_name = ?, is_team_leader = 0, team_leader_id = ?,
+           is_participating = 1, is_singles_player = 0, status = 'confirmed',
+           team_submit_status = 'draft', team_submitted_at = NULL
+       WHERE event_id = ? AND user_id = ?`,
+      ['测试队伍_新流程', USER_LEADER, testEventId, USER_MEMBER2]
+    );
+  } else {
+    // INSERT新记录
+    await pool.query(
+      `INSERT INTO event_registrations (
+        event_id, user_id, team_name, is_team_leader, team_leader_id,
+        is_participating, is_singles_player, status, team_submit_status, team_submitted_at
+      ) VALUES (?, ?, ?, 0, ?, 1, 0, 'confirmed', 'draft', NULL)`,
+      [testEventId, USER_MEMBER2, '测试队伍_新流程', USER_LEADER]
+    );
+  }
+
   await pool.query(
     `UPDATE team_invitations
      SET invitee_id = ?, status = 'accepted', responded_at = NOW()
