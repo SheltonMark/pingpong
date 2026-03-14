@@ -367,6 +367,68 @@ function getTemplateConfig() {
   return MESSAGE_TEMPLATES;
 }
 
+/**
+ * 发送团体赛邀请通知
+ * @param {string} openid - 接收者的 openid
+ * @param {object} params - 参数
+ * @param {string} params.teamName - 队伍名称
+ * @param {string} params.eventName - 赛事名称
+ * @param {string} params.inviterName - 邀请人姓名
+ * @param {string} params.time - 邀请时间
+ * @param {string} params.page - 跳转页面
+ */
+async function sendTeamInvitation(openid, params) {
+  const data = {
+    thing1: { value: truncateString(params.inviterName, 20) },
+    time2: { value: params.time },
+    thing3: { value: truncateString(params.eventName, 20) },
+    phrase4: { value: '待接受' }
+  };
+
+  return sendSubscribeMessage(openid, 'INVITATION_RESULT', data, params.page || 'pages/team-invite/team-invite');
+}
+
+/**
+ * 发送团体赛邀请响应通知（通知领队）
+ * @param {string} openid - 接收者的 openid（领队）
+ * @param {object} params - 参数
+ * @param {string} params.memberName - 队员姓名
+ * @param {string} params.teamName - 队伍名称
+ * @param {string} params.status - 状态（已接受/已拒绝）
+ * @param {string} params.time - 响应时间
+ * @param {string} params.page - 跳转页面
+ */
+async function sendTeamInvitationResult(openid, params) {
+  const data = {
+    thing1: { value: truncateString(params.memberName, 20) },
+    time2: { value: params.time },
+    thing3: { value: truncateString(params.teamName, 20) },
+    phrase4: { value: params.status }
+  };
+
+  return sendSubscribeMessage(openid, 'INVITATION_RESULT', data, params.page || 'pages/team-register/team-register');
+}
+
+/**
+ * 发送团体赛报名成功通知
+ * @param {string} openid - 接收者的 openid
+ * @param {object} params - 参数
+ * @param {string} params.teamName - 队伍名称
+ * @param {string} params.eventName - 赛事名称
+ * @param {string} params.eventTime - 赛事时间
+ * @param {string} params.page - 跳转页面
+ */
+async function sendTeamRegistrationSuccess(openid, params) {
+  const data = {
+    thing1: { value: truncateString(params.eventName, 20) },
+    thing2: { value: truncateString(params.teamName, 20) },
+    phrase3: { value: '报名成功' },
+    time4: { value: params.eventTime }
+  };
+
+  return sendSubscribeMessage(openid, 'MATCH_REMINDER', data, params.page || 'pages/my-events/my-events');
+}
+
 module.exports = {
   MESSAGE_TEMPLATES,
   getAccessToken,
@@ -376,6 +438,9 @@ module.exports = {
   sendApprovalResultNotice,
   sendMatchReminderNotice,
   sendScoreConfirmNotice,
+  sendTeamInvitation,
+  sendTeamInvitationResult,
+  sendTeamRegistrationSuccess,
   updateTemplateId,
   getTemplateConfig,
   formatTime

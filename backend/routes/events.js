@@ -1218,6 +1218,28 @@ router.post('/team/invite', async (req, res) => {
       [event_id, inviter_id, invitee_id, position ? `位置: ${position}` : null]
     );
 
+    // 通知被邀请的队员
+    try {
+      const [inviterUser] = await pool.query('SELECT name FROM users WHERE id = ?', [inviter_id]);
+      const [inviteeUser] = await pool.query('SELECT openid FROM users WHERE id = ?', [invitee_id]);
+      const [leaderReg] = await pool.query(
+        'SELECT team_name FROM event_registrations WHERE event_id = ? AND user_id = ? AND is_team_leader = 1',
+        [event_id, inviter_id]
+      );
+
+      if (inviteeUser[0]?.openid) {
+        await subscribeMessage.sendTeamInvitation(inviteeUser[0].openid, {
+          inviterName: inviterUser[0]?.name || '领队',
+          teamName: leaderReg[0]?.team_name || '队伍',
+          eventName: event.title,
+          time: subscribeMessage.formatTime(new Date()),
+          page: `pages/my-events/my-events`
+        });
+      }
+    } catch (notifyError) {
+      console.error('发送团体赛邀请通知失败:', notifyError);
+    }
+
     res.json({ success: true, message: '邀请已发送' });
   } catch (error) {
     console.error('发送团队邀请失败:', error);
@@ -1444,13 +1466,15 @@ router.post('/team-invitations/:token/respond', async (req, res) => {
       );
     }
 
+    // 通知领队：队员接受/拒绝了邀请
     if (invitation.inviter_openid) {
       try {
-        await subscribeMessage.sendInvitationResultNotice(invitation.inviter_openid, {
-          inviteeName: currentUser.name,
+        const leaderReg = await getLeaderRegistration(invitation.event_id, invitation.inviter_id);
+        await subscribeMessage.sendTeamInvitationResult(invitation.inviter_openid, {
+          memberName: currentUser.name,
+          teamName: leaderReg?.team_name || '队伍',
+          status: action === 'accept' ? '已接受' : '已拒绝',
           time: subscribeMessage.formatTime(new Date()),
-          location: invitation.event_location || invitation.event_title || '团体赛报名',
-          status: action === 'accept' ? '已加入' : '已拒绝',
           page: `pages/team-register/team-register?id=${invitation.event_id}`
         });
       } catch (notifyError) {
@@ -1703,13 +1727,14 @@ router.post('/:id/team-invitations/:invitationId/cancel', async (req, res) => {
       [invitationId]
     );
 
+    // 通知被邀请的队员：邀请已被取消
     if (invitation.invitee_openid) {
       try {
-        await subscribeMessage.sendInvitationResultNotice(invitation.invitee_openid, {
-          inviteeName: '当前邀请',
-          time: subscribeMessage.formatTime(new Date()),
-          location: '团体赛组队',
+        await subscribeMessage.sendTeamInvitationResult(invitation.invitee_openid, {
+          memberName: '您',
+          teamName: leaderReg.team_name || '队伍',
           status: '已取消',
+          time: subscribeMessage.formatTime(new Date()),
           page: `pages/events/event-detail?id=${id}`
         });
       } catch (notifyError) {
@@ -1768,13 +1793,14 @@ router.post('/:id/team-members/:memberId/remove', async (req, res) => {
       [rows[0].id]
     );
 
+    // 通知被删除的队员
     if (rows[0].openid) {
       try {
-        await subscribeMessage.sendInvitationResultNotice(rows[0].openid, {
-          inviteeName: '当前成员',
-          time: subscribeMessage.formatTime(new Date()),
-          location: '团体赛组队',
+        await subscribeMessage.sendTeamInvitationResult(rows[0].openid, {
+          memberName: '您',
+          teamName: leaderReg.team_name || '队伍',
           status: '已移出',
+          time: subscribeMessage.formatTime(new Date()),
           page: `pages/events/event-detail?id=${id}`
         });
       } catch (notifyError) {
@@ -1914,6 +1940,37 @@ router.post('/:id/team-submit', async (req, res) => {
       }
 
       await connection.commit();
+
+      // 通知全体队员：报名成功
+      try {
+        const [allMembers] = await pool.query(
+          `SELECT u.openid, u.name
+           FROM event_registrations er
+           JOIN users u ON er.user_id = u.id
+           WHERE er.event_id = ?
+             AND er.status != 'cancelled'
+             AND (
+               (er.is_team_leader = 1 AND er.user_id = ?)
+               OR (er.is_team_leader = 0 AND er.team_leader_id = ?)
+             )`,
+          [id, user_id, user_id]
+        );
+
+        const notifyPromises = allMembers
+          .filter(member => member.openid)
+          .map(member =>
+            subscribeMessage.sendTeamRegistrationSuccess(member.openid, {
+              teamName: normalizedTeamName,
+              eventName: event.title,
+              eventTime: subscribeMessage.formatTime(event.event_start),
+              page: `pages/my-events/my-events`
+            }).catch(err => console.error(`通知队员 ${member.name} 失败:`, err))
+          );
+
+        await Promise.all(notifyPromises);
+      } catch (notifyError) {
+        console.error('发送团体赛报名成功通知失败:', notifyError);
+      }
 
       res.json({
         success: true,
