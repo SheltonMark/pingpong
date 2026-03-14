@@ -207,7 +207,7 @@
       </view>
       <view class="project-positions">
         <view class="doubles-item" wx:for="{{projectConfig.projects.men_doubles.count}}" wx:key="index" wx:for-index="idx">
-          <text class="doubles-label">第{{idx + 1}}对</text>
+          <text class="doubles-label">第 {{idx + 1}} 对</text>
           <view class="doubles-players">
             <view class="player-select">
               <text class="player-label">选手A</text>
@@ -248,7 +248,7 @@
       </view>
       <view class="project-positions">
         <view class="doubles-item" wx:for="{{projectConfig.projects.women_doubles.count}}" wx:key="index" wx:for-index="idx">
-          <text class="doubles-label">第{{idx + 1}}对</text>
+          <text class="doubles-label">第 {{idx + 1}} 对</text>
           <view class="doubles-players">
             <view class="player-select">
               <text class="player-label">选手A</text>
@@ -289,7 +289,7 @@
       </view>
       <view class="project-positions">
         <view class="doubles-item" wx:for="{{projectConfig.projects.mixed_doubles.count}}" wx:key="index" wx:for-index="idx">
-          <text class="doubles-label">第{{idx + 1}}对</text>
+          <text class="doubles-label">第 {{idx + 1}} 对</text>
           <view class="doubles-players">
             <view class="player-select">
               <text class="player-label">男选手</text>
