@@ -183,6 +183,7 @@
   font-size: 28rpx;
   font-weight: 600;
   color: #111827;
+  margin-left: 4rpx;
 }
 
 .member-info-row {
