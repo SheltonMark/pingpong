@@ -350,6 +350,7 @@
   padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
   background: #ffffff;
   box-shadow: 0 -4rpx 24rpx rgba(15, 23, 42, 0.08);
+  z-index: 100;
 }
 
 .action-row {
