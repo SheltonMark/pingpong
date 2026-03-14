@@ -121,6 +121,7 @@ Page({
     event: null,
     user: null,
     teamName: '',
+    hasTeamName: false,
     leaderParticipates: true,
     members: [],
     pendingInvitations: [],
@@ -219,6 +220,7 @@ Page({
 
     this.setData({
       teamName,
+      hasTeamName: !!(teamName || '').trim(),
       leaderParticipates,
       members: normalizedMembers,
       pendingInvitations: normalizedPendingInvitations,
@@ -311,7 +313,11 @@ Page({
   },
 
   onTeamNameInput(e) {
-    this.setData({ teamName: e.detail.value });
+    const teamName = e.detail.value;
+    this.setData({
+      teamName,
+      hasTeamName: !!teamName.trim()
+    });
   },
 
   async onTeamNameBlur() {

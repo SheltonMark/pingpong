@@ -65,14 +65,14 @@
     </view>
 
     <view class="invite-panel">
-      <text class="invite-tip" wx:if="{{!teamName.trim()}}">请先填写并保存队伍名称，再创建邀请。</text>
+      <text class="invite-tip" wx:if="{{!hasTeamName}}">请先填写并保存队伍名称，再创建邀请。</text>
       <text class="invite-tip" wx:elif="{{occupiedSlots >= config.maxTeamPlayers}}">已达队伍人数上限，请先删除队员或取消邀请。</text>
       <text class="invite-tip" wx:else>每点击一次"新增邀请"，都会占用 1 个名额，直到队员拒绝或你取消。</text>
 
       <button
         class="invite-create-btn"
         bindtap="onCreateInvitation"
-        disabled="{{submitted || !teamName.trim() || occupiedSlots >= config.maxTeamPlayers || isCreatingInvitation}}"
+        disabled="{{submitted || !hasTeamName || occupiedSlots >= config.maxTeamPlayers || isCreatingInvitation}}"
       >
         {{isCreatingInvitation ? '创建中...' : '新增邀请'}}
       </button>
