@@ -1933,26 +1933,33 @@ router.get('/teams', requireAdmin, async (req, res) => {
       return res.json({ success: true, data: [], total: 0 });
     }
 
-    // 获取队伍列表（通过 is_team_leader 标识队长/领队）
+    // 获取队伍列表（通过 is_team_leader 标识队长/领队，只显示已提交的队伍）
     const sql = `
       SELECT
         er.id,
         er.event_id,
         er.team_name,
         er.status,
+        er.team_submit_status,
+        er.team_submitted_at,
+        er.is_participating as leader_participating,
         er.created_at,
         u.id as captain_id,
         u.name as captain_name,
         u.phone as captain_phone,
         u.avatar_url as captain_avatar,
+        u.gender as captain_gender,
         (SELECT COUNT(*) FROM event_registrations
-         WHERE team_name = er.team_name AND event_id = er.event_id AND status = 'confirmed') as confirmed_count,
+         WHERE team_name = er.team_name AND event_id = er.event_id AND status != 'cancelled' AND is_participating = 1) as actual_player_count,
         (SELECT COUNT(*) FROM event_registrations
-         WHERE team_name = er.team_name AND event_id = er.event_id) as total_slots
+         WHERE team_name = er.team_name AND event_id = er.event_id AND status != 'cancelled' AND is_participating = 1 AND is_singles_player = 1) as singles_count
       FROM event_registrations er
       JOIN users u ON er.user_id = u.id
-      WHERE er.event_id = ? AND er.is_team_leader = 1
-      ORDER BY er.created_at DESC
+      WHERE er.event_id = ?
+        AND er.is_team_leader = 1
+        AND er.status != 'cancelled'
+        AND COALESCE(er.team_submit_status, 'submitted') = 'submitted'
+      ORDER BY er.team_submitted_at DESC, er.created_at DESC
       LIMIT ? OFFSET ?
     `;
 
@@ -1962,18 +1969,26 @@ router.get('/teams', requireAdmin, async (req, res) => {
     for (const team of teams) {
       const [members] = await pool.execute(`
         SELECT
-          er.id, er.status,
-          u.id as user_id, u.name, u.phone, u.avatar_url
+          er.id, er.status, er.is_participating, er.is_singles_player,
+          u.id as user_id, u.name, u.phone, u.avatar_url, u.gender,
+          s.name as school_name, c.name as college_name
         FROM event_registrations er
         JOIN users u ON er.user_id = u.id
-        WHERE er.team_name = ? AND er.event_id = ? AND er.is_team_leader = 0
+        LEFT JOIN schools s ON u.school_id = s.id
+        LEFT JOIN colleges c ON u.college_id = c.id
+        WHERE er.team_name = ? AND er.event_id = ? AND er.status != 'cancelled'
+        ORDER BY er.is_team_leader DESC, er.id
       `, [team.team_name, team.event_id]);
       team.members = members;
     }
 
-    // 获取总数
+    // 获取总数（只统计已提交的队伍）
     const [[{ total }]] = await pool.execute(
-      'SELECT COUNT(*) as total FROM event_registrations WHERE event_id = ? AND is_team_leader = 1',
+      `SELECT COUNT(*) as total FROM event_registrations
+       WHERE event_id = ?
+         AND is_team_leader = 1
+         AND status != 'cancelled'
+         AND COALESCE(team_submit_status, 'submitted') = 'submitted'`,
       [event_id]
     );
 
@@ -2026,6 +2041,50 @@ router.get('/teams/:id', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Get team detail error:', error);
     res.json({ success: false, message: '获取队伍详情失败' });
+  }
+});
+
+// 导出团体赛报名表
+router.get('/teams/export', requireAdmin, async (req, res) => {
+  try {
+    const { event_id } = req.query;
+
+    if (!event_id) {
+      return res.status(400).json({ success: false, message: '缺少赛事ID' });
+    }
+
+    const { buildSubmittedTeamSummaries, buildTeamExportRows } = require('../utils/teamEvent');
+
+    const [rows] = await pool.query(
+      `SELECT er.*,
+              u.name,
+              u.phone,
+              u.gender,
+              u.avatar_url,
+              s.name as school_name,
+              c.name as college_name
+       FROM event_registrations er
+       JOIN users u ON er.user_id = u.id
+       LEFT JOIN schools s ON u.school_id = s.id
+       LEFT JOIN colleges c ON u.college_id = c.id
+       WHERE er.event_id = ?
+         AND er.status != 'cancelled'
+         AND er.team_name IS NOT NULL
+         AND COALESCE(er.team_submit_status, 'submitted') = 'submitted'
+       ORDER BY er.team_submitted_at, er.registered_at, er.id`,
+      [event_id]
+    );
+
+    const teamSummaries = buildSubmittedTeamSummaries(rows);
+    const exportRows = buildTeamExportRows(teamSummaries);
+
+    res.json({
+      success: true,
+      data: exportRows
+    });
+  } catch (error) {
+    console.error('导出团体赛报名表失败:', error);
+    res.status(500).json({ success: false, message: '导出失败' });
   }
 });
 

@@ -1,4 +1,5 @@
 {
   "navigationBarTitleText": "组建队伍",
-  "usingComponents": {}
+  "usingComponents": {},
+  "enableShareAppMessage": true
 }

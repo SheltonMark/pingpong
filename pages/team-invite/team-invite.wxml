@@ -1,39 +1,59 @@
 <view class="invite-page">
-  <!-- 赛事信息卡片 -->
-  <view class="invite-card" wx:if="{{event}}">
+  <view class="invite-card" wx:if="{{!isLoading && invitation}}">
     <view class="invite-icon">🏓</view>
-    <view class="invite-title">{{inviterName}} 邀请你加入队伍</view>
-    <view class="team-name-display" wx:if="{{teamName}}">「{{teamName}}」</view>
+    <text class="invite-title">{{invitation.inviter_name || '领队'}} 邀请你加入队伍</text>
+    <text class="team-name-display" wx:if="{{invitation.team_name}}">“{{invitation.team_name}}”</text>
 
-    <view class="event-info-card">
-      <view class="event-name">{{event.title}}</view>
-      <view class="event-meta">
-        <text>团体赛</text>
-        <text wx:if="{{event.location}}"> · {{event.location}}</text>
+    <view class="event-info-card" wx:if="{{event}}">
+      <text class="event-name">{{event.title}}</text>
+      <text class="event-meta">团体赛{{event.location ? ' · ' + event.location : ''}}</text>
+    </view>
+
+    <view class="action-area" wx:if="{{getInvitationState() === 'pending_guest'}}">
+      <text class="tip-text">你还没有登录，请先注册或登录后再处理邀请。</text>
+      <button class="action-btn primary" bindtap="onGoRegister">去注册/登录</button>
+    </view>
+
+    <view class="action-area" wx:elif="{{getInvitationState() === 'pending_login'}}">
+      <text class="tip-text">待处理邀请会占用队伍名额，请根据自身情况选择加入或拒绝。</text>
+      <view class="action-row">
+        <button class="action-btn secondary" bindtap="onRespond" data-action="reject" disabled="{{isSubmitting}}">
+          {{isSubmitting ? '处理中...' : '拒绝邀请'}}
+        </button>
+        <button class="action-btn primary" bindtap="onRespond" data-action="accept" disabled="{{isSubmitting}}">
+          {{isSubmitting ? '处理中...' : '加入队伍'}}
+        </button>
       </view>
     </view>
 
-    <!-- 未登录 -->
-    <view wx:if="{{!isLoggedIn}}" class="action-area">
-      <view class="tip-text">你还没有注册，请先注册账号</view>
-      <button class="action-btn primary" bindtap="onGoRegister">去注册</button>
-    </view>
-
-    <!-- 已报名 -->
-    <view wx:elif="{{isRegistered || joined}}" class="action-area">
+    <view class="action-area success" wx:elif="{{getInvitationState() === 'joined'}}">
       <view class="success-icon">✓</view>
-      <view class="tip-text">{{joined ? '已成功加入队伍' : '你已报名该赛事'}}</view>
+      <text class="tip-text">你已成功加入该队伍。</text>
     </view>
 
-    <!-- 可加入 -->
-    <view wx:else class="action-area">
-      <view class="tip-text" wx:if="{{errorMsg}}">{{errorMsg}}</view>
-      <button class="action-btn primary" bindtap="onJoinTeam" disabled="{{joining}}">
-        {{joining ? '加入中...' : '加入队伍'}}
-      </button>
+    <view class="action-area success" wx:elif="{{getInvitationState() === 'rejected_self'}}">
+      <view class="success-icon muted">已</view>
+      <text class="tip-text">你已明确拒绝本次邀请，该名额已释放给领队重新安排。</text>
+    </view>
+
+    <view class="action-area" wx:elif="{{getInvitationState() === 'accepted_other'}}">
+      <text class="tip-text">这条邀请已经被其他队员使用，不能重复加入。</text>
+    </view>
+
+    <view class="action-area" wx:elif="{{getInvitationState() === 'rejected_other'}}">
+      <text class="tip-text">这条邀请已被其他用户处理，当前链接不可再用。</text>
+    </view>
+
+    <view class="action-area" wx:elif="{{getInvitationState() === 'cancelled'}}">
+      <text class="tip-text">领队已经取消了这条邀请，当前链接已失效。</text>
     </view>
   </view>
 
-  <!-- 加载中 -->
-  <view class="loading" wx:if="{{!event}}">加载中...</view>
+  <view class="invite-card error" wx:elif="{{!isLoading}}">
+    <view class="invite-icon">!</view>
+    <text class="invite-title">邀请不可用</text>
+    <text class="tip-text">{{errorMsg || '邀请不存在或已失效'}}</text>
+  </view>
+
+  <view class="loading" wx:else>加载中...</view>
 </view>

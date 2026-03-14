@@ -4,6 +4,12 @@ const router = express.Router();
 const { pool } = require('../config/database');
 const { calculateMatchRating } = require('../utils/ratingCalculator');
 const subscribeMessage = require('../utils/subscribeMessage');
+const {
+  normalizeTeamEventConfig,
+  validateTeamParticipants,
+  buildSubmittedTeamSummaries,
+  createInviteToken
+} = require('../utils/teamEvent');
 
 // 将相对URL转为完整URL
 function toFullUrl(url, req) {
@@ -118,6 +124,154 @@ function computeEventStatus(event) {
   return 'registration';
 }
 
+function isSubmittedTeamRow(row) {
+  return !row.team_name || (row.team_submit_status || 'submitted') === 'submitted';
+}
+
+async function getEventById(eventId) {
+  const [events] = await pool.query(
+    `SELECT e.*,
+      (SELECT COUNT(*) FROM event_registrations
+       WHERE event_id = e.id
+         AND status != 'cancelled'
+         AND (team_name IS NULL OR COALESCE(team_submit_status, 'submitted') = 'submitted')) as participant_count,
+      (SELECT COUNT(DISTINCT team_name) FROM event_registrations
+       WHERE event_id = e.id
+         AND status != 'cancelled'
+         AND team_name IS NOT NULL
+         AND COALESCE(team_submit_status, 'submitted') = 'submitted') as team_count
+     FROM events e
+     WHERE e.id = ?`,
+    [eventId]
+  );
+  return events[0] || null;
+}
+
+async function getCaptainApplication(eventId, userId, connection = pool) {
+  const [rows] = await connection.query(
+    'SELECT * FROM captain_applications WHERE event_id = ? AND user_id = ?',
+    [eventId, userId]
+  );
+  return rows[0] || null;
+}
+
+async function getLeaderRegistration(eventId, leaderId, connection = pool) {
+  const [rows] = await connection.query(
+    `SELECT *
+     FROM event_registrations
+     WHERE event_id = ?
+       AND user_id = ?
+       AND is_team_leader = 1
+     ORDER BY id DESC
+     LIMIT 1`,
+    [eventId, leaderId]
+  );
+  return rows[0] || null;
+}
+
+async function getTeamMembers(eventId, leaderId, connection = pool) {
+  const [rows] = await connection.query(
+    `SELECT er.*,
+            u.name,
+            u.phone,
+            u.gender,
+            u.avatar_url,
+            s.name as school_name,
+            c.name as college_name
+     FROM event_registrations er
+     JOIN users u ON er.user_id = u.id
+     LEFT JOIN schools s ON u.school_id = s.id
+     LEFT JOIN colleges c ON u.college_id = c.id
+     WHERE er.event_id = ?
+       AND er.status != 'cancelled'
+       AND (
+         (er.is_team_leader = 1 AND er.user_id = ?)
+         OR (er.is_team_leader = 0 AND er.team_leader_id = ?)
+       )
+     ORDER BY er.is_team_leader DESC, er.registered_at, er.id`,
+    [eventId, leaderId, leaderId]
+  );
+  return rows;
+}
+
+async function getPendingTeamInvitations(eventId, leaderId, connection = pool) {
+  const [rows] = await connection.query(
+    `SELECT i.id,
+            i.event_id,
+            i.inviter_id,
+            i.invitee_id,
+            i.invite_token,
+            i.status,
+            i.created_at,
+            i.responded_at,
+            u.id as invitee_user_id,
+            u.name as invitee_name,
+            u.phone as invitee_phone,
+            u.gender as invitee_gender,
+            u.avatar_url as invitee_avatar_url
+     FROM team_invitations i
+     LEFT JOIN users u ON i.invitee_id = u.id
+     WHERE i.event_id = ?
+       AND i.inviter_id = ?
+       AND i.type = 'team'
+       AND i.status = 'pending'
+     ORDER BY i.created_at ASC, i.id ASC`,
+    [eventId, leaderId]
+  );
+  return rows;
+}
+
+async function upsertLeaderDraft(connection, { eventId, leaderId, teamName, leaderParticipating }) {
+  const existing = await getLeaderRegistration(eventId, leaderId, connection);
+
+  if (existing && existing.status !== 'cancelled' && (existing.team_submit_status || 'submitted') === 'submitted') {
+    throw new Error('队伍已正式提交，不能再修改');
+  }
+
+  if (existing) {
+    await connection.execute(
+      `UPDATE event_registrations
+       SET team_name = ?,
+           is_participating = ?,
+           is_singles_player = CASE WHEN ? = 1 THEN is_singles_player ELSE 0 END,
+           is_team_leader = 1,
+           team_leader_id = NULL,
+           team_submit_status = 'draft',
+           team_submitted_at = NULL,
+           status = 'confirmed',
+           partner_id = NULL,
+           partner_status = NULL
+       WHERE id = ?`,
+      [teamName, leaderParticipating ? 1 : 0, leaderParticipating ? 1 : 0, existing.id]
+    );
+  } else {
+    await connection.execute(
+      `INSERT INTO event_registrations (
+        event_id, user_id, team_name, is_team_leader, team_leader_id,
+        is_participating, is_singles_player, status, team_submit_status, team_submitted_at
+      ) VALUES (?, ?, ?, 1, NULL, ?, 0, 'confirmed', 'draft', NULL)`,
+      [eventId, leaderId, teamName, leaderParticipating ? 1 : 0]
+    );
+  }
+
+  await connection.execute(
+    `UPDATE captain_applications
+     SET is_participating = ?
+     WHERE event_id = ? AND user_id = ?`,
+    [leaderParticipating ? 1 : 0, eventId, leaderId]
+  );
+
+  await connection.execute(
+    `UPDATE event_registrations
+     SET team_name = ?
+     WHERE event_id = ?
+       AND team_leader_id = ?
+       AND status != 'cancelled'
+       AND COALESCE(team_submit_status, 'submitted') = 'draft'`,
+    [teamName, eventId, leaderId]
+  );
+}
+
 // 获取赛事列表
 router.get('/', async (req, res) => {
   try {
@@ -126,8 +280,15 @@ router.get('/', async (req, res) => {
 
     let sql = `
       SELECT e.*, s.name as school_name, u.name as creator_name,
-        (SELECT COUNT(*) FROM event_registrations WHERE event_id = e.id AND status != 'cancelled') as participant_count,
-        (SELECT COUNT(DISTINCT team_name) FROM event_registrations WHERE event_id = e.id AND status != 'cancelled' AND team_name IS NOT NULL) as team_count
+        (SELECT COUNT(*) FROM event_registrations
+         WHERE event_id = e.id
+           AND status != 'cancelled'
+           AND (team_name IS NULL OR COALESCE(team_submit_status, 'submitted') = 'submitted')) as participant_count,
+        (SELECT COUNT(DISTINCT team_name) FROM event_registrations
+         WHERE event_id = e.id
+           AND status != 'cancelled'
+           AND team_name IS NOT NULL
+           AND COALESCE(team_submit_status, 'submitted') = 'submitted') as team_count
       FROM events e
       LEFT JOIN schools s ON e.school_id = s.id
       LEFT JOIN users u ON e.created_by = u.id
@@ -379,7 +540,10 @@ router.get('/:id', async (req, res) => {
 
     const [events] = await pool.query(`
       SELECT e.*, s.name as school_name, u.name as creator_name,
-        (SELECT COUNT(*) FROM event_registrations WHERE event_id = e.id AND status != 'cancelled') as participant_count
+        (SELECT COUNT(*) FROM event_registrations
+         WHERE event_id = e.id
+           AND status != 'cancelled'
+           AND (team_name IS NULL OR COALESCE(team_submit_status, 'submitted') = 'submitted')) as participant_count
       FROM events e
       LEFT JOIN schools s ON e.school_id = s.id
       LEFT JOIN users u ON e.created_by = u.id
@@ -397,7 +561,7 @@ router.get('/:id', async (req, res) => {
     event.description = processDescription(event.description, req);
 
     // 获取报名列表（双打赛事额外查询搭档信息）
-    const [registrations] = await pool.query(`
+    let registrationsSql = `
       SELECT er.*, u.name, u.avatar_url, u.college_id,
              c.name as college_name, s.name as school_name,
              pu.name as partner_name, pu.avatar_url as partner_avatar_url,
@@ -410,8 +574,17 @@ router.get('/:id', async (req, res) => {
       LEFT JOIN schools ps ON pu.school_id = ps.id
       LEFT JOIN colleges pc ON pu.college_id = pc.id
       WHERE er.event_id = ? AND er.status != 'cancelled'
+    `;
+
+    if (event.event_type === 'team') {
+      registrationsSql += " AND COALESCE(er.team_submit_status, 'submitted') = 'submitted'";
+    }
+
+    registrationsSql += `
       ORDER BY er.registered_at
-    `, [id]);
+    `;
+
+    const [registrations] = await pool.query(registrationsSql, [id]);
 
     res.json({
       success: true,
@@ -1053,6 +1226,803 @@ router.post('/team/invite', async (req, res) => {
 });
 
 // 团体赛报名（领队组建队伍）
+router.get('/team-invitations/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    const [rows] = await pool.query(
+      `SELECT i.*,
+              e.title as event_title,
+              e.location as event_location,
+              inviter.name as inviter_name,
+              inviter.avatar_url as inviter_avatar_url,
+              invitee.name as invitee_name
+       FROM team_invitations i
+       JOIN events e ON i.event_id = e.id
+       JOIN users inviter ON i.inviter_id = inviter.id
+       LEFT JOIN users invitee ON i.invitee_id = invitee.id
+       WHERE i.invite_token = ?
+         AND i.type = 'team'
+       LIMIT 1`,
+      [token]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: '邀请不存在或已失效' });
+    }
+
+    const invitation = rows[0];
+    const event = await getEventById(invitation.event_id);
+    const leaderReg = await getLeaderRegistration(invitation.event_id, invitation.inviter_id);
+
+    if (!event || event.event_type !== 'team') {
+      return res.status(404).json({ success: false, message: '赛事不存在' });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        id: invitation.id,
+        event_id: invitation.event_id,
+        invite_token: invitation.invite_token,
+        status: invitation.status,
+        inviter_id: invitation.inviter_id,
+        inviter_name: invitation.inviter_name,
+        inviter_avatar_url: invitation.inviter_avatar_url,
+        invitee_id: invitation.invitee_id,
+        invitee_name: invitation.invitee_name || '',
+        team_name: leaderReg && leaderReg.status !== 'cancelled' ? (leaderReg.team_name || '') : '',
+        event: {
+          id: event.id,
+          title: event.title,
+          location: event.location,
+          status: computeEventStatus(event),
+          registration_end: event.registration_end,
+          event_start: event.event_start
+        }
+      }
+    });
+  } catch (error) {
+    console.error('获取团体赛邀请详情失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
+router.post('/team-invitations/:token/respond', async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { user_id, action } = req.body;
+
+    if (!user_id) {
+      return res.status(400).json({ success: false, message: '缺少用户ID' });
+    }
+    if (!['accept', 'reject'].includes(action)) {
+      return res.status(400).json({ success: false, message: '无效操作' });
+    }
+
+    const [invitationRows] = await pool.query(
+      `SELECT i.*,
+              e.title as event_title,
+              e.location as event_location,
+              inviter.name as inviter_name,
+              inviter.openid as inviter_openid
+       FROM team_invitations i
+       JOIN events e ON i.event_id = e.id
+       JOIN users inviter ON i.inviter_id = inviter.id
+       WHERE i.invite_token = ?
+         AND i.type = 'team'
+       LIMIT 1`,
+      [token]
+    );
+
+    if (invitationRows.length === 0) {
+      return res.status(404).json({ success: false, message: '邀请不存在或已失效' });
+    }
+
+    const invitation = invitationRows[0];
+    if (invitation.status !== 'pending') {
+      return res.status(400).json({ success: false, message: '该邀请已处理' });
+    }
+    if (invitation.invitee_id && parseInt(invitation.invitee_id, 10) !== parseInt(user_id, 10)) {
+      return res.status(400).json({ success: false, message: '该邀请已被其他用户处理' });
+    }
+
+    const event = await getEventById(invitation.event_id);
+    if (!event || event.event_type !== 'team') {
+      return res.status(404).json({ success: false, message: '赛事不存在' });
+    }
+    if (computeEventStatus(event) !== 'registration') {
+      return res.status(400).json({ success: false, message: '赛事已不在报名阶段' });
+    }
+
+    const leaderReg = await getLeaderRegistration(invitation.event_id, invitation.inviter_id);
+    if (!leaderReg || leaderReg.status === 'cancelled' || (leaderReg.team_submit_status || 'submitted') !== 'draft') {
+      return res.status(400).json({ success: false, message: '该邀请已失效' });
+    }
+
+    const [users] = await pool.query(
+      'SELECT id, name, gender FROM users WHERE id = ? LIMIT 1',
+      [user_id]
+    );
+    if (users.length === 0) {
+      return res.status(404).json({ success: false, message: '用户不存在' });
+    }
+    const currentUser = users[0];
+
+    if (action === 'accept') {
+      const [existingReg] = await pool.query(
+        'SELECT * FROM event_registrations WHERE event_id = ? AND user_id = ? AND status != "cancelled"',
+        [invitation.event_id, user_id]
+      );
+      if (existingReg.length > 0) {
+        return res.status(400).json({ success: false, message: '您已报名该赛事' });
+      }
+
+      const teamMembers = await getTeamMembers(invitation.event_id, invitation.inviter_id);
+      const actualParticipants = teamMembers.filter((member) => {
+        if (member.is_team_leader) {
+          return member.is_participating !== 0;
+        }
+        return true;
+      });
+      const config = normalizeTeamEventConfig(event);
+      const maleCount = actualParticipants.filter((member) => member.gender === 'male').length;
+      const femaleCount = actualParticipants.filter((member) => member.gender === 'female').length;
+
+      if (config.genderRule === 'male_only' && currentUser.gender !== 'male') {
+        return res.status(400).json({ success: false, message: '该赛事仅允许男子团体报名' });
+      }
+      if (config.genderRule === 'female_only' && currentUser.gender !== 'female') {
+        return res.status(400).json({ success: false, message: '该赛事仅允许女子团体报名' });
+      }
+      if (config.genderRule === 'fixed') {
+        if (currentUser.gender === 'male' && maleCount >= config.requiredMaleCount) {
+          return res.status(400).json({ success: false, message: '当前队伍男生人数已达上限' });
+        }
+        if (currentUser.gender === 'female' && femaleCount >= config.requiredFemaleCount) {
+          return res.status(400).json({ success: false, message: '当前队伍女生人数已达上限' });
+        }
+      }
+
+      const connection = await pool.getConnection();
+      await connection.beginTransaction();
+
+      try {
+        const [historyRows] = await connection.query(
+          'SELECT * FROM event_registrations WHERE event_id = ? AND user_id = ? LIMIT 1',
+          [invitation.event_id, user_id]
+        );
+
+        if (historyRows.length > 0) {
+          await connection.execute(
+            `UPDATE event_registrations
+             SET team_name = ?,
+                 is_team_leader = 0,
+                 team_leader_id = ?,
+                 is_participating = 1,
+                 is_singles_player = 0,
+                 status = 'confirmed',
+                 team_submit_status = 'draft',
+                 team_submitted_at = NULL,
+                 partner_id = NULL,
+                 partner_status = NULL,
+                 confirmed_at = NOW()
+             WHERE id = ?`,
+            [leaderReg.team_name, invitation.inviter_id, historyRows[0].id]
+          );
+        } else {
+          await connection.execute(
+            `INSERT INTO event_registrations (
+              event_id, user_id, team_name, is_team_leader, team_leader_id,
+              is_participating, is_singles_player, status, team_submit_status,
+              team_submitted_at, confirmed_at
+            ) VALUES (?, ?, ?, 0, ?, 1, 0, 'confirmed', 'draft', NULL, NOW())`,
+            [invitation.event_id, user_id, leaderReg.team_name, invitation.inviter_id]
+          );
+        }
+
+        await connection.execute(
+          `UPDATE team_invitations
+           SET invitee_id = ?, status = 'accepted', responded_at = NOW()
+           WHERE id = ?`,
+          [user_id, invitation.id]
+        );
+
+        await connection.commit();
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
+    } else {
+      await pool.execute(
+        `UPDATE team_invitations
+         SET invitee_id = ?, status = 'rejected', responded_at = NOW()
+         WHERE id = ?`,
+        [user_id, invitation.id]
+      );
+    }
+
+    if (invitation.inviter_openid) {
+      try {
+        await subscribeMessage.sendInvitationResultNotice(invitation.inviter_openid, {
+          inviteeName: currentUser.name,
+          time: subscribeMessage.formatTime(new Date()),
+          location: invitation.event_location || invitation.event_title || '团体赛报名',
+          status: action === 'accept' ? '已加入' : '已拒绝',
+          page: `pages/team-register/team-register?id=${invitation.event_id}`
+        });
+      } catch (notifyError) {
+        console.error('发送团体赛邀请结果通知失败:', notifyError);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: action === 'accept' ? '已加入队伍' : '已拒绝邀请'
+    });
+  } catch (error) {
+    console.error('处理团体赛邀请失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
+router.put('/:id/team-draft', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id, team_name, leader_participating } = req.body;
+    const normalizedTeamName = (team_name || '').trim();
+
+    if (!user_id) {
+      return res.status(400).json({ success: false, message: '缺少用户ID' });
+    }
+    if (!normalizedTeamName) {
+      return res.status(400).json({ success: false, message: '请先填写队伍名称' });
+    }
+
+    const event = await getEventById(id);
+    if (!event) {
+      return res.status(404).json({ success: false, message: '赛事不存在' });
+    }
+    if (event.event_type !== 'team') {
+      return res.status(400).json({ success: false, message: '该赛事不是团体赛' });
+    }
+    if (computeEventStatus(event) !== 'registration') {
+      return res.status(400).json({ success: false, message: '赛事已不在报名阶段' });
+    }
+
+    const captainApp = await getCaptainApplication(id, user_id);
+    if (!captainApp || captainApp.status !== 'approved') {
+      return res.status(403).json({ success: false, message: '只有已审核通过的领队才能组队' });
+    }
+
+    const [duplicateTeam] = await pool.query(
+      `SELECT id
+       FROM event_registrations
+       WHERE event_id = ?
+         AND is_team_leader = 1
+         AND user_id != ?
+         AND status != 'cancelled'
+         AND team_name = ?
+       LIMIT 1`,
+      [id, user_id, normalizedTeamName]
+    );
+    if (duplicateTeam.length > 0) {
+      return res.status(400).json({ success: false, message: '队伍名称已存在' });
+    }
+
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    try {
+      await upsertLeaderDraft(connection, {
+        eventId: id,
+        leaderId: user_id,
+        teamName: normalizedTeamName,
+        leaderParticipating: leader_participating === 0 || leader_participating === false ? 0 : 1
+      });
+
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+
+    const leaderReg = await getLeaderRegistration(id, user_id);
+    const members = await getTeamMembers(id, user_id);
+    const pendingInvitations = await getPendingTeamInvitations(id, user_id);
+    const occupiedSlots = members.filter((member) => {
+      if (member.is_team_leader) {
+        return member.is_participating !== 0;
+      }
+      return true;
+    }).length + pendingInvitations.length;
+
+    res.json({
+      success: true,
+      message: '队伍草稿已保存',
+      data: {
+        team_name: leaderReg ? leaderReg.team_name : normalizedTeamName,
+        leader_participating: leaderReg ? leaderReg.is_participating !== 0 : leader_participating !== 0,
+        occupied_slots: occupiedSlots,
+        members,
+        pending_invitations: pendingInvitations
+      }
+    });
+  } catch (error) {
+    console.error('保存团体赛草稿失败:', error);
+    const message = error.message === '队伍已正式提交，不能再修改' ? error.message : '服务器错误';
+    res.status(message === '服务器错误' ? 500 : 400).json({ success: false, message });
+  }
+});
+
+router.post('/:id/team-invitations', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id, team_name, leader_participating } = req.body;
+    const normalizedTeamName = (team_name || '').trim();
+
+    if (!user_id) {
+      return res.status(400).json({ success: false, message: '缺少用户ID' });
+    }
+    if (!normalizedTeamName) {
+      return res.status(400).json({ success: false, message: '请先填写队伍名称，再邀请队员' });
+    }
+
+    const event = await getEventById(id);
+    if (!event) {
+      return res.status(404).json({ success: false, message: '赛事不存在' });
+    }
+    if (event.event_type !== 'team') {
+      return res.status(400).json({ success: false, message: '该赛事不是团体赛' });
+    }
+    if (computeEventStatus(event) !== 'registration') {
+      return res.status(400).json({ success: false, message: '赛事已不在报名阶段' });
+    }
+
+    const captainApp = await getCaptainApplication(id, user_id);
+    if (!captainApp || captainApp.status !== 'approved') {
+      return res.status(403).json({ success: false, message: '只有已审核通过的领队才能邀请队员' });
+    }
+
+    const [duplicateTeam] = await pool.query(
+      `SELECT id
+       FROM event_registrations
+       WHERE event_id = ?
+         AND is_team_leader = 1
+         AND user_id != ?
+         AND status != 'cancelled'
+         AND team_name = ?
+       LIMIT 1`,
+      [id, user_id, normalizedTeamName]
+    );
+    if (duplicateTeam.length > 0) {
+      return res.status(400).json({ success: false, message: '队伍名称已存在' });
+    }
+
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    try {
+      await upsertLeaderDraft(connection, {
+        eventId: id,
+        leaderId: user_id,
+        teamName: normalizedTeamName,
+        leaderParticipating: leader_participating === 0 || leader_participating === false
+          ? 0
+          : (captainApp.is_participating === 0 ? 0 : 1)
+      });
+
+      const members = await getTeamMembers(id, user_id, connection);
+      const pendingInvitations = await getPendingTeamInvitations(id, user_id, connection);
+      const config = normalizeTeamEventConfig(event);
+      const occupiedSlots = members.filter((member) => {
+        if (member.is_team_leader) {
+          return member.is_participating !== 0;
+        }
+        return true;
+      }).length + pendingInvitations.length;
+
+      if (occupiedSlots >= config.maxTeamPlayers) {
+        throw new Error('已达队伍人数上限，请先删除队员或取消邀请');
+      }
+
+      const inviteToken = createInviteToken();
+      await connection.execute(
+        `INSERT INTO team_invitations (
+          event_id, inviter_id, invitee_id, invite_token, type, status
+        ) VALUES (?, ?, NULL, ?, 'team', 'pending')`,
+        [id, user_id, inviteToken]
+      );
+
+      await connection.commit();
+
+      res.json({
+        success: true,
+        message: '已创建邀请',
+        data: {
+          invite_token: inviteToken,
+          share_path: `/pages/team-invite/team-invite?token=${inviteToken}`
+        }
+      });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('创建团体赛邀请失败:', error);
+    const message = error.message || '服务器错误';
+    res.status(message === '服务器错误' ? 500 : 400).json({ success: false, message });
+  }
+});
+
+router.post('/:id/team-invitations/:invitationId/cancel', async (req, res) => {
+  try {
+    const { id, invitationId } = req.params;
+    const { user_id } = req.body;
+
+    if (!user_id) {
+      return res.status(400).json({ success: false, message: '缺少用户ID' });
+    }
+
+    const leaderReg = await getLeaderRegistration(id, user_id);
+    if (!leaderReg || leaderReg.status === 'cancelled') {
+      return res.status(403).json({ success: false, message: '您不是该赛事的领队' });
+    }
+    if ((leaderReg.team_submit_status || 'submitted') !== 'draft') {
+      return res.status(400).json({ success: false, message: '队伍已正式提交，不能再取消邀请' });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT i.*, u.openid as invitee_openid
+       FROM team_invitations i
+       LEFT JOIN users u ON i.invitee_id = u.id
+       WHERE i.id = ?
+         AND i.event_id = ?
+         AND i.inviter_id = ?
+         AND i.type = 'team'
+         AND i.status = 'pending'
+       LIMIT 1`,
+      [invitationId, id, user_id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: '待处理邀请不存在' });
+    }
+
+    const invitation = rows[0];
+    await pool.execute(
+      `UPDATE team_invitations
+       SET status = 'cancelled', responded_at = NOW()
+       WHERE id = ?`,
+      [invitationId]
+    );
+
+    if (invitation.invitee_openid) {
+      try {
+        await subscribeMessage.sendInvitationResultNotice(invitation.invitee_openid, {
+          inviteeName: '当前邀请',
+          time: subscribeMessage.formatTime(new Date()),
+          location: '团体赛组队',
+          status: '已取消',
+          page: `pages/events/event-detail?id=${id}`
+        });
+      } catch (notifyError) {
+        console.error('发送取消邀请通知失败:', notifyError);
+      }
+    }
+
+    res.json({ success: true, message: '已取消邀请' });
+  } catch (error) {
+    console.error('取消团体赛邀请失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
+router.post('/:id/team-members/:memberId/remove', async (req, res) => {
+  try {
+    const { id, memberId } = req.params;
+    const { user_id } = req.body;
+
+    if (!user_id) {
+      return res.status(400).json({ success: false, message: '缺少用户ID' });
+    }
+    if (parseInt(memberId, 10) === parseInt(user_id, 10)) {
+      return res.status(400).json({ success: false, message: '领队不能删除自己，请直接取消队伍报名' });
+    }
+
+    const leaderReg = await getLeaderRegistration(id, user_id);
+    if (!leaderReg || leaderReg.status === 'cancelled') {
+      return res.status(403).json({ success: false, message: '您不是该赛事的领队' });
+    }
+    if ((leaderReg.team_submit_status || 'submitted') !== 'draft') {
+      return res.status(400).json({ success: false, message: '队伍已正式提交，不能再删除队员' });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT er.id, er.user_id, u.openid
+       FROM event_registrations er
+       JOIN users u ON er.user_id = u.id
+       WHERE er.event_id = ?
+         AND er.user_id = ?
+         AND er.team_leader_id = ?
+         AND er.status != 'cancelled'
+       LIMIT 1`,
+      [id, memberId, user_id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: '队员不存在' });
+    }
+
+    await pool.execute(
+      `UPDATE event_registrations
+       SET status = 'cancelled',
+           is_singles_player = 0
+       WHERE id = ?`,
+      [rows[0].id]
+    );
+
+    if (rows[0].openid) {
+      try {
+        await subscribeMessage.sendInvitationResultNotice(rows[0].openid, {
+          inviteeName: '当前成员',
+          time: subscribeMessage.formatTime(new Date()),
+          location: '团体赛组队',
+          status: '已移出',
+          page: `pages/events/event-detail?id=${id}`
+        });
+      } catch (notifyError) {
+        console.error('发送移出队员通知失败:', notifyError);
+      }
+    }
+
+    res.json({ success: true, message: '已删除队员' });
+  } catch (error) {
+    console.error('删除团体赛队员失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
+router.post('/:id/team-submit', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id, team_name, singles_player_ids } = req.body;
+    const normalizedTeamName = (team_name || '').trim();
+
+    if (!user_id) {
+      return res.status(400).json({ success: false, message: '缺少用户ID' });
+    }
+    if (!normalizedTeamName) {
+      return res.status(400).json({ success: false, message: '请先填写队伍名称' });
+    }
+
+    const event = await getEventById(id);
+    if (!event) {
+      return res.status(404).json({ success: false, message: '赛事不存在' });
+    }
+    if (event.event_type !== 'team') {
+      return res.status(400).json({ success: false, message: '该赛事不是团体赛' });
+    }
+    if (computeEventStatus(event) !== 'registration') {
+      return res.status(400).json({ success: false, message: '赛事已不在报名阶段' });
+    }
+
+    const captainApp = await getCaptainApplication(id, user_id);
+    if (!captainApp || captainApp.status !== 'approved') {
+      return res.status(403).json({ success: false, message: '只有已审核通过的领队才能提交报名' });
+    }
+
+    const [duplicateTeam] = await pool.query(
+      `SELECT id
+       FROM event_registrations
+       WHERE event_id = ?
+         AND is_team_leader = 1
+         AND user_id != ?
+         AND status != 'cancelled'
+         AND team_name = ?
+       LIMIT 1`,
+      [id, user_id, normalizedTeamName]
+    );
+    if (duplicateTeam.length > 0) {
+      return res.status(400).json({ success: false, message: '队伍名称已存在' });
+    }
+
+    if (event.max_participants && event.team_count >= event.max_participants) {
+      return res.status(400).json({ success: false, message: '参赛队伍数量已满' });
+    }
+
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    try {
+      await upsertLeaderDraft(connection, {
+        eventId: id,
+        leaderId: user_id,
+        teamName: normalizedTeamName,
+        leaderParticipating: captainApp.is_participating === 0 ? 0 : 1
+      });
+
+      const leaderReg = await getLeaderRegistration(id, user_id, connection);
+      if (!leaderReg || leaderReg.status === 'cancelled') {
+        throw new Error('领队信息不存在');
+      }
+      if ((leaderReg.team_submit_status || 'submitted') === 'submitted') {
+        throw new Error('队伍已正式提交，请勿重复报名');
+      }
+
+      const pendingInvitations = await getPendingTeamInvitations(id, user_id, connection);
+      if (pendingInvitations.length > 0) {
+        throw new Error('还有待处理邀请，请先确认或取消后再提交');
+      }
+
+      const teamMembers = await getTeamMembers(id, user_id, connection);
+      const actualParticipants = teamMembers.filter((member) => {
+        if (member.is_team_leader) {
+          return member.is_participating !== 0;
+        }
+        return true;
+      });
+
+      const validation = validateTeamParticipants({
+        event,
+        participants: actualParticipants,
+        singlesPlayerIds: singles_player_ids
+      });
+
+      if (!validation.valid) {
+        throw new Error(validation.errors[0]);
+      }
+
+      await connection.execute(
+        `UPDATE event_registrations
+         SET team_name = ?,
+             team_submit_status = 'submitted',
+             team_submitted_at = NOW(),
+             status = 'confirmed',
+             confirmed_at = COALESCE(confirmed_at, NOW()),
+             is_singles_player = 0
+         WHERE event_id = ?
+           AND status != 'cancelled'
+           AND (
+             (is_team_leader = 1 AND user_id = ?)
+             OR (is_team_leader = 0 AND team_leader_id = ?)
+           )`,
+        [normalizedTeamName, id, user_id, user_id]
+      );
+
+      if (validation.singlesPlayerIds.length > 0) {
+        const placeholders = validation.singlesPlayerIds.map(() => '?').join(',');
+        await connection.execute(
+          `UPDATE event_registrations
+           SET is_singles_player = 1
+           WHERE event_id = ?
+             AND status != 'cancelled'
+             AND is_participating = 1
+             AND user_id IN (${placeholders})
+             AND (
+               (is_team_leader = 1 AND user_id = ?)
+               OR (is_team_leader = 0 AND team_leader_id = ?)
+             )`,
+          [id, ...validation.singlesPlayerIds, user_id, user_id]
+        );
+      }
+
+      await connection.commit();
+
+      res.json({
+        success: true,
+        message: '报名成功，队伍信息已锁定',
+        data: {
+          team_name: normalizedTeamName,
+          actual_player_count: actualParticipants.length,
+          submitted_at: new Date().toISOString()
+        }
+      });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('团体赛提交报名失败:', error);
+    const message = error.message || '服务器错误';
+    res.status(message === '服务器错误' ? 500 : 400).json({ success: false, message });
+  }
+});
+
+router.get('/:id/team-draft-status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id } = req.query;
+
+    if (!user_id) {
+      return res.status(400).json({ success: false, message: '缺少用户ID' });
+    }
+
+    const event = await getEventById(id);
+    if (!event) {
+      return res.status(404).json({ success: false, message: '赛事不存在' });
+    }
+    if (event.event_type !== 'team') {
+      return res.status(400).json({ success: false, message: '该赛事不是团体赛' });
+    }
+
+    const leaderReg = await getLeaderRegistration(id, user_id);
+    const members = leaderReg && leaderReg.status !== 'cancelled'
+      ? await getTeamMembers(id, user_id)
+      : [];
+    const pendingInvitations = leaderReg && leaderReg.status !== 'cancelled'
+      ? await getPendingTeamInvitations(id, user_id)
+      : [];
+    const config = normalizeTeamEventConfig(event);
+    const actualParticipants = members.filter((member) => {
+      if (member.is_team_leader) {
+        return member.is_participating !== 0;
+      }
+      return true;
+    });
+    const occupiedSlots = actualParticipants.length + pendingInvitations.length;
+
+    res.json({
+      success: true,
+      data: {
+        team_name: leaderReg && leaderReg.status !== 'cancelled' ? (leaderReg.team_name || '') : '',
+        submitted: !!(leaderReg && leaderReg.status !== 'cancelled' && (leaderReg.team_submit_status || 'submitted') === 'submitted'),
+        leader_participating: !!(leaderReg && leaderReg.status !== 'cancelled' && leaderReg.is_participating !== 0),
+        actual_player_count: actualParticipants.length,
+        occupied_slots: occupiedSlots,
+        members,
+        pending_invitations: pendingInvitations,
+        config
+      }
+    });
+  } catch (error) {
+    console.error('获取团体赛草稿状态失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
+router.get('/:id/team-summary', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [rows] = await pool.query(
+      `SELECT er.*,
+              u.name,
+              u.phone,
+              u.gender,
+              u.avatar_url,
+              s.name as school_name,
+              c.name as college_name
+       FROM event_registrations er
+       JOIN users u ON er.user_id = u.id
+       LEFT JOIN schools s ON u.school_id = s.id
+       LEFT JOIN colleges c ON u.college_id = c.id
+       WHERE er.event_id = ?
+         AND er.status != 'cancelled'
+         AND er.team_name IS NOT NULL
+         AND COALESCE(er.team_submit_status, 'submitted') = 'submitted'
+       ORDER BY er.team_submitted_at, er.registered_at, er.id`,
+      [id]
+    );
+
+    res.json({
+      success: true,
+      data: buildSubmittedTeamSummaries(rows)
+    });
+  } catch (error) {
+    console.error('获取团体赛队伍汇总失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
 router.post('/:id/register-team', async (req, res) => {
   try {
     const { id } = req.params;

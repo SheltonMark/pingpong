@@ -1,121 +1,169 @@
 const app = getApp();
 
+function getCurrentUserId() {
+  return app.globalData.userInfo?.id || app.globalData.userInfo?.user_id || null;
+}
+
 Page({
   data: {
-    eventId: null,
-    inviterId: null,
+    token: '',
+    invitation: null,
     event: null,
-    inviterName: '',
-    teamName: '',
     isLoggedIn: false,
-    isRegistered: false,
-    joining: false,
-    joined: false,
+    isLoading: true,
+    isSubmitting: false,
+    respondedAction: '',
     errorMsg: ''
   },
 
   onLoad(options) {
-    const { event_id, inviter_id } = options;
+    const token = options.token || '';
     this.setData({
-      eventId: event_id,
-      inviterId: inviter_id,
+      token,
       isLoggedIn: !!app.globalData.isLoggedIn
     });
-    this.loadInfo();
+    this.loadInvitation();
   },
 
   onShow() {
-    // 注册完回来后刷新登录状态
     const isLoggedIn = !!app.globalData.isLoggedIn;
-    this.setData({ isLoggedIn });
-    if (isLoggedIn && this.data.eventId) {
-      this.checkRegistration();
+    if (isLoggedIn !== this.data.isLoggedIn) {
+      this.setData({ isLoggedIn });
+    }
+
+    if (this.data.token) {
+      this.loadInvitation({ silent: true });
     }
   },
 
-  async loadInfo() {
-    try {
-      const [eventRes, inviterRes] = await Promise.all([
-        app.request(`/api/events/${this.data.eventId}`),
-        app.request(`/api/user/profile`, { user_id: this.data.inviterId })
-      ]);
-
-      if (eventRes.success) {
-        const event = eventRes.data.event;
-        this.setData({ event });
-      }
-
-      if (inviterRes.success) {
-        this.setData({ inviterName: inviterRes.data.name || '队长' });
-      }
-
-      // 获取领队的队伍名
-      const teamRes = await app.request(`/api/events/${this.data.eventId}/my-team`, {
-        user_id: this.data.inviterId
+  async loadInvitation(options = {}) {
+    if (!this.data.token) {
+      this.setData({
+        isLoading: false,
+        errorMsg: '邀请链接无效'
       });
-      if (teamRes.success && teamRes.data.team_name) {
-        this.setData({ teamName: teamRes.data.team_name });
+      return;
+    }
+
+    if (!options.silent) {
+      this.setData({ isLoading: true });
+    }
+
+    try {
+      const res = await app.request(`/api/events/team-invitations/${this.data.token}`);
+
+      if (!res.success) {
+        this.setData({
+          invitation: null,
+          event: null,
+          errorMsg: res.message || '邀请不存在或已失效'
+        });
+        return;
       }
 
-      if (this.data.isLoggedIn) {
-        this.checkRegistration();
-      }
+      this.setData({
+        invitation: res.data,
+        event: res.data.event,
+        errorMsg: ''
+      });
     } catch (error) {
-      console.error('加载信息失败:', error);
+      console.error('加载邀请详情失败:', error);
+      this.setData({
+        invitation: null,
+        event: null,
+        errorMsg: '加载失败，请稍后重试'
+      });
+    } finally {
+      this.setData({ isLoading: false });
     }
   },
 
-  async checkRegistration() {
-    const userId = app.globalData.userInfo?.id || app.globalData.userInfo?.user_id;
-    if (!userId) return;
+  getInvitationState() {
+    const invitation = this.data.invitation;
+    const currentUserId = getCurrentUserId();
 
-    try {
-      const res = await app.request(`/api/events/${this.data.eventId}`);
-      if (res.success) {
-        const myReg = res.data.registrations.find(r => r.user_id === userId);
-        if (myReg) {
-          this.setData({ isRegistered: true });
-        }
-      }
-    } catch (error) {
-      console.error('检查报名状态失败:', error);
+    if (!invitation) {
+      return 'invalid';
     }
+
+    if (this.data.respondedAction === 'accept') {
+      return 'joined';
+    }
+
+    if (this.data.respondedAction === 'reject') {
+      return 'rejected_self';
+    }
+
+    if (invitation.status === 'pending') {
+      return this.data.isLoggedIn ? 'pending_login' : 'pending_guest';
+    }
+
+    if (invitation.status === 'accepted') {
+      return parseInt(invitation.invitee_id, 10) === parseInt(currentUserId, 10)
+        ? 'joined'
+        : 'accepted_other';
+    }
+
+    if (invitation.status === 'rejected') {
+      return parseInt(invitation.invitee_id, 10) === parseInt(currentUserId, 10)
+        ? 'rejected_self'
+        : 'rejected_other';
+    }
+
+    if (invitation.status === 'cancelled') {
+      return 'cancelled';
+    }
+
+    return 'invalid';
   },
 
   onGoRegister() {
-    const currentPath = `/pages/team-invite/team-invite?event_id=${this.data.eventId}&inviter_id=${this.data.inviterId}`;
-    wx.navigateTo({ url: `/pages/register/register?redirect=${encodeURIComponent(currentPath)}` });
+    const redirect = `/pages/team-invite/team-invite?token=${this.data.token}`;
+    wx.navigateTo({
+      url: `/pages/register/register?redirect=${encodeURIComponent(redirect)}`
+    });
   },
 
-  async onJoinTeam() {
-    if (this.data.joining) return;
+  async onRespond(e) {
+    const action = e.currentTarget.dataset.action;
+    if (!['accept', 'reject'].includes(action) || this.data.isSubmitting) {
+      return;
+    }
 
-    const userId = app.globalData.userInfo?.id || app.globalData.userInfo?.user_id;
+    const userId = getCurrentUserId();
     if (!userId) {
       wx.showToast({ title: '请先登录', icon: 'none' });
       return;
     }
 
-    this.setData({ joining: true, errorMsg: '' });
+    this.setData({ isSubmitting: true });
 
     try {
-      const res = await app.request(`/api/events/${this.data.eventId}/join-team`, {
-        user_id: userId,
-        inviter_id: parseInt(this.data.inviterId)
-      }, 'POST');
+      const res = await app.request(
+        `/api/events/team-invitations/${this.data.token}/respond`,
+        {
+          user_id: userId,
+          action
+        },
+        'POST'
+      );
 
-      if (res.success) {
-        this.setData({ joined: true });
-        wx.showToast({ title: '已加入队伍', icon: 'success' });
-      } else {
-        this.setData({ errorMsg: res.message || '加入失败' });
-        wx.showToast({ title: res.message || '加入失败', icon: 'none' });
+      if (!res.success) {
+        wx.showToast({ title: res.message || '操作失败', icon: 'none' });
+        return;
       }
+
+      this.setData({ respondedAction: action });
+      wx.showToast({
+        title: action === 'accept' ? '已加入队伍' : '已拒绝邀请',
+        icon: 'success'
+      });
+      await this.loadInvitation({ silent: true });
     } catch (error) {
-      console.error('加入队伍失败:', error);
-      wx.showToast({ title: '网络错误', icon: 'none' });
+      console.error('处理邀请失败:', error);
+      wx.showToast({ title: '操作失败', icon: 'none' });
     } finally {
-      this.setData({ joining: false });
+      this.setData({ isSubmitting: false });
     }
   }
 });
