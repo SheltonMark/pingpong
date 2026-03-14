@@ -96,20 +96,17 @@
           <view class="member-title-row">
             <text class="member-name">{{item.name}}</text>
             <text class="mini-tag leader" wx:if="{{item.isLeader}}">领队</text>
-            <text class="mini-tag singles" wx:if="{{item.isSingles}}">单打</text>
             <text class="mini-tag warning" wx:if="{{item.isLeader && !item.isParticipating}}">不参赛</text>
-          </view>
-          <view class="member-info-row">
-            <text class="member-info-item">{{item.gender === 'male' ? '男' : '女'}}</text>
-            <text class="member-info-item">{{item.school_name}}</text>
-            <text class="member-info-item" wx:if="{{item.college_name}}">{{item.college_name}}</text>
-          </view>
-          <view class="member-projects-row" wx:if="{{item.projects && item.projects.length}}">
             <text class="mini-tag project-tag men-singles" wx:for="{{item.projects}}" wx:for-item="project" wx:key="project" wx:if="{{project === 'men_singles'}}">男单</text>
             <text class="mini-tag project-tag women-singles" wx:for="{{item.projects}}" wx:for-item="project" wx:key="project" wx:if="{{project === 'women_singles'}}">女单</text>
             <text class="mini-tag project-tag men-doubles" wx:for="{{item.projects}}" wx:for-item="project" wx:key="project" wx:if="{{project === 'men_doubles'}}">男双</text>
             <text class="mini-tag project-tag women-doubles" wx:for="{{item.projects}}" wx:for-item="project" wx:key="project" wx:if="{{project === 'women_doubles'}}">女双</text>
             <text class="mini-tag project-tag mixed-doubles" wx:for="{{item.projects}}" wx:for-item="project" wx:key="project" wx:if="{{project === 'mixed_doubles'}}">混双</text>
+          </view>
+          <view class="member-info-row">
+            <text class="member-info-item">{{item.gender === 'male' ? '男' : '女'}}</text>
+            <text class="member-info-item">{{item.school_name}}</text>
+            <text class="member-info-item" wx:if="{{item.college_name}}">{{item.college_name}}</text>
           </view>
         </view>
         <view class="member-actions" wx:if="{{!submitted && !item.isLeader}}" catchtap="onStopPropagation">
