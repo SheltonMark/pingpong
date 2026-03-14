@@ -211,6 +211,11 @@
             {{ row.is_team_leader ? '是' : '' }}
           </template>
         </el-table-column>
+        <el-table-column prop="is_participating" label="参赛" width="80" v-if="regEvent && regEvent.event_type === 'team'">
+          <template #default="{ row }">
+            {{ row.is_participating ? '是' : '否' }}
+          </template>
+        </el-table-column>
         <el-table-column prop="is_singles_player" label="单打" width="80" v-if="regEvent && regEvent.event_type === 'team'">
           <template #default="{ row }">
             {{ row.is_singles_player ? '是' : '' }}
@@ -517,10 +522,58 @@ const viewRegistrations = async (row) => {
 
   try {
     const user = getAdminUser()
-    const res = await fetch(`/api/admin/events/${row.id}/registrations?user_id=${user.id}`)
-    const data = await res.json()
-    if (data.success) {
-      regData.value = data.data.registrations || []
+
+    // 团体赛使用不同的接口
+    if (row.event_type === 'team') {
+      const res = await fetch(`/api/admin/teams?event_id=${row.id}&user_id=${user.id}`)
+      const data = await res.json()
+      if (data.success) {
+        // 将队伍数据转换为报名列表格式（展开队员）
+        const teams = data.data || []
+        const registrations = []
+        teams.forEach(team => {
+          // 添加领队
+          registrations.push({
+            name: team.captain_name,
+            gender: team.captain_gender,
+            phone: team.captain_phone,
+            school_name: team.school_name || '',
+            college_name: team.college_name || '',
+            team_name: team.team_name,
+            is_team_leader: 1,
+            is_participating: team.leader_participating,
+            is_singles_player: team.members?.find(m => m.user_id === team.captain_id)?.is_singles_player || 0,
+            status: 'confirmed'
+          })
+          // 添加队员
+          if (team.members) {
+            team.members.forEach(member => {
+              if (!member.is_team_leader) {
+                registrations.push({
+                  name: member.name,
+                  gender: member.gender,
+                  phone: member.phone,
+                  school_name: member.school_name || '',
+                  college_name: member.college_name || '',
+                  team_name: team.team_name,
+                  is_team_leader: 0,
+                  is_participating: member.is_participating,
+                  is_singles_player: member.is_singles_player,
+                  status: member.status
+                })
+              }
+            })
+          }
+        })
+        regData.value = registrations
+      }
+    } else {
+      // 单打/双打使用原有接口
+      const res = await fetch(`/api/admin/events/${row.id}/registrations?user_id=${user.id}`)
+      const data = await res.json()
+      if (data.success) {
+        regData.value = data.data.registrations || []
+      }
     }
   } catch (error) {
     console.error('加载报名数据失败:', error)
@@ -535,16 +588,76 @@ const exportRegistrations = async () => {
   if (!regEvent.value) return
   try {
     const user = getAdminUser()
-    const res = await fetch(`/api/admin/events/${regEvent.value.id}/registrations/export?user_id=${user.id}`)
-    const blob = await res.blob()
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `报名表_${regEvent.value.title}_${new Date().toISOString().slice(0, 10)}.csv`
-    document.body.appendChild(a)
-    a.click()
-    window.URL.revokeObjectURL(url)
-    document.body.removeChild(a)
+
+    // 团体赛使用不同的导出接口
+    if (regEvent.value.event_type === 'team') {
+      const res = await fetch(`/api/admin/teams/export?event_id=${regEvent.value.id}&user_id=${user.id}`)
+      const data = await res.json()
+
+      if (data.success) {
+        // 将JSON数据转换为CSV
+        const rows = data.data || []
+        if (rows.length === 0) {
+          ElMessage.warning('暂无报名数据')
+          return
+        }
+
+        // CSV表头
+        const headers = [
+          '队伍序号', '队伍名称', '领队姓名', '领队是否参赛',
+          '实际参赛人数', '性别构成', '单打人数', '单打名单',
+          '成员序号', '成员姓名', '成员性别', '成员身份', '是否单打', '手机号', '提交时间'
+        ]
+
+        // 构建CSV内容
+        const csvContent = [
+          headers.join(','),
+          ...rows.map(row => [
+            row.team_index,
+            `"${row.team_name}"`,
+            `"${row.leader_name}"`,
+            row.leader_is_participating,
+            row.actual_player_count,
+            `"${row.gender_summary}"`,
+            row.singles_player_count,
+            `"${row.singles_player_names}"`,
+            row.member_index,
+            `"${row.member_name}"`,
+            row.member_gender,
+            row.member_role,
+            row.member_is_singles,
+            row.member_phone,
+            row.submitted_at
+          ].join(','))
+        ].join('\n')
+
+        // 添加BOM以支持Excel正确显示中文
+        const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `团体赛报名表_${regEvent.value.title}_${new Date().toISOString().slice(0, 10)}.csv`
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+        ElMessage.success('导出成功')
+      } else {
+        ElMessage.error(data.message || '导出失败')
+      }
+    } else {
+      // 单打/双打使用原有导出接口
+      const res = await fetch(`/api/admin/events/${regEvent.value.id}/registrations/export?user_id=${user.id}`)
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `报名表_${regEvent.value.title}_${new Date().toISOString().slice(0, 10)}.csv`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    }
   } catch (error) {
     console.error('导出失败:', error)
     ElMessage.error('导出失败')
