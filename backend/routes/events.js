@@ -2805,5 +2805,160 @@ async function calculateGroupKnockoutStandings(eventId) {
   return knockoutStandings;
 }
 
+// ==================== 团体赛项目分配相关接口 ====================
+
+// 获取赛事的项目配置
+router.get('/:id/team-project-config', async (req, res) => {
+  try {
+    const eventId = parseInt(req.params.id, 10);
+
+    const [events] = await pool.query(
+      'SELECT team_event_config FROM events WHERE id = ?',
+      [eventId]
+    );
+
+    if (events.length === 0) {
+      return res.json({ success: false, message: '赛事不存在' });
+    }
+
+    const config = events[0].team_event_config || {
+      projects: {
+        men_singles: { enabled: false, count: 0 },
+        women_singles: { enabled: false, count: 0 },
+        men_doubles: { enabled: false, count: 0 },
+        women_doubles: { enabled: false, count: 0 },
+        mixed_doubles: { enabled: false, count: 0 }
+      }
+    };
+
+    res.json({ success: true, data: config });
+  } catch (error) {
+    console.error('获取项目配置失败:', error);
+    res.json({ success: false, message: '获取项目配置失败' });
+  }
+});
+
+// 保存队伍的项目分配
+router.put('/:id/team-project-assignments', async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    const eventId = parseInt(req.params.id, 10);
+    const { user_id, team_name, assignments } = req.body;
+
+    if (!user_id || !team_name || !Array.isArray(assignments)) {
+      return res.json({ success: false, message: '参数错误' });
+    }
+
+    await conn.beginTransaction();
+
+    // 验证用户是该队伍的领队
+    const [captainCheck] = await conn.query(
+      `SELECT id FROM captain_applications
+       WHERE event_id = ? AND user_id = ? AND team_name = ? AND status = 'approved'`,
+      [eventId, user_id, team_name]
+    );
+
+    if (captainCheck.length === 0) {
+      await conn.rollback();
+      return res.json({ success: false, message: '只有领队可以分配项目' });
+    }
+
+    // 删除该队伍的旧分配
+    await conn.query(
+      'DELETE FROM team_project_assignments WHERE event_id = ? AND team_name = ?',
+      [eventId, team_name]
+    );
+
+    // 插入新分配
+    for (const assignment of assignments) {
+      const { project, position, player_a, player_b } = assignment;
+
+      if (!project || !position || !player_a) {
+        continue;
+      }
+
+      await conn.query(
+        `INSERT INTO team_project_assignments
+         (event_id, team_name, project_type, position, player_a_id, player_b_id)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [eventId, team_name, project, position, player_a, player_b || null]
+      );
+    }
+
+    await conn.commit();
+    res.json({ success: true, message: '项目分配已保存' });
+  } catch (error) {
+    await conn.rollback();
+    console.error('保存项目分配失败:', error);
+    res.json({ success: false, message: '保存项目分配失败' });
+  } finally {
+    conn.release();
+  }
+});
+
+// 获取队伍的项目分配
+router.get('/:id/team-project-assignments', async (req, res) => {
+  try {
+    const eventId = parseInt(req.params.id, 10);
+    const { user_id } = req.query;
+
+    if (!user_id) {
+      return res.json({ success: false, message: '缺少user_id参数' });
+    }
+
+    // 获取用户的队伍名称
+    const [captain] = await pool.query(
+      `SELECT team_name FROM captain_applications
+       WHERE event_id = ? AND user_id = ? AND status = 'approved'`,
+      [eventId, user_id]
+    );
+
+    if (captain.length === 0) {
+      return res.json({ success: false, message: '未找到队伍信息' });
+    }
+
+    const teamName = captain[0].team_name;
+
+    // 获取项目分配
+    const [assignments] = await pool.query(
+      `SELECT project_type, position, player_a_id, player_b_id
+       FROM team_project_assignments
+       WHERE event_id = ? AND team_name = ?
+       ORDER BY project_type, position`,
+      [eventId, teamName]
+    );
+
+    // 构建每个队员参加的项目列表
+    const memberProjects = {};
+
+    for (const assignment of assignments) {
+      const { project_type, player_a_id, player_b_id } = assignment;
+
+      if (!memberProjects[player_a_id]) {
+        memberProjects[player_a_id] = [];
+      }
+      memberProjects[player_a_id].push(project_type);
+
+      if (player_b_id) {
+        if (!memberProjects[player_b_id]) {
+          memberProjects[player_b_id] = [];
+        }
+        memberProjects[player_b_id].push(project_type);
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        assignments,
+        member_projects: memberProjects
+      }
+    });
+  } catch (error) {
+    console.error('获取项目分配失败:', error);
+    res.json({ success: false, message: '获取项目分配失败' });
+  }
+});
+
 module.exports = router;
 module.exports.computeEventStatus = computeEventStatus;

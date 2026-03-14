@@ -238,7 +238,8 @@ router.post('/events', requireAdmin, async (req, res) => {
       location, max_participants, school_id, user_id, status,
       // 团体赛配置
       min_team_players, max_team_players, singles_player_count,
-      gender_rule, required_male_count, required_female_count
+      gender_rule, required_male_count, required_female_count,
+      team_event_config
     } = req.body;
 
     const [result] = await pool.execute(`
@@ -249,8 +250,9 @@ router.post('/events', requireAdmin, async (req, res) => {
         location, max_participants, school_id, created_by, status,
         min_team_players, max_team_players, singles_player_count,
         gender_rule, required_male_count, required_female_count,
+        team_event_config,
         created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `, [
       title, description || null,
       description_images ? JSON.stringify(description_images) : null,
@@ -259,7 +261,8 @@ router.post('/events', requireAdmin, async (req, res) => {
       formatDateForMySQL(registration_start), formatDateForMySQL(registration_end), formatDateForMySQL(event_start), formatDateForMySQL(event_end),
       location || null, max_participants || 32, school_id || null, user_id, status || 'draft',
       min_team_players || null, max_team_players || null, singles_player_count || null,
-      gender_rule || null, required_male_count || null, required_female_count || null
+      gender_rule || null, required_male_count || null, required_female_count || null,
+      team_event_config ? JSON.stringify(team_event_config) : null
     ]);
 
     res.json({ success: true, data: { id: result.insertId } });
@@ -280,7 +283,8 @@ router.put('/events/:id', requireAdmin, async (req, res) => {
       location, max_participants, status,
       // 团体赛配置
       min_team_players, max_team_players, singles_player_count,
-      gender_rule, required_male_count, required_female_count
+      gender_rule, required_male_count, required_female_count,
+      team_event_config
     } = req.body;
 
     await pool.execute(`
@@ -291,6 +295,7 @@ router.put('/events/:id', requireAdmin, async (req, res) => {
         location = ?, max_participants = ?, status = ?,
         min_team_players = ?, max_team_players = ?, singles_player_count = ?,
         gender_rule = ?, required_male_count = ?, required_female_count = ?,
+        team_event_config = ?,
         updated_at = NOW()
       WHERE id = ?
     `, [
@@ -302,6 +307,7 @@ router.put('/events/:id', requireAdmin, async (req, res) => {
       location || null, max_participants || 32, status || 'draft',
       min_team_players || null, max_team_players || null, singles_player_count || null,
       gender_rule || null, required_male_count || null, required_female_count || null,
+      team_event_config ? JSON.stringify(team_event_config) : null,
       id
     ]);
 
@@ -1996,7 +2002,38 @@ router.get('/teams', requireAdmin, async (req, res) => {
         WHERE er.team_name = ? AND er.event_id = ? AND er.status != 'cancelled'
         ORDER BY er.is_team_leader DESC, er.id
       `, [team.team_name, team.event_id]);
+
+      // 获取项目分配信息
+      const [assignments] = await pool.execute(`
+        SELECT project_type, position, player_a_id, player_b_id
+        FROM team_project_assignments
+        WHERE event_id = ? AND team_name = ?
+        ORDER BY project_type, position
+      `, [team.event_id, team.team_name]);
+
+      // 为每个成员添加项目列表
+      const memberProjects = {};
+      for (const assignment of assignments) {
+        if (!memberProjects[assignment.player_a_id]) {
+          memberProjects[assignment.player_a_id] = [];
+        }
+        memberProjects[assignment.player_a_id].push(assignment.project_type);
+
+        if (assignment.player_b_id) {
+          if (!memberProjects[assignment.player_b_id]) {
+            memberProjects[assignment.player_b_id] = [];
+          }
+          memberProjects[assignment.player_b_id].push(assignment.project_type);
+        }
+      }
+
+      // 将项目信息附加到成员上
+      members.forEach(member => {
+        member.projects = memberProjects[member.user_id] || [];
+      });
+
       team.members = members;
+      team.assignments = assignments;
     }
 
     // 获取总数（只统计已提交的队伍）
@@ -2070,7 +2107,15 @@ router.get('/teams/export', requireAdmin, async (req, res) => {
       return res.status(400).json({ success: false, message: '缺少赛事ID' });
     }
 
-    const { buildSubmittedTeamSummaries, buildTeamExportRows } = require('../utils/teamEvent');
+    // 获取赛事配置
+    const [[event]] = await pool.query(
+      'SELECT team_event_config FROM events WHERE id = ?',
+      [event_id]
+    );
+
+    const teamEventConfig = event?.team_event_config || null;
+
+    const { buildSubmittedTeamSummaries } = require('../utils/teamEvent');
 
     const [rows] = await pool.query(
       `SELECT er.*,
@@ -2093,11 +2138,84 @@ router.get('/teams/export', requireAdmin, async (req, res) => {
     );
 
     const teamSummaries = buildSubmittedTeamSummaries(rows);
-    const exportRows = buildTeamExportRows(teamSummaries);
+
+    // 获取所有队伍的项目分配
+    const [assignments] = await pool.query(
+      `SELECT team_name, project_type, position, player_a_id, player_b_id
+       FROM team_project_assignments
+       WHERE event_id = ?
+       ORDER BY team_name, project_type, position`,
+      [event_id]
+    );
+
+    // 构建项目分配映射
+    const teamAssignments = {};
+    for (const assignment of assignments) {
+      if (!teamAssignments[assignment.team_name]) {
+        teamAssignments[assignment.team_name] = [];
+      }
+      teamAssignments[assignment.team_name].push(assignment);
+    }
+
+    // 构建导出行
+    const exportRows = [];
+    teamSummaries.forEach((team) => {
+      const teamAssignment = teamAssignments[team.team_name] || [];
+
+      // 为每个成员构建项目信息
+      const memberProjects = {};
+      for (const assignment of teamAssignment) {
+        const { project_type, position, player_a_id, player_b_id } = assignment;
+
+        // 单打项目：显示位置编号
+        if (project_type.includes('singles')) {
+          if (!memberProjects[player_a_id]) {
+            memberProjects[player_a_id] = {};
+          }
+          memberProjects[player_a_id][project_type] = position.toString();
+        }
+        // 双打项目：显示"双X"
+        else {
+          const label = `双${position}`;
+          if (!memberProjects[player_a_id]) {
+            memberProjects[player_a_id] = {};
+          }
+          memberProjects[player_a_id][project_type] = label;
+
+          if (player_b_id) {
+            if (!memberProjects[player_b_id]) {
+              memberProjects[player_b_id] = {};
+            }
+            memberProjects[player_b_id][project_type] = label;
+          }
+        }
+      }
+
+      // 为每个成员生成一行
+      team.members.forEach((member) => {
+        const projects = memberProjects[member.user_id] || {};
+        exportRows.push({
+          name: member.name,
+          gender: member.gender === 'male' ? '男' : '女',
+          phone: member.phone || '',
+          school_name: member.school_name || '',
+          college_name: member.college_name || '',
+          is_team: '是',
+          men_singles: projects.men_singles || '',
+          women_singles: projects.women_singles || '',
+          men_doubles: projects.men_doubles || '',
+          women_doubles: projects.women_doubles || '',
+          mixed_doubles: projects.mixed_doubles || ''
+        });
+      });
+    });
 
     res.json({
       success: true,
-      data: exportRows
+      data: {
+        rows: exportRows,
+        config: teamEventConfig
+      }
     });
   } catch (error) {
     console.error('导出团体赛报名表失败:', error);
