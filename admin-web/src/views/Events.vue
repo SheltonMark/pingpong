@@ -85,14 +85,6 @@
             </div>
           </el-form-item>
 
-          <el-form-item label="单打人数" required>
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <span>每队</span>
-              <el-input-number v-model="form.singles_player_count" :min="1" :max="10" />
-              <span>名单打队员</span>
-            </div>
-          </el-form-item>
-
           <el-form-item label="比赛项目" required>
             <div style="display: flex; flex-direction: column; gap: 12px;">
               <div style="display: flex; align-items: center; gap: 10px;">
