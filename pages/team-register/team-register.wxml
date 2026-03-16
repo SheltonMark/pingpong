@@ -82,15 +82,15 @@
   <view class="team-card">
     <view class="card-header">
       <text class="card-title">已加入队员</text>
-      <text class="card-subtitle">未正式提交前，可删除除领队外的队员</text>
+      <text class="card-subtitle">未正式提交前，可删除领队外的队员，可长按队员名字删除</text>
     </view>
 
     <view class="member-list" wx:if="{{members.length}}">
-      <view class="member-item {{!submitted && !item.isLeader ? 'has-action' : ''}}" wx:for="{{members}}" wx:key="user_id">
+      <view class="member-item" wx:for="{{members}}" wx:key="user_id">
         <image class="member-avatar" src="{{item.avatar_url || '/assets/default-avatar.png'}}" mode="aspectFill" />
         <view class="member-main">
           <view class="member-title-row">
-            <text class="member-name">{{item.name}}</text>
+            <text class="member-name" bindlongpress="onRemoveMember" data-member-id="{{!submitted && !item.isLeader ? item.user_id : ''}}">{{item.name}}</text>
             <text class="mini-tag leader" wx:if="{{item.isLeader}}">领队</text>
             <text class="mini-tag warning" wx:if="{{item.isLeader && !item.isParticipating}}">不参赛</text>
             <text class="mini-tag project-tag men-singles" wx:for="{{item.projects}}" wx:for-item="project" wx:key="project" wx:if="{{project === 'men_singles'}}">男单</text>
@@ -105,15 +105,6 @@
             <text class="member-info-item" wx:if="{{item.college_name}}">{{item.college_name}}</text>
           </view>
         </view>
-        <button
-          class="member-remove-btn"
-          wx:if="{{!submitted && !item.isLeader}}"
-          bindtap="onRemoveMember"
-          data-member-id="{{item.user_id}}"
-          catchtap="onStopPropagation"
-        >
-          删除
-        </button>
       </view>
     </view>
     <view class="empty-tip" wx:else>当前还没有队员</view>
