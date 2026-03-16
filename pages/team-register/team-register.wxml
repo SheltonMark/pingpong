@@ -107,7 +107,7 @@
         </view>
         <view class="member-actions" wx:if="{{!submitted && !item.isLeader}}" catchtap="onStopPropagation">
           <button
-            class="text-btn danger"
+            class="text-btn danger member-remove-btn"
             bindtap="onRemoveMember"
             data-member-id="{{item.user_id}}"
             catchtap="onStopPropagation"
@@ -150,7 +150,7 @@
             <text class="member-info-item" wx:if="{{item.invitee_college_name}}">{{item.invitee_college_name}}</text>
           </view>
 
-          <text class="pending-meta">{{item.status_description}}</text>
+          <text class="pending-meta" wx:if="{{item.status_description}}">{{item.status_description}}</text>
         </view>
 
         <view class="pending-actions" wx:if="{{item.is_pending && !submitted}}">

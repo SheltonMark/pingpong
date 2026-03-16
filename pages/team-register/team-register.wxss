@@ -259,8 +259,19 @@
   flex-shrink: 0;
 }
 
+.member-actions {
+  align-self: center;
+}
+
 .pending-actions {
   min-width: 172rpx;
+}
+
+.member-remove-btn {
+  min-width: 96rpx;
+  height: 56rpx;
+  padding: 0 20rpx;
+  font-size: 22rpx;
 }
 
 .mini-tag {

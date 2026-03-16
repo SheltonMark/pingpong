@@ -102,7 +102,7 @@ function buildInvitationStatusText(status) {
 function buildInvitationStatusDescription(invitation) {
   switch (invitation.status) {
     case 'accepted':
-      return '已加入队伍，会在已加入队员中显示';
+      return '';
     case 'rejected':
       return '已明确拒绝邀请，名额已释放';
     case 'cancelled':
