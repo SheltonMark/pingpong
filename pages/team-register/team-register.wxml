@@ -86,7 +86,7 @@
     </view>
 
     <view class="member-list" wx:if="{{members.length}}">
-      <view class="member-item" wx:for="{{members}}" wx:key="user_id">
+      <view class="member-item {{!submitted && !item.isLeader ? 'has-action' : ''}}" wx:for="{{members}}" wx:key="user_id">
         <image class="member-avatar" src="{{item.avatar_url || '/assets/default-avatar.png'}}" mode="aspectFill" />
         <view class="member-main">
           <view class="member-title-row">
@@ -98,15 +98,6 @@
             <text class="mini-tag project-tag men-doubles" wx:for="{{item.projects}}" wx:for-item="project" wx:key="project" wx:if="{{project === 'men_doubles'}}">男双</text>
             <text class="mini-tag project-tag women-doubles" wx:for="{{item.projects}}" wx:for-item="project" wx:key="project" wx:if="{{project === 'women_doubles'}}">女双</text>
             <text class="mini-tag project-tag mixed-doubles" wx:for="{{item.projects}}" wx:for-item="project" wx:key="project" wx:if="{{project === 'mixed_doubles'}}">混双</text>
-            <button
-              class="member-remove-btn"
-              wx:if="{{!submitted && !item.isLeader}}"
-              bindtap="onRemoveMember"
-              data-member-id="{{item.user_id}}"
-              catchtap="onStopPropagation"
-            >
-              删除
-            </button>
           </view>
           <view class="member-info-row">
             <text class="member-info-item">{{item.gender === 'male' ? '男' : '女'}}</text>
@@ -114,6 +105,15 @@
             <text class="member-info-item" wx:if="{{item.college_name}}">{{item.college_name}}</text>
           </view>
         </view>
+        <button
+          class="member-remove-btn"
+          wx:if="{{!submitted && !item.isLeader}}"
+          bindtap="onRemoveMember"
+          data-member-id="{{item.user_id}}"
+          catchtap="onStopPropagation"
+        >
+          删除
+        </button>
       </view>
     </view>
     <view class="empty-tip" wx:else>当前还没有队员</view>
