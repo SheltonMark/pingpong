@@ -21,13 +21,13 @@ Page({
     const token = options.token || '';
     this.setData({
       token,
-      isLoggedIn: !!app.globalData.isLoggedIn
+      isLoggedIn: !!getCurrentUserId()
     });
     this.loadInvitation();
   },
 
   onShow() {
-    const isLoggedIn = !!app.globalData.isLoggedIn;
+    const isLoggedIn = !!getCurrentUserId();
     if (isLoggedIn !== this.data.isLoggedIn) {
       this.setData({ isLoggedIn });
       this.updateInvitationState();
@@ -52,7 +52,11 @@ Page({
     }
 
     try {
-      const res = await app.request(`/api/events/team-invitations/${this.data.token}`);
+      const userId = getCurrentUserId();
+      const res = await app.request(
+        `/api/events/team-invitations/${this.data.token}`,
+        userId ? { user_id: userId } : undefined
+      );
 
       if (!res.success) {
         this.setData({
@@ -93,7 +97,13 @@ Page({
     } else if (this.data.respondedAction === 'reject') {
       state = 'rejected_self';
     } else if (invitation.status === 'pending') {
-      state = this.data.isLoggedIn ? 'pending_login' : 'pending_guest';
+      if (!this.data.isLoggedIn) {
+        state = 'pending_guest';
+      } else if (invitation.response_allowed === false) {
+        state = 'pending_blocked';
+      } else {
+        state = 'pending_login';
+      }
     } else if (invitation.status === 'accepted') {
       state = parseInt(invitation.invitee_id, 10) === parseInt(currentUserId, 10)
         ? 'joined' : 'accepted_other';
@@ -125,6 +135,13 @@ Page({
     const userId = getCurrentUserId();
     if (!userId) {
       wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+    if (this.data.invitation?.response_allowed === false) {
+      wx.showToast({
+        title: this.data.invitation.response_block_reason || '当前账号不能处理该邀请',
+        icon: 'none'
+      });
       return;
     }
 

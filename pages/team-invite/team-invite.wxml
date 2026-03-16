@@ -26,6 +26,10 @@
       </view>
     </view>
 
+    <view class="action-area" wx:elif="{{invitationState === 'pending_blocked'}}">
+      <text class="tip-text">{{invitation.response_block_reason || '当前账号不能处理该邀请'}}</text>
+    </view>
+
     <view class="action-area success" wx:elif="{{invitationState === 'joined'}}">
       <view class="success-icon">✓</view>
       <text class="tip-text">你已成功加入该队伍。</text>
