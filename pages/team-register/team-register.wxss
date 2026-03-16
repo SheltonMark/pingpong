@@ -251,27 +251,26 @@
   line-height: 1.5;
 }
 
-.member-actions,
-.pending-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 12rpx;
+.member-remove-btn {
+  margin-left: auto;
+  min-width: 104rpx;
+  height: 52rpx;
+  padding: 0 24rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22rpx;
+  font-weight: 600;
+  line-height: 1;
+  color: #b91c1c;
+  background: #fee2e2;
+  border: none;
+  border-radius: 16rpx;
   flex-shrink: 0;
 }
 
-.member-actions {
-  align-self: center;
-}
-
-.pending-actions {
-  min-width: 172rpx;
-}
-
-.member-remove-btn {
-  min-width: 96rpx;
-  height: 56rpx;
-  padding: 0 20rpx;
-  font-size: 22rpx;
+.member-remove-btn::after {
+  border: none;
 }
 
 .mini-tag {
@@ -347,6 +346,27 @@
 .invite-status-tag.removed {
   color: #6b7280;
   background: #f3f4f6;
+}
+
+.pending-item-compact {
+  align-items: flex-start;
+}
+
+.pending-inline-actions {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10rpx;
+  min-width: 0;
+}
+
+.pending-inline-btn {
+  width: 100%;
+}
+
+.pending-inline-status {
+  align-self: flex-start;
+  margin-top: 4rpx;
 }
 
 .text-btn,

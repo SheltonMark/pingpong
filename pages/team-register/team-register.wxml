@@ -98,22 +98,21 @@
             <text class="mini-tag project-tag men-doubles" wx:for="{{item.projects}}" wx:for-item="project" wx:key="project" wx:if="{{project === 'men_doubles'}}">男双</text>
             <text class="mini-tag project-tag women-doubles" wx:for="{{item.projects}}" wx:for-item="project" wx:key="project" wx:if="{{project === 'women_doubles'}}">女双</text>
             <text class="mini-tag project-tag mixed-doubles" wx:for="{{item.projects}}" wx:for-item="project" wx:key="project" wx:if="{{project === 'mixed_doubles'}}">混双</text>
+            <button
+              class="member-remove-btn"
+              wx:if="{{!submitted && !item.isLeader}}"
+              bindtap="onRemoveMember"
+              data-member-id="{{item.user_id}}"
+              catchtap="onStopPropagation"
+            >
+              删除
+            </button>
           </view>
           <view class="member-info-row">
             <text class="member-info-item">{{item.gender === 'male' ? '男' : '女'}}</text>
             <text class="member-info-item">{{item.school_name}}</text>
             <text class="member-info-item" wx:if="{{item.college_name}}">{{item.college_name}}</text>
           </view>
-        </view>
-        <view class="member-actions" wx:if="{{!submitted && !item.isLeader}}" catchtap="onStopPropagation">
-          <button
-            class="text-btn danger member-remove-btn"
-            bindtap="onRemoveMember"
-            data-member-id="{{item.user_id}}"
-            catchtap="onStopPropagation"
-          >
-            删除
-          </button>
         </view>
       </view>
     </view>
@@ -127,7 +126,18 @@
     </view>
 
     <view class="pending-list" wx:if="{{invitations.length}}">
-      <view class="pending-item" wx:for="{{invitations}}" wx:key="id">
+      <view class="pending-item pending-item-compact" wx:for="{{invitations}}" wx:key="id" wx:if="{{item.is_pending}}">
+        <view class="invite-avatar placeholder">
+          <text class="invite-avatar-text">{{index + 1}}</text>
+        </view>
+        <view class="pending-inline-actions">
+          <button class="small-btn pending-inline-btn" open-type="share" data-token="{{item.invite_token}}">分享邀请</button>
+          <button class="small-btn danger pending-inline-btn" bindtap="onCancelInvitation" data-invitation-id="{{item.id}}">取消邀请</button>
+        </view>
+        <text class="invite-status-tag {{item.status}} pending-inline-status">{{item.status_text}}</text>
+      </view>
+
+      <view class="pending-item" wx:for="{{invitations}}" wx:key="id" wx:if="{{!item.is_pending}}">
         <image
           class="member-avatar"
           wx:if="{{item.is_registered}}"
@@ -151,11 +161,6 @@
           </view>
 
           <text class="pending-meta" wx:if="{{item.status_description}}">{{item.status_description}}</text>
-        </view>
-
-        <view class="pending-actions" wx:if="{{item.is_pending && !submitted}}">
-          <button class="small-btn" open-type="share" data-token="{{item.invite_token}}">分享邀请</button>
-          <button class="small-btn danger" bindtap="onCancelInvitation" data-invitation-id="{{item.id}}">取消邀请</button>
         </view>
       </view>
     </view>
