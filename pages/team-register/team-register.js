@@ -27,11 +27,7 @@ function normalizeConfig(event = {}, draftConfig = {}) {
 }
 
 function buildRuleText(config) {
-  const parts = [
-    `每队至少 ${config.minTeamPlayers} 人`,
-    `最多 ${config.maxTeamPlayers} 人`,
-    `单打 ${config.singlesPlayerCount} 人`
-  ];
+  const parts = [`每队 ${config.minTeamPlayers}-${config.maxTeamPlayers} 人`];
 
   switch (config.genderRule) {
     case 'male_only':
