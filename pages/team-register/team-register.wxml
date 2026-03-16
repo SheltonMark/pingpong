@@ -56,14 +56,6 @@
       </view>
     </view>
 
-    <view class="summary-note">
-      <text class="summary-note-label">组队要求</text>
-      <text class="summary-note-value">{{requirementText}}</text>
-    </view>
-    <view class="summary-note">
-      <text class="summary-note-label">报名进度</text>
-      <text class="summary-note-value">{{progressText}}</text>
-    </view>
   </view>
 
   <view class="team-card">

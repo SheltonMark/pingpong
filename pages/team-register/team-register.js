@@ -116,10 +116,27 @@ function buildInvitationStatusDescription(invitation) {
   }
 }
 
-function formatInvitation(invitation = {}, fallbackNumber = 1) {
+function buildInvitationDisplayName(invitation = {}) {
+  if (invitation.invitee_name) {
+    return invitation.invitee_name;
+  }
+
+  switch (invitation.status) {
+    case 'pending':
+      return '待分享邀请';
+    case 'cancelled':
+      return '已取消邀请';
+    case 'expired':
+      return '已失效邀请';
+    default:
+      return '邀请记录';
+  }
+}
+
+function formatInvitation(invitation = {}) {
   return {
     ...invitation,
-    display_name: invitation.invitee_name || `新用户${fallbackNumber}`,
+    display_name: buildInvitationDisplayName(invitation),
     status_text: buildInvitationStatusText(invitation.status),
     status_description: buildInvitationStatusDescription(invitation),
     is_pending: invitation.status === 'pending',
@@ -511,13 +528,9 @@ Page({
       });
 
       const leader = members.find((member) => member.isLeader);
-      let anonymousInvitationCount = 0;
-      const invitations = (draft.invitations || draft.pending_invitations || []).map((invitation) => {
-        if (!invitation.invitee_name) {
-          anonymousInvitationCount += 1;
-        }
-        return formatInvitation(invitation, anonymousInvitationCount);
-      });
+      const invitations = (draft.invitations || draft.pending_invitations || []).map((invitation) =>
+        formatInvitation(invitation)
+      );
       this.syncState({
         teamName: draft.team_name || '',
         leaderParticipates: leader ? leader.isParticipating : !!draft.leader_participating,

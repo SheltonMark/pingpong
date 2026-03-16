@@ -113,7 +113,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20rpx;
-  padding: 8rpx 32rpx 20rpx;
+  padding: 8rpx 32rpx 32rpx;
 }
 
 .summary-item {
@@ -134,32 +134,6 @@
   font-size: 30rpx;
   font-weight: 700;
   color: #111827;
-}
-
-.summary-note {
-  margin: 0 32rpx 16rpx;
-  padding: 20rpx 24rpx;
-  border-radius: 18rpx;
-  background: #fff7ed;
-}
-
-.summary-note:last-child {
-  margin-bottom: 32rpx;
-}
-
-.summary-note-label {
-  display: block;
-  font-size: 22rpx;
-  color: #c2410c;
-  margin-bottom: 8rpx;
-}
-
-.summary-note-value {
-  display: block;
-  font-size: 26rpx;
-  font-weight: 600;
-  color: #9a3412;
-  line-height: 1.6;
 }
 
 .member-list,
@@ -207,18 +181,28 @@
 
 .invitation-title-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16rpx;
   margin-bottom: 12rpx;
 }
 
-.member-name,
-.pending-name {
+.member-name {
   font-size: 28rpx;
   font-weight: 600;
   color: #111827;
   margin-left: 9rpx;
+}
+
+.pending-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #111827;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .member-info-row {
@@ -273,6 +257,10 @@
   flex-direction: column;
   gap: 12rpx;
   flex-shrink: 0;
+}
+
+.pending-actions {
+  min-width: 172rpx;
 }
 
 .mini-tag {
@@ -520,7 +508,6 @@
   flex-direction: column;
   gap: 12rpx;
   position: relative;
-  z-index: 1;
 }
 
 .position-badge {
@@ -566,7 +553,6 @@
   flex-direction: column;
   gap: 12rpx;
   position: relative;
-  z-index: 1;
 }
 
 .player-badge {
