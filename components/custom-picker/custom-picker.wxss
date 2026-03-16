@@ -1,4 +1,5 @@
 .custom-picker { position: relative; z-index: 1; }
+.custom-picker.open { z-index: 50; }
 .picker-trigger { display: flex; justify-content: space-between; align-items: center; height: 80rpx; padding: 0 24rpx; background: var(--white); border: 2rpx solid var(--gray-200); border-radius: 16rpx; box-sizing: border-box; transition: all 0.2s; }
 .picker-trigger.open { border-color: var(--orange); border-radius: 16rpx 16rpx 0 0; z-index: 1001; }
 .picker-trigger.disabled { background: var(--gray-100); opacity: 0.6; }

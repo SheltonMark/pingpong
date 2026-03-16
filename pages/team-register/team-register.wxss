@@ -12,6 +12,7 @@
   border-radius: 24rpx;
   margin-bottom: 24rpx;
   box-shadow: 0 4rpx 20rpx rgba(15, 23, 42, 0.05);
+  overflow: visible;
 }
 
 .event-card {
@@ -112,7 +113,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20rpx;
-  padding: 8rpx 32rpx 32rpx;
+  padding: 8rpx 32rpx 20rpx;
 }
 
 .summary-item {
@@ -133,6 +134,32 @@
   font-size: 30rpx;
   font-weight: 700;
   color: #111827;
+}
+
+.summary-note {
+  margin: 0 32rpx 16rpx;
+  padding: 20rpx 24rpx;
+  border-radius: 18rpx;
+  background: #fff7ed;
+}
+
+.summary-note:last-child {
+  margin-bottom: 32rpx;
+}
+
+.summary-note-label {
+  display: block;
+  font-size: 22rpx;
+  color: #c2410c;
+  margin-bottom: 8rpx;
+}
+
+.summary-note-value {
+  display: block;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #9a3412;
+  line-height: 1.6;
 }
 
 .member-list,
@@ -178,6 +205,14 @@
   margin-bottom: 12rpx;
 }
 
+.invitation-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 12rpx;
+}
+
 .member-name,
 .pending-name {
   font-size: 28rpx;
@@ -190,8 +225,7 @@
   display: flex;
   align-items: center;
   gap: 16rpx;
-  flex-wrap: nowrap;
-  overflow: hidden;
+  flex-wrap: wrap;
 }
 
 .member-info-item {
@@ -266,6 +300,54 @@
 .mini-tag.singles {
   color: #b45309;
   background: #fffbeb;
+}
+
+.invite-avatar {
+  width: 84rpx;
+  height: 84rpx;
+  border-radius: 50%;
+  background: #ffedd5;
+  color: #ea580c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.invite-avatar-text {
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.invite-status-tag {
+  flex-shrink: 0;
+  padding: 8rpx 16rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.invite-status-tag.pending {
+  color: #b45309;
+  background: #fffbeb;
+}
+
+.invite-status-tag.accepted {
+  color: #047857;
+  background: #ecfdf5;
+}
+
+.invite-status-tag.rejected,
+.invite-status-tag.cancelled,
+.invite-status-tag.expired {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
+.invite-status-tag.removed {
+  color: #6b7280;
+  background: #f3f4f6;
 }
 
 .text-btn,
@@ -384,6 +466,7 @@
 .project-section {
   padding: 24rpx 32rpx 32rpx;
   border-bottom: 1rpx solid #f3f4f6;
+  overflow: visible;
 }
 
 .project-section:last-child {
@@ -436,6 +519,8 @@
   display: flex;
   flex-direction: column;
   gap: 12rpx;
+  position: relative;
+  z-index: 1;
 }
 
 .position-badge {
@@ -480,6 +565,8 @@
   display: flex;
   flex-direction: column;
   gap: 12rpx;
+  position: relative;
+  z-index: 1;
 }
 
 .player-badge {
@@ -496,4 +583,3 @@
 .player-badge.female {
   color: #be185d;
 }
-

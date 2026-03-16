@@ -44,6 +44,10 @@
       <text class="tip-text">这条邀请已被其他用户处理，当前链接不可再用。</text>
     </view>
 
+    <view class="action-area" wx:elif="{{invitationState === 'removed'}}">
+      <text class="tip-text">你已被领队移出队伍，该邀请名额已释放，当前链接不可再用。</text>
+    </view>
+
     <view class="action-area" wx:elif="{{invitationState === 'cancelled'}}">
       <text class="tip-text">领队已经取消了这条邀请，当前链接已失效。</text>
     </view>

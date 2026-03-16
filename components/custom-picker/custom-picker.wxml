@@ -1,4 +1,4 @@
-<view class="custom-picker">
+<view class="custom-picker {{isOpen ? 'open' : ''}}">
   <view class="picker-trigger {{isOpen ? 'open' : ''}} {{disabled ? 'disabled' : ''}}" bindtap="onTapTrigger">
     <text class="picker-value {{selectedLabel ? '' : 'placeholder'}}">{{selectedLabel || placeholder}}</text>
     <text class="picker-arrow">{{isOpen ? '▲' : '▼'}}</text>

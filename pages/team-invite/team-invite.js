@@ -100,6 +100,8 @@ Page({
     } else if (invitation.status === 'rejected') {
       state = parseInt(invitation.invitee_id, 10) === parseInt(currentUserId, 10)
         ? 'rejected_self' : 'rejected_other';
+    } else if (invitation.status === 'removed') {
+      state = 'removed';
     } else if (invitation.status === 'cancelled') {
       state = 'cancelled';
     }

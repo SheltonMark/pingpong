@@ -27,7 +27,7 @@
     <view class="form-row switch-row">
       <view>
         <text class="form-label">领队是否参赛</text>
-        <text class="form-tip">参赛则计入人数、性别和单打候选；不参赛则不计入</text>
+        <text class="form-tip">参赛则计入人数和性别统计；不参赛则不计入</text>
       </view>
       <switch
         color="#FF6B00"
@@ -39,35 +39,43 @@
 
     <view class="summary-grid">
       <view class="summary-item">
-        <text class="summary-label">实际参赛</text>
+        <text class="summary-label">已加入队员</text>
         <text class="summary-value">{{actualPlayerCount}} / {{config.maxTeamPlayers}}</text>
       </view>
       <view class="summary-item">
-        <text class="summary-label">占用名额</text>
-        <text class="summary-value">{{occupiedSlots}} / {{config.maxTeamPlayers}}</text>
-      </view>
-      <view class="summary-item">
-        <text class="summary-label">单打名单</text>
-        <text class="summary-value">{{singlesCount}} / {{config.singlesPlayerCount}}</text>
+        <text class="summary-label">待确认邀请</text>
+        <text class="summary-value">{{pendingInvitationCount}}</text>
       </view>
       <view class="summary-item">
         <text class="summary-label">男 / 女</text>
         <text class="summary-value">{{maleCount}} / {{femaleCount}}</text>
       </view>
+      <view class="summary-item">
+        <text class="summary-label">项目分配</text>
+        <text class="summary-value">{{totalProjectSlots ? assignedProjectSlots + ' / ' + totalProjectSlots : '未配置'}}</text>
+      </view>
+    </view>
+
+    <view class="summary-note">
+      <text class="summary-note-label">组队要求</text>
+      <text class="summary-note-value">{{requirementText}}</text>
+    </view>
+    <view class="summary-note">
+      <text class="summary-note-label">报名进度</text>
+      <text class="summary-note-value">{{progressText}}</text>
     </view>
   </view>
 
-  <!-- 邀请队友 - 移到队伍信息后面 -->
   <view class="team-card">
     <view class="card-header">
       <text class="card-title">邀请队友</text>
-      <text class="card-subtitle">先写队名，达到上限后入口会立刻锁死</text>
+      <text class="card-subtitle">每新增一条邀请，会先占用 1 个名额</text>
     </view>
 
     <view class="invite-panel">
       <text class="invite-tip" wx:if="{{!hasTeamName}}">请先填写并保存队伍名称，再创建邀请。</text>
-      <text class="invite-tip" wx:elif="{{occupiedSlots >= config.maxTeamPlayers}}">已达队伍人数上限，请先删除队员或取消邀请。</text>
-      <text class="invite-tip" wx:else>每点击一次"新增邀请"，都会占用 1 个名额，直到队员拒绝或你取消。</text>
+      <text class="invite-tip" wx:elif="{{occupiedSlots >= config.maxTeamPlayers}}">当前名额已满，请先删除队员或取消邀请后再继续。</text>
+      <text class="invite-tip" wx:else>被接受的邀请会进入队员列表；被拒绝、取消或移除后，名额会自动释放。</text>
 
       <button
         class="invite-create-btn"
@@ -82,15 +90,11 @@
   <view class="team-card">
     <view class="card-header">
       <text class="card-title">已加入队员</text>
-      <text class="card-subtitle">正式提交前可删除</text>
+      <text class="card-subtitle">未正式提交前，可删除除领队外的队员</text>
     </view>
 
     <view class="member-list" wx:if="{{members.length}}">
-      <view
-        class="member-item"
-        wx:for="{{members}}"
-        wx:key="user_id"
-      >
+      <view class="member-item" wx:for="{{members}}" wx:key="user_id">
         <image class="member-avatar" src="{{item.avatar_url || '/assets/default-avatar.png'}}" mode="aspectFill" />
         <view class="member-main">
           <view class="member-title-row">
@@ -121,38 +125,58 @@
         </view>
       </view>
     </view>
+    <view class="empty-tip" wx:else>当前还没有队员</view>
   </view>
 
   <view class="team-card">
     <view class="card-header">
-      <text class="card-title">待处理邀请</text>
-      <text class="card-subtitle">待处理邀请占用名额，提交前必须清空</text>
+      <text class="card-title">邀请记录</text>
+      <text class="card-subtitle">保留全部状态，方便查看接受、拒绝和移除结果</text>
     </view>
 
-    <view class="pending-list" wx:if="{{pendingInvitations.length}}">
-      <view class="pending-item" wx:for="{{pendingInvitations}}" wx:key="id">
-        <view class="pending-main">
-          <text class="pending-name">{{item.display_name}}</text>
-          <text class="pending-meta">邀请链接已创建，等待队员加入或拒绝</text>
+    <view class="pending-list" wx:if="{{invitations.length}}">
+      <view class="pending-item" wx:for="{{invitations}}" wx:key="id">
+        <image
+          class="member-avatar"
+          wx:if="{{item.is_registered}}"
+          src="{{item.invitee_avatar_url || '/assets/default-avatar.png'}}"
+          mode="aspectFill"
+        />
+        <view class="invite-avatar placeholder" wx:else>
+          <text class="invite-avatar-text">{{index + 1}}</text>
         </view>
-        <view class="pending-actions">
+
+        <view class="pending-main">
+          <view class="invitation-title-row">
+            <text class="pending-name">{{item.display_name}}</text>
+            <text class="invite-status-tag {{item.status}}">{{item.status_text}}</text>
+          </view>
+
+          <view class="member-info-row" wx:if="{{item.is_registered}}">
+            <text class="member-info-item" wx:if="{{item.invitee_gender}}">{{item.invitee_gender === 'male' ? '男' : item.invitee_gender === 'female' ? '女' : '未知'}}</text>
+            <text class="member-info-item" wx:if="{{item.invitee_school_name}}">{{item.invitee_school_name}}</text>
+            <text class="member-info-item" wx:if="{{item.invitee_college_name}}">{{item.invitee_college_name}}</text>
+          </view>
+
+          <text class="pending-meta">{{item.status_description}}</text>
+        </view>
+
+        <view class="pending-actions" wx:if="{{item.is_pending && !submitted}}">
           <button class="small-btn" open-type="share" data-token="{{item.invite_token}}">分享邀请</button>
           <button class="small-btn danger" bindtap="onCancelInvitation" data-invitation-id="{{item.id}}">取消邀请</button>
         </view>
       </view>
     </view>
 
-    <view class="empty-tip" wx:else>当前没有待处理邀请</view>
+    <view class="empty-tip" wx:else>当前还没有邀请记录</view>
   </view>
 
-  <!-- 项目分配 -->
   <view class="team-card" wx:if="{{projectConfig && projectConfig.projects}}">
     <view class="card-header">
       <text class="card-title">项目分配</text>
       <text class="card-subtitle">为每个项目指定参赛人员</text>
     </view>
 
-    <!-- 男单 -->
     <view class="project-section" wx:if="{{projectConfig.projects.men_singles && projectConfig.projects.men_singles.enabled}}">
       <view class="project-header">
         <view class="project-title-wrapper">
@@ -176,7 +200,6 @@
       </view>
     </view>
 
-    <!-- 女单 -->
     <view class="project-section" wx:if="{{projectConfig.projects.women_singles && projectConfig.projects.women_singles.enabled}}">
       <view class="project-header">
         <view class="project-title-wrapper">
@@ -200,7 +223,6 @@
       </view>
     </view>
 
-    <!-- 男双 -->
     <view class="project-section" wx:if="{{projectConfig.projects.men_doubles && projectConfig.projects.men_doubles.enabled}}">
       <view class="project-header">
         <view class="project-title-wrapper">
@@ -245,7 +267,6 @@
       </view>
     </view>
 
-    <!-- 女双 -->
     <view class="project-section" wx:if="{{projectConfig.projects.women_doubles && projectConfig.projects.women_doubles.enabled}}">
       <view class="project-header">
         <view class="project-title-wrapper">
@@ -290,7 +311,6 @@
       </view>
     </view>
 
-    <!-- 混双 -->
     <view class="project-section" wx:if="{{projectConfig.projects.mixed_doubles && projectConfig.projects.mixed_doubles.enabled}}">
       <view class="project-header">
         <view class="project-title-wrapper">

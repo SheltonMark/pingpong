@@ -1,5 +1,6 @@
 const app = getApp();
 const subscribe = require('../../utils/subscribe');
+const AUTO_REFRESH_INTERVAL = 10000;
 
 function getCurrentUserId() {
   return app.globalData.userInfo?.id || app.globalData.userInfo?.user_id || null;
@@ -50,6 +51,137 @@ function buildRuleText(config) {
   return parts.join(' · ');
 }
 
+function buildRequirementText(config) {
+  switch (config.genderRule) {
+    case 'male_only':
+      return '仅限男队';
+    case 'female_only':
+      return '仅限女队';
+    case 'fixed':
+      return `固定男 ${config.requiredMaleCount} 人 / 女 ${config.requiredFemaleCount} 人`;
+    case 'minimum':
+      return `至少男 ${config.requiredMaleCount} 人 / 女 ${config.requiredFemaleCount} 人`;
+    default:
+      return `至少 ${config.minTeamPlayers} 人成队，性别不限`;
+  }
+}
+
+function buildProgressText(actualPlayerCount, pendingInvitationCount, config) {
+  if (actualPlayerCount < config.minTeamPlayers) {
+    return `还差 ${config.minTeamPlayers - actualPlayerCount} 人达到最低报名人数`;
+  }
+
+  if (actualPlayerCount >= config.maxTeamPlayers) {
+    return '队伍人数已满，可直接确认项目分配并提交';
+  }
+
+  if (pendingInvitationCount > 0) {
+    return `已满足最低报名人数，当前还有 ${pendingInvitationCount} 条邀请待确认`;
+  }
+
+  return '已满足最低报名人数，可继续补充队员或完善项目分配';
+}
+
+function buildInvitationStatusText(status) {
+  switch (status) {
+    case 'accepted':
+      return '已接受';
+    case 'rejected':
+      return '已拒绝';
+    case 'cancelled':
+      return '已取消';
+    case 'removed':
+      return '已移除';
+    case 'expired':
+      return '已过期';
+    default:
+      return '待处理';
+  }
+}
+
+function buildInvitationStatusDescription(invitation) {
+  switch (invitation.status) {
+    case 'accepted':
+      return '已加入队伍，会在已加入队员中显示';
+    case 'rejected':
+      return '已明确拒绝邀请，名额已释放';
+    case 'cancelled':
+      return '领队已取消该邀请，名额已释放';
+    case 'removed':
+      return '该队员已被移出队伍，名额已重新释放';
+    case 'expired':
+      return '该邀请已失效，不可继续使用';
+    default:
+      return '邀请已创建，等待队员加入或拒绝';
+  }
+}
+
+function formatInvitation(invitation = {}, fallbackNumber = 1) {
+  return {
+    ...invitation,
+    display_name: invitation.invitee_name || `新用户${fallbackNumber}`,
+    status_text: buildInvitationStatusText(invitation.status),
+    status_description: buildInvitationStatusDescription(invitation),
+    is_pending: invitation.status === 'pending',
+    is_registered: !!invitation.invitee_id
+  };
+}
+
+function calcProjectAssignmentStats(projectConfig, projectAssignments = {}) {
+  if (!projectConfig || !projectConfig.projects) {
+    return {
+      totalProjectSlots: 0,
+      assignedProjectSlots: 0
+    };
+  }
+
+  let totalProjectSlots = 0;
+  let assignedProjectSlots = 0;
+
+  Object.entries(projectConfig.projects).forEach(([projectType, project]) => {
+    if (!project || !project.enabled) {
+      return;
+    }
+
+    const positions = projectAssignments[projectType] || [];
+    if (projectType.includes('singles')) {
+      totalProjectSlots += project.count;
+      assignedProjectSlots += positions.filter((assignment) => assignment && assignment.player_a).length;
+      return;
+    }
+
+    totalProjectSlots += project.count * 2;
+    positions.forEach((assignment) => {
+      if (assignment?.player_a) {
+        assignedProjectSlots += 1;
+      }
+      if (assignment?.player_b) {
+        assignedProjectSlots += 1;
+      }
+    });
+  });
+
+  return {
+    totalProjectSlots,
+    assignedProjectSlots
+  };
+}
+
+function applyMemberProjects(members = [], memberProjects = {}) {
+  return members.map((member) => {
+    const projects = memberProjects[member.user_id] || [];
+    const isSingles = member.isParticipating && (
+      projects.includes('men_singles') || projects.includes('women_singles')
+    );
+
+    return {
+      ...member,
+      projects,
+      isSingles
+    };
+  });
+}
+
 function normalizeMember(member = {}) {
   return {
     user_id: member.user_id,
@@ -80,7 +212,7 @@ function buildDefaultLeader(user = {}, leaderParticipates = true) {
   };
 }
 
-function calcStats(members = [], pendingInvitations = []) {
+function calcStats(members = [], pendingInvitationCount = 0) {
   let actualPlayerCount = 0;
   let maleCount = 0;
   let femaleCount = 0;
@@ -104,10 +236,35 @@ function calcStats(members = [], pendingInvitations = []) {
 
   return {
     actualPlayerCount,
-    occupiedSlots: actualPlayerCount + (pendingInvitations || []).length,
+    occupiedSlots: actualPlayerCount + pendingInvitationCount,
     maleCount,
     femaleCount,
     singlesCount
+  };
+}
+
+function buildMemberState(members = [], pendingInvitations = [], config = normalizeConfig()) {
+  const stats = calcStats(members, pendingInvitations.length);
+  const maleMembers = members
+    .filter((member) => member.gender === 'male' && member.isParticipating)
+    .map((member) => ({
+      label: member.name,
+      value: member.user_id
+    }));
+
+  const femaleMembers = members
+    .filter((member) => member.gender === 'female' && member.isParticipating)
+    .map((member) => ({
+      label: member.name,
+      value: member.user_id
+    }));
+
+  return {
+    maleMembers,
+    femaleMembers,
+    pendingInvitationCount: pendingInvitations.length,
+    progressText: buildProgressText(stats.actualPlayerCount, pendingInvitations.length, config),
+    ...stats
   };
 }
 
@@ -120,6 +277,7 @@ Page({
     hasTeamName: false,
     leaderParticipates: true,
     members: [],
+    invitations: [],
     pendingInvitations: [],
     submitted: false,
     isLoading: true,
@@ -130,9 +288,15 @@ Page({
     config: normalizeConfig(),
     actualPlayerCount: 0,
     occupiedSlots: 0,
+    pendingInvitationCount: 0,
     maleCount: 0,
     femaleCount: 0,
     singlesCount: 0,
+    progressText: '',
+    requirementText: '',
+    assignedProjectSlots: 0,
+    totalProjectSlots: 0,
+    hasLocalChanges: false,
     // 项目配置
     projectConfig: null,
     // 项目分配
@@ -158,7 +322,16 @@ Page({
   onShow() {
     if (this.data.eventId && getCurrentUserId()) {
       this.loadDraftStatus({ silent: true });
+      this.startAutoRefresh();
     }
+  },
+
+  onHide() {
+    this.stopAutoRefresh();
+  },
+
+  onUnload() {
+    this.stopAutoRefresh();
   },
 
   async loadData() {
@@ -217,46 +390,63 @@ Page({
     }
   },
 
+  startAutoRefresh() {
+    this.stopAutoRefresh();
+    this.autoRefreshTimer = setInterval(() => {
+      if (!this.data.eventId || !getCurrentUserId()) {
+        return;
+      }
+      if (
+        this.data.isLoading ||
+        this.data.isSavingDraft ||
+        this.data.isCreatingInvitation ||
+        this.data.isSubmitting ||
+        this.data.hasLocalChanges
+      ) {
+        return;
+      }
+
+      this.loadDraftStatus({ silent: true });
+    }, AUTO_REFRESH_INTERVAL);
+  },
+
+  stopAutoRefresh() {
+    if (this.autoRefreshTimer) {
+      clearInterval(this.autoRefreshTimer);
+      this.autoRefreshTimer = null;
+    }
+  },
+
   syncState({
     teamName,
     leaderParticipates,
     members,
+    invitations,
     pendingInvitations,
     submitted,
     config
   }) {
     const nextConfig = config || this.data.config || normalizeConfig(this.data.event);
     const normalizedMembers = members || [];
-    const normalizedPendingInvitations = pendingInvitations || [];
-    const stats = calcStats(normalizedMembers, normalizedPendingInvitations);
-
-    // 构建队员选项列表
-    const maleMembers = normalizedMembers
-      .filter(m => m.gender === 'male' && m.isParticipating)
-      .map(m => ({
-        label: m.name,
-        value: m.user_id
-      }));
-
-    const femaleMembers = normalizedMembers
-      .filter(m => m.gender === 'female' && m.isParticipating)
-      .map(m => ({
-        label: m.name,
-        value: m.user_id
-      }));
+    const normalizedInvitations = invitations || this.data.invitations || [];
+    const normalizedPendingInvitations = pendingInvitations || normalizedInvitations.filter((invitation) => invitation.status === 'pending');
+    const memberState = buildMemberState(normalizedMembers, normalizedPendingInvitations, nextConfig);
+    const assignmentStats = calcProjectAssignmentStats(this.data.projectConfig, this.data.projectAssignments);
 
     this.setData({
       teamName,
       hasTeamName: !!(teamName || '').trim(),
       leaderParticipates,
       members: normalizedMembers,
+      invitations: normalizedInvitations,
       pendingInvitations: normalizedPendingInvitations,
       submitted: !!submitted,
       config: nextConfig,
       ruleText: buildRuleText(nextConfig),
-      maleMembers,
-      femaleMembers,
-      ...stats
+      requirementText: buildRequirementText(nextConfig),
+      assignedProjectSlots: assignmentStats.assignedProjectSlots,
+      totalProjectSlots: assignmentStats.totalProjectSlots,
+      ...memberState
     });
   },
 
@@ -270,10 +460,12 @@ Page({
       teamName: this.data.teamName || '',
       leaderParticipates,
       members: leader,
+      invitations: [],
       pendingInvitations: [],
       submitted: false,
       config: normalizeConfig(this.data.event)
     });
+    this.setData({ hasLocalChanges: false });
   },
 
   async loadDraftStatus(options = {}) {
@@ -319,20 +511,26 @@ Page({
       });
 
       const leader = members.find((member) => member.isLeader);
+      let anonymousInvitationCount = 0;
+      const invitations = (draft.invitations || draft.pending_invitations || []).map((invitation) => {
+        if (!invitation.invitee_name) {
+          anonymousInvitationCount += 1;
+        }
+        return formatInvitation(invitation, anonymousInvitationCount);
+      });
       this.syncState({
         teamName: draft.team_name || '',
         leaderParticipates: leader ? leader.isParticipating : !!draft.leader_participating,
         members,
-        pendingInvitations: (draft.pending_invitations || []).map((invitation, index) => ({
-          ...invitation,
-          display_name: invitation.invitee_name || `待分享邀请 ${index + 1}`
-        })),
+        invitations,
+        pendingInvitations: invitations.filter((invitation) => invitation.status === 'pending'),
         submitted: draft.submitted,
         config
       });
 
       // 加载项目分配
       await this.loadProjectAssignments();
+      this.setData({ hasLocalChanges: false });
     } catch (error) {
       console.error('加载队伍草稿失败:', error);
       if (!options.silent) {
@@ -348,7 +546,8 @@ Page({
     const teamName = e.detail.value;
     this.setData({
       teamName,
-      hasTeamName: !!teamName.trim()
+      hasTeamName: !!teamName.trim(),
+      hasLocalChanges: true
     });
   },
 
@@ -383,6 +582,8 @@ Page({
       pendingInvitations: this.data.pendingInvitations,
       submitted: false
     });
+
+    this.setData({ hasLocalChanges: true });
 
     if (this.data.teamName.trim()) {
       this.saveDraft({ silent: true });
@@ -603,14 +804,14 @@ Page({
     }
 
     if (this.data.singlesCount !== this.data.config.singlesPlayerCount) {
-      wx.showToast({ title: `请指定 ${this.data.config.singlesPlayerCount} 名单打队员`, icon: 'none' });
+      wx.showToast({ title: `请完成 ${this.data.config.singlesPlayerCount} 个单打名额分配`, icon: 'none' });
       return;
     }
 
     const confirmed = await new Promise((resolve) => {
       wx.showModal({
         title: '确认正式提交',
-        content: '提交后队名、队员名单和单打名单会立即锁定，且未提交队伍仍不会在前后台显示。是否继续？',
+        content: '提交后队名、队员名单和项目分配会立即锁定，且未提交队伍仍不会在前后台显示。是否继续？',
         success: (res) => resolve(!!res.confirm),
         fail: () => resolve(false)
       });
@@ -738,7 +939,10 @@ Page({
       }
     }
 
-    this.setData({ projectAssignments });
+    this.setData({
+      projectAssignments,
+      hasLocalChanges: true
+    });
 
     // 更新队员的项目信息
     this.updateMemberProjects();
@@ -772,12 +976,16 @@ Page({
     });
 
     // 更新队员的项目信息
-    const updatedMembers = members.map(member => ({
-      ...member,
-      projects: memberProjects[member.user_id] || []
-    }));
+    const updatedMembers = applyMemberProjects(members, memberProjects);
+    const memberState = buildMemberState(updatedMembers, this.data.pendingInvitations, this.data.config);
+    const assignmentStats = calcProjectAssignmentStats(this.data.projectConfig, projectAssignments);
 
-    this.setData({ members: updatedMembers });
+    this.setData({
+      members: updatedMembers,
+      assignedProjectSlots: assignmentStats.assignedProjectSlots,
+      totalProjectSlots: assignmentStats.totalProjectSlots,
+      ...memberState
+    });
   },
 
   async loadProjectAssignments() {
@@ -816,14 +1024,16 @@ Page({
         });
 
         // 更新队员的项目信息
-        const members = this.data.members.map(member => ({
-          ...member,
-          projects: memberProjects[member.user_id] || []
-        }));
+        const members = applyMemberProjects(this.data.members, memberProjects);
+        const memberState = buildMemberState(members, this.data.pendingInvitations, this.data.config);
+        const assignmentStats = calcProjectAssignmentStats(this.data.projectConfig, projectAssignments);
 
         this.setData({
           projectAssignments,
-          members
+          members,
+          assignedProjectSlots: assignmentStats.assignedProjectSlots,
+          totalProjectSlots: assignmentStats.totalProjectSlots,
+          ...memberState
         });
       }
     } catch (error) {
@@ -867,6 +1077,10 @@ Page({
         },
         'PUT'
       );
+
+      if (res.success) {
+        this.setData({ hasLocalChanges: false });
+      }
 
       return res.success;
     } catch (error) {
