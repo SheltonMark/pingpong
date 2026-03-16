@@ -9,12 +9,12 @@
       <text class="event-meta">团体赛{{event.location ? ' · ' + event.location : ''}}</text>
     </view>
 
-    <view class="action-area" wx:if="{{getInvitationState() === 'pending_guest'}}">
+    <view class="action-area" wx:if="{{invitationState === 'pending_guest'}}">
       <text class="tip-text">你还没有登录，请先注册或登录后再处理邀请。</text>
       <button class="action-btn primary" bindtap="onGoRegister">去注册/登录</button>
     </view>
 
-    <view class="action-area" wx:elif="{{getInvitationState() === 'pending_login'}}">
+    <view class="action-area" wx:elif="{{invitationState === 'pending_login'}}">
       <text class="tip-text">待处理邀请会占用队伍名额，请根据自身情况选择加入或拒绝。</text>
       <view class="action-row">
         <button class="action-btn secondary" bindtap="onRespond" data-action="reject" disabled="{{isSubmitting}}">
@@ -26,25 +26,25 @@
       </view>
     </view>
 
-    <view class="action-area success" wx:elif="{{getInvitationState() === 'joined'}}">
+    <view class="action-area success" wx:elif="{{invitationState === 'joined'}}">
       <view class="success-icon">✓</view>
       <text class="tip-text">你已成功加入该队伍。</text>
     </view>
 
-    <view class="action-area success" wx:elif="{{getInvitationState() === 'rejected_self'}}">
+    <view class="action-area success" wx:elif="{{invitationState === 'rejected_self'}}">
       <view class="success-icon muted">已</view>
       <text class="tip-text">你已明确拒绝本次邀请，该名额已释放给领队重新安排。</text>
     </view>
 
-    <view class="action-area" wx:elif="{{getInvitationState() === 'accepted_other'}}">
-      <text class="tip-text">这条邀请已经被其他队员使用，不能重复加入。</text>
+    <view class="action-area" wx:elif="{{invitationState === 'accepted_other'}}">
+      <text class="tip-text">这条邀请已被其他队员使用，不能重复加入。</text>
     </view>
 
-    <view class="action-area" wx:elif="{{getInvitationState() === 'rejected_other'}}">
+    <view class="action-area" wx:elif="{{invitationState === 'rejected_other'}}">
       <text class="tip-text">这条邀请已被其他用户处理，当前链接不可再用。</text>
     </view>
 
-    <view class="action-area" wx:elif="{{getInvitationState() === 'cancelled'}}">
+    <view class="action-area" wx:elif="{{invitationState === 'cancelled'}}">
       <text class="tip-text">领队已经取消了这条邀请，当前链接已失效。</text>
     </view>
   </view>

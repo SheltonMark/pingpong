@@ -13,7 +13,8 @@ Page({
     isLoading: true,
     isSubmitting: false,
     respondedAction: '',
-    errorMsg: ''
+    errorMsg: '',
+    invitationState: 'invalid'
   },
 
   onLoad(options) {
@@ -29,6 +30,7 @@ Page({
     const isLoggedIn = !!app.globalData.isLoggedIn;
     if (isLoggedIn !== this.data.isLoggedIn) {
       this.setData({ isLoggedIn });
+      this.updateInvitationState();
     }
 
     if (this.data.token) {
@@ -66,6 +68,7 @@ Page({
         event: res.data.event,
         errorMsg: ''
       });
+      this.updateInvitationState();
     } catch (error) {
       console.error('加载邀请详情失败:', error);
       this.setData({
@@ -78,43 +81,30 @@ Page({
     }
   },
 
-  getInvitationState() {
+  updateInvitationState() {
     const invitation = this.data.invitation;
     const currentUserId = getCurrentUserId();
+    let state = 'invalid';
 
     if (!invitation) {
-      return 'invalid';
+      state = 'invalid';
+    } else if (this.data.respondedAction === 'accept') {
+      state = 'joined';
+    } else if (this.data.respondedAction === 'reject') {
+      state = 'rejected_self';
+    } else if (invitation.status === 'pending') {
+      state = this.data.isLoggedIn ? 'pending_login' : 'pending_guest';
+    } else if (invitation.status === 'accepted') {
+      state = parseInt(invitation.invitee_id, 10) === parseInt(currentUserId, 10)
+        ? 'joined' : 'accepted_other';
+    } else if (invitation.status === 'rejected') {
+      state = parseInt(invitation.invitee_id, 10) === parseInt(currentUserId, 10)
+        ? 'rejected_self' : 'rejected_other';
+    } else if (invitation.status === 'cancelled') {
+      state = 'cancelled';
     }
 
-    if (this.data.respondedAction === 'accept') {
-      return 'joined';
-    }
-
-    if (this.data.respondedAction === 'reject') {
-      return 'rejected_self';
-    }
-
-    if (invitation.status === 'pending') {
-      return this.data.isLoggedIn ? 'pending_login' : 'pending_guest';
-    }
-
-    if (invitation.status === 'accepted') {
-      return parseInt(invitation.invitee_id, 10) === parseInt(currentUserId, 10)
-        ? 'joined'
-        : 'accepted_other';
-    }
-
-    if (invitation.status === 'rejected') {
-      return parseInt(invitation.invitee_id, 10) === parseInt(currentUserId, 10)
-        ? 'rejected_self'
-        : 'rejected_other';
-    }
-
-    if (invitation.status === 'cancelled') {
-      return 'cancelled';
-    }
-
-    return 'invalid';
+    this.setData({ invitationState: state });
   },
 
   onGoRegister() {
@@ -154,6 +144,7 @@ Page({
       }
 
       this.setData({ respondedAction: action });
+      this.updateInvitationState();
       wx.showToast({
         title: action === 'accept' ? '已加入队伍' : '已拒绝邀请',
         icon: 'success'
