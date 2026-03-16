@@ -194,7 +194,15 @@ async function getTeamMembers(eventId, leaderId, connection = pool) {
   return rows;
 }
 
-async function getPendingTeamInvitations(eventId, leaderId, connection = pool) {
+async function getTeamInvitations(eventId, leaderId, connection = pool, statuses = null) {
+  const params = [eventId, leaderId];
+  let statusClause = '';
+
+  if (Array.isArray(statuses) && statuses.length > 0) {
+    statusClause = ` AND i.status IN (${statuses.map(() => '?').join(',')})`;
+    params.push(...statuses);
+  }
+
   const [rows] = await connection.query(
     `SELECT i.id,
             i.event_id,
@@ -208,17 +216,25 @@ async function getPendingTeamInvitations(eventId, leaderId, connection = pool) {
             u.name as invitee_name,
             u.phone as invitee_phone,
             u.gender as invitee_gender,
-            u.avatar_url as invitee_avatar_url
+            u.avatar_url as invitee_avatar_url,
+            s.name as invitee_school_name,
+            c.name as invitee_college_name
      FROM team_invitations i
-     LEFT JOIN users u ON i.invitee_id = u.id
-     WHERE i.event_id = ?
-       AND i.inviter_id = ?
-       AND i.type = 'team'
-       AND i.status = 'pending'
-     ORDER BY i.created_at ASC, i.id ASC`,
-    [eventId, leaderId]
+      LEFT JOIN users u ON i.invitee_id = u.id
+      LEFT JOIN schools s ON u.school_id = s.id
+      LEFT JOIN colleges c ON u.college_id = c.id
+      WHERE i.event_id = ?
+        AND i.inviter_id = ?
+        AND i.type = 'team'
+        ${statusClause}
+      ORDER BY i.created_at ASC, i.id ASC`,
+    params
   );
   return rows;
+}
+
+async function getPendingTeamInvitations(eventId, leaderId, connection = pool) {
+  return getTeamInvitations(eventId, leaderId, connection, ['pending']);
 }
 
 async function upsertLeaderDraft(connection, { eventId, leaderId, teamName, leaderParticipating }) {
@@ -1788,10 +1804,32 @@ router.post('/:id/team-members/:memberId/remove', async (req, res) => {
     await pool.execute(
       `UPDATE event_registrations
        SET status = 'cancelled',
-           is_singles_player = 0
+            is_singles_player = 0
        WHERE id = ?`,
       [rows[0].id]
     );
+
+    const [acceptedInvitations] = await pool.query(
+      `SELECT id
+       FROM team_invitations
+       WHERE event_id = ?
+         AND inviter_id = ?
+         AND invitee_id = ?
+         AND type = 'team'
+         AND status = 'accepted'
+       ORDER BY responded_at DESC, id DESC
+       LIMIT 1`,
+      [id, user_id, memberId]
+    );
+
+    if (acceptedInvitations.length > 0) {
+      await pool.execute(
+        `UPDATE team_invitations
+         SET status = 'removed', responded_at = NOW()
+         WHERE id = ?`,
+        [acceptedInvitations[0].id]
+      );
+    }
 
     // 通知被删除的队员
     if (rows[0].openid) {
@@ -2015,9 +2053,10 @@ router.get('/:id/team-draft-status', async (req, res) => {
     const members = leaderReg && leaderReg.status !== 'cancelled'
       ? await getTeamMembers(id, user_id)
       : [];
-    const pendingInvitations = leaderReg && leaderReg.status !== 'cancelled'
-      ? await getPendingTeamInvitations(id, user_id)
+    const invitations = leaderReg && leaderReg.status !== 'cancelled'
+      ? await getTeamInvitations(id, user_id)
       : [];
+    const pendingInvitations = invitations.filter((invitation) => invitation.status === 'pending');
     const config = normalizeTeamEventConfig(event);
     const actualParticipants = members.filter((member) => {
       if (member.is_team_leader) {
@@ -2036,6 +2075,7 @@ router.get('/:id/team-draft-status', async (req, res) => {
         actual_player_count: actualParticipants.length,
         occupied_slots: occupiedSlots,
         members,
+        invitations,
         pending_invitations: pendingInvitations,
         config
       }
