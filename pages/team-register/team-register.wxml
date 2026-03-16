@@ -86,11 +86,17 @@
     </view>
 
     <view class="member-list" wx:if="{{members.length}}">
-      <view class="member-item" wx:for="{{members}}" wx:key="user_id">
+      <view
+        class="member-item"
+        wx:for="{{members}}"
+        wx:key="user_id"
+        bindlongpress="onRemoveMember"
+        data-member-id="{{!submitted && !item.isLeader ? item.user_id : ''}}"
+      >
         <image class="member-avatar" src="{{item.avatar_url || '/assets/default-avatar.png'}}" mode="aspectFill" />
         <view class="member-main">
           <view class="member-title-row">
-            <text class="member-name" bindlongpress="onRemoveMember" data-member-id="{{!submitted && !item.isLeader ? item.user_id : ''}}">{{item.name}}</text>
+            <text class="member-name">{{item.name}}</text>
             <text class="mini-tag leader" wx:if="{{item.isLeader}}">领队</text>
             <text class="mini-tag warning" wx:if="{{item.isLeader && !item.isParticipating}}">不参赛</text>
             <text class="mini-tag project-tag men-singles" wx:for="{{item.projects}}" wx:for-item="project" wx:key="project" wx:if="{{project === 'men_singles'}}">男单</text>

@@ -2893,9 +2893,19 @@ router.put('/:id/team-project-assignments', async (req, res) => {
 
     // 验证用户是该队伍的领队
     const [captainCheck] = await conn.query(
-      `SELECT id FROM captain_applications
-       WHERE event_id = ? AND user_id = ? AND team_name = ? AND status = 'approved'`,
-      [eventId, user_id, team_name]
+      `SELECT ca.id, er.team_name
+       FROM captain_applications ca
+       JOIN event_registrations er
+         ON er.event_id = ca.event_id
+        AND er.user_id = ca.user_id
+        AND er.is_team_leader = 1
+        AND er.status != 'cancelled'
+       WHERE ca.event_id = ?
+         AND ca.user_id = ?
+         AND ca.status = 'approved'
+       ORDER BY er.id DESC
+       LIMIT 1`,
+      [eventId, user_id]
     );
 
     if (captainCheck.length === 0) {
@@ -2903,10 +2913,12 @@ router.put('/:id/team-project-assignments', async (req, res) => {
       return res.json({ success: false, message: '只有领队可以分配项目' });
     }
 
+    const actualTeamName = captainCheck[0].team_name || team_name;
+
     // 删除该队伍的旧分配
     await conn.query(
       'DELETE FROM team_project_assignments WHERE event_id = ? AND team_name = ?',
-      [eventId, team_name]
+      [eventId, actualTeamName]
     );
 
     // 插入新分配
@@ -2921,7 +2933,7 @@ router.put('/:id/team-project-assignments', async (req, res) => {
         `INSERT INTO team_project_assignments
          (event_id, team_name, project_type, position, player_a_id, player_b_id)
          VALUES (?, ?, ?, ?, ?, ?)`,
-        [eventId, team_name, project, position, player_a, player_b || null]
+        [eventId, actualTeamName, project, position, player_a, player_b || null]
       );
     }
 
@@ -2948,8 +2960,14 @@ router.get('/:id/team-project-assignments', async (req, res) => {
 
     // 获取用户的队伍名称
     const [captain] = await pool.query(
-      `SELECT team_name FROM captain_applications
-       WHERE event_id = ? AND user_id = ? AND status = 'approved'`,
+      `SELECT team_name
+       FROM event_registrations
+       WHERE event_id = ?
+         AND user_id = ?
+         AND is_team_leader = 1
+         AND status != 'cancelled'
+       ORDER BY id DESC
+       LIMIT 1`,
       [eventId, user_id]
     );
 
@@ -2958,6 +2976,15 @@ router.get('/:id/team-project-assignments', async (req, res) => {
     }
 
     const teamName = captain[0].team_name;
+    if (!teamName) {
+      return res.json({
+        success: true,
+        data: {
+          assignments: [],
+          member_projects: {}
+        }
+      });
+    }
 
     // 获取项目分配
     const [assignments] = await pool.query(
