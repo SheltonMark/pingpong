@@ -6,7 +6,6 @@ const { calculateMatchRating } = require('../utils/ratingCalculator');
 const subscribeMessage = require('../utils/subscribeMessage');
 const {
   normalizeTeamEventConfig,
-  validateTeamParticipants,
   buildSubmittedTeamSummaries,
   createInviteToken
 } = require('../utils/teamEvent');
@@ -235,6 +234,232 @@ async function getTeamInvitations(eventId, leaderId, connection = pool, statuses
 
 async function getPendingTeamInvitations(eventId, leaderId, connection = pool) {
   return getTeamInvitations(eventId, leaderId, connection, ['pending']);
+}
+
+const TEAM_PROJECT_RULES = {
+  men_singles: {
+    label: '男单',
+    playerCount: 1,
+    genders: ['male']
+  },
+  women_singles: {
+    label: '女单',
+    playerCount: 1,
+    genders: ['female']
+  },
+  men_doubles: {
+    label: '男双',
+    playerCount: 2,
+    genders: ['male', 'male']
+  },
+  women_doubles: {
+    label: '女双',
+    playerCount: 2,
+    genders: ['female', 'female']
+  },
+  mixed_doubles: {
+    label: '混双',
+    playerCount: 2,
+    genders: ['male', 'female']
+  }
+};
+
+function normalizeTeamProjectConfig(teamEventConfig = {}) {
+  let parsedConfig = teamEventConfig;
+  if (typeof parsedConfig === 'string') {
+    try {
+      parsedConfig = JSON.parse(parsedConfig);
+    } catch (error) {
+      parsedConfig = {};
+    }
+  }
+
+  const rawProjects = parsedConfig?.projects || {};
+  const projects = {};
+
+  Object.keys(TEAM_PROJECT_RULES).forEach((projectType) => {
+    const rawProject = rawProjects[projectType] || {};
+    projects[projectType] = {
+      enabled: !!rawProject.enabled,
+      count: Math.max(0, parseInt(rawProject.count, 10) || 0)
+    };
+  });
+
+  return { projects };
+}
+
+async function getTeamProjectAssignments(eventId, teamName, connection = pool) {
+  if (!teamName) {
+    return [];
+  }
+
+  const [rows] = await connection.query(
+    `SELECT project_type, position, player_a_id, player_b_id
+     FROM team_project_assignments
+     WHERE event_id = ? AND team_name = ?
+     ORDER BY project_type, position`,
+    [eventId, teamName]
+  );
+  return rows;
+}
+
+function validateTeamSubmitParticipants(event, participants = []) {
+  const config = normalizeTeamEventConfig(event);
+  const errors = [];
+  const summary = participants.reduce((result, participant) => {
+    result.totalCount += 1;
+    if (participant.gender === 'male') {
+      result.maleCount += 1;
+    } else if (participant.gender === 'female') {
+      result.femaleCount += 1;
+    }
+    return result;
+  }, {
+    totalCount: 0,
+    maleCount: 0,
+    femaleCount: 0
+  });
+
+  if (summary.totalCount < config.minTeamPlayers) {
+    errors.push(`每队至少需要 ${config.minTeamPlayers} 名实际参赛队员`);
+  }
+  if (summary.totalCount > config.maxTeamPlayers) {
+    errors.push(`每队最多只能有 ${config.maxTeamPlayers} 名实际参赛队员`);
+  }
+
+  switch (config.genderRule) {
+    case 'male_only':
+      if (summary.femaleCount > 0) {
+        errors.push('该赛事仅允许男子团体报名');
+      }
+      break;
+    case 'female_only':
+      if (summary.maleCount > 0) {
+        errors.push('该赛事仅允许女子团体报名');
+      }
+      break;
+    case 'fixed':
+      if (
+        summary.maleCount !== config.requiredMaleCount ||
+        summary.femaleCount !== config.requiredFemaleCount
+      ) {
+        errors.push(`实际参赛名单必须为男 ${config.requiredMaleCount} 人、女 ${config.requiredFemaleCount} 人`);
+      }
+      break;
+    case 'minimum':
+      if (summary.maleCount < config.requiredMaleCount || summary.femaleCount < config.requiredFemaleCount) {
+        errors.push(`实际参赛名单至少需要男 ${config.requiredMaleCount} 人、女 ${config.requiredFemaleCount} 人`);
+      }
+      break;
+    default:
+      break;
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    config,
+    summary
+  };
+}
+
+function validateTeamProjectAssignmentsForSubmit({ teamProjectConfig, participants = [], assignments = [] }) {
+  const config = normalizeTeamProjectConfig(teamProjectConfig);
+  const participantMap = new Map(
+    participants.map((participant) => [
+      parseInt(participant.user_id || participant.id, 10),
+      participant
+    ])
+  );
+  const groupedAssignments = {};
+  const errors = new Set();
+  const singlesPlayerIds = new Set();
+
+  assignments.forEach((assignment) => {
+    const projectType = assignment.project_type || assignment.project;
+    const projectRule = TEAM_PROJECT_RULES[projectType];
+    const projectConfig = config.projects[projectType];
+    const position = parseInt(assignment.position, 10);
+
+    if (!projectRule || !projectConfig?.enabled) {
+      return;
+    }
+    if (!Number.isInteger(position) || position < 1 || position > projectConfig.count) {
+      errors.add(`${projectRule.label}分配超出配置范围`);
+      return;
+    }
+
+    if (!groupedAssignments[projectType]) {
+      groupedAssignments[projectType] = new Map();
+    }
+    if (groupedAssignments[projectType].has(position)) {
+      errors.add(`${projectRule.label}存在重复分配`);
+      return;
+    }
+
+    groupedAssignments[projectType].set(position, assignment);
+  });
+
+  const validatePlayer = (playerId, expectedGender, projectLabel, roleLabel) => {
+    const numericPlayerId = parseInt(playerId, 10);
+    if (!Number.isInteger(numericPlayerId) || !participantMap.has(numericPlayerId)) {
+      errors.add(`${projectLabel}${roleLabel}必须从已加入队员中选择`);
+      return null;
+    }
+
+    const player = participantMap.get(numericPlayerId);
+    if (expectedGender && player.gender !== expectedGender) {
+      errors.add(`${projectLabel}${roleLabel}性别不符合要求`);
+    }
+    return numericPlayerId;
+  };
+
+  Object.entries(TEAM_PROJECT_RULES).forEach(([projectType, projectRule]) => {
+    const projectConfig = config.projects[projectType];
+    if (!projectConfig?.enabled || projectConfig.count <= 0) {
+      return;
+    }
+
+    const positionAssignments = groupedAssignments[projectType] || new Map();
+    for (let position = 1; position <= projectConfig.count; position += 1) {
+      const assignment = positionAssignments.get(position);
+      if (!assignment) {
+        errors.add(`请先完成${projectRule.label}项目分配`);
+        continue;
+      }
+
+      const playerAId = validatePlayer(
+        assignment.player_a_id,
+        projectRule.genders[0],
+        projectRule.label,
+        projectRule.playerCount === 1 ? '' : '选手A'
+      );
+
+      if (projectRule.playerCount === 1) {
+        if (playerAId) {
+          singlesPlayerIds.add(playerAId);
+        }
+        continue;
+      }
+
+      const playerBId = validatePlayer(
+        assignment.player_b_id,
+        projectRule.genders[1],
+        projectRule.label,
+        '选手B'
+      );
+
+      if (playerAId && playerBId && playerAId === playerBId) {
+        errors.add(`${projectRule.label}不能选择同一名队员`);
+      }
+    }
+  });
+
+  return {
+    valid: errors.size === 0,
+    errors: Array.from(errors),
+    singlesPlayerIds: Array.from(singlesPlayerIds)
+  };
 }
 
 async function upsertLeaderDraft(connection, { eventId, leaderId, teamName, leaderParticipating }) {
@@ -1856,7 +2081,7 @@ router.post('/:id/team-members/:memberId/remove', async (req, res) => {
 router.post('/:id/team-submit', async (req, res) => {
   try {
     const { id } = req.params;
-    const { user_id, team_name, singles_player_ids } = req.body;
+    const { user_id, team_name } = req.body;
     const normalizedTeamName = (team_name || '').trim();
 
     if (!user_id) {
@@ -1933,14 +2158,19 @@ router.post('/:id/team-submit', async (req, res) => {
         return true;
       });
 
-      const validation = validateTeamParticipants({
-        event,
-        participants: actualParticipants,
-        singlesPlayerIds: singles_player_ids
-      });
+      const participantValidation = validateTeamSubmitParticipants(event, actualParticipants);
+      if (!participantValidation.valid) {
+        throw new Error(participantValidation.errors[0]);
+      }
 
-      if (!validation.valid) {
-        throw new Error(validation.errors[0]);
+      const projectAssignments = await getTeamProjectAssignments(id, normalizedTeamName, connection);
+      const projectValidation = validateTeamProjectAssignmentsForSubmit({
+        teamProjectConfig: event.team_event_config,
+        participants: actualParticipants,
+        assignments: projectAssignments
+      });
+      if (!projectValidation.valid) {
+        throw new Error(projectValidation.errors[0]);
       }
 
       await connection.execute(
@@ -1960,8 +2190,8 @@ router.post('/:id/team-submit', async (req, res) => {
         [normalizedTeamName, id, user_id, user_id]
       );
 
-      if (validation.singlesPlayerIds.length > 0) {
-        const placeholders = validation.singlesPlayerIds.map(() => '?').join(',');
+      if (projectValidation.singlesPlayerIds.length > 0) {
+        const placeholders = projectValidation.singlesPlayerIds.map(() => '?').join(',');
         await connection.execute(
           `UPDATE event_registrations
            SET is_singles_player = 1
@@ -1973,7 +2203,7 @@ router.post('/:id/team-submit', async (req, res) => {
                (is_team_leader = 1 AND user_id = ?)
                OR (is_team_leader = 0 AND team_leader_id = ?)
              )`,
-          [id, ...validation.singlesPlayerIds, user_id, user_id]
+          [id, ...projectValidation.singlesPlayerIds, user_id, user_id]
         );
       }
 

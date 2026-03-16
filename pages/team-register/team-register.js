@@ -313,7 +313,8 @@ Page({
     requirementText: '',
     assignedProjectSlots: 0,
     totalProjectSlots: 0,
-    hasLocalChanges: false,
+    hasDraftChanges: false,
+    hasProjectChanges: false,
     // 项目配置
     projectConfig: null,
     // 项目分配
@@ -418,7 +419,8 @@ Page({
         this.data.isSavingDraft ||
         this.data.isCreatingInvitation ||
         this.data.isSubmitting ||
-        this.data.hasLocalChanges
+        this.data.hasDraftChanges ||
+        this.data.hasProjectChanges
       ) {
         return;
       }
@@ -482,7 +484,10 @@ Page({
       submitted: false,
       config: normalizeConfig(this.data.event)
     });
-    this.setData({ hasLocalChanges: false });
+    this.setData({
+      hasDraftChanges: false,
+      hasProjectChanges: false
+    });
   },
 
   async loadDraftStatus(options = {}) {
@@ -543,7 +548,10 @@ Page({
 
       // 加载项目分配
       await this.loadProjectAssignments();
-      this.setData({ hasLocalChanges: false });
+      this.setData({
+        hasDraftChanges: false,
+        hasProjectChanges: false
+      });
     } catch (error) {
       console.error('加载队伍草稿失败:', error);
       if (!options.silent) {
@@ -560,7 +568,7 @@ Page({
     this.setData({
       teamName,
       hasTeamName: !!teamName.trim(),
-      hasLocalChanges: true
+      hasDraftChanges: true
     });
   },
 
@@ -568,7 +576,7 @@ Page({
     if (this.data.submitted || !this.data.teamName.trim()) {
       return;
     }
-    await this.saveDraft({ silent: true });
+    await this.saveDraft({ silent: true, reloadAfterSave: false });
   },
 
   onLeaderParticipatingChange(e) {
@@ -596,10 +604,10 @@ Page({
       submitted: false
     });
 
-    this.setData({ hasLocalChanges: true });
+    this.setData({ hasDraftChanges: true });
 
     if (this.data.teamName.trim()) {
-      this.saveDraft({ silent: true });
+      this.saveDraft({ silent: true, reloadAfterSave: false });
     }
   },
 
@@ -643,7 +651,13 @@ Page({
         return false;
       }
 
-      await this.loadDraftStatus({ silent: true });
+      const shouldReload = options.reloadAfterSave === true;
+
+      this.setData({ hasDraftChanges: false });
+
+      if (shouldReload) {
+        await this.loadDraftStatus({ silent: true });
+      }
 
       if (!options.silent) {
         wx.showToast({ title: '已保存', icon: 'success' });
@@ -660,6 +674,37 @@ Page({
     }
   },
 
+  async saveTeamState(options = {}) {
+    const draftSaved = await this.saveDraft({
+      silent: true,
+      reloadAfterSave: false
+    });
+    if (!draftSaved) {
+      if (!options.silent) {
+        wx.showToast({ title: '保存失败', icon: 'none' });
+      }
+      return false;
+    }
+
+    const projectSaved = await this.saveProjectAssignments();
+    if (!projectSaved) {
+      if (!options.silent) {
+        wx.showToast({ title: '保存项目分配失败', icon: 'none' });
+      }
+      return false;
+    }
+
+    if (options.reloadAfterSave !== false) {
+      await this.loadDraftStatus({ silent: true });
+    }
+
+    if (!options.silent) {
+      wx.showToast({ title: '已保存', icon: 'success' });
+    }
+
+    return true;
+  },
+
   async onCreateInvitation() {
     if (this.data.submitted || this.data.isCreatingInvitation) {
       return;
@@ -671,7 +716,7 @@ Page({
       return;
     }
 
-    const saved = await this.saveDraft({ silent: true });
+    const saved = await this.saveDraft({ silent: true, reloadAfterSave: false });
     if (!saved) {
       return;
     }
@@ -787,7 +832,7 @@ Page({
   },
 
   async onSaveDraft() {
-    await this.saveDraft();
+    await this.saveTeamState();
   },
 
   async onSubmit() {
@@ -816,8 +861,8 @@ Page({
       return;
     }
 
-    if (this.data.singlesCount !== this.data.config.singlesPlayerCount) {
-      wx.showToast({ title: `请完成 ${this.data.config.singlesPlayerCount} 个单打名额分配`, icon: 'none' });
+    if (this.data.totalProjectSlots > 0 && this.data.assignedProjectSlots !== this.data.totalProjectSlots) {
+      wx.showToast({ title: '请先完成项目分配', icon: 'none' });
       return;
     }
 
@@ -834,15 +879,8 @@ Page({
       return;
     }
 
-    const saved = await this.saveDraft({ silent: true });
+    const saved = await this.saveTeamState({ silent: true, reloadAfterSave: false });
     if (!saved) {
-      return;
-    }
-
-    // 保存项目分配
-    const projectSaved = await this.saveProjectAssignments();
-    if (!projectSaved) {
-      wx.showToast({ title: '保存项目分配失败', icon: 'none' });
       return;
     }
 
@@ -855,17 +893,12 @@ Page({
     }
 
     try {
-      const singlesPlayerIds = (this.data.members || [])
-        .filter((member) => member.isSingles)
-        .map((member) => member.user_id);
-
       const res = await this.request(
         `/api/events/${this.data.eventId}/team-submit`,
         {
           user_id: getCurrentUserId(),
           team_name: teamName,
-          leader_participating: this.data.leaderParticipates ? 1 : 0,
-          singles_player_ids: singlesPlayerIds
+          leader_participating: this.data.leaderParticipates ? 1 : 0
         },
         'POST'
       );
@@ -954,7 +987,7 @@ Page({
 
     this.setData({
       projectAssignments,
-      hasLocalChanges: true
+      hasProjectChanges: true
     });
 
     // 更新队员的项目信息
@@ -1092,7 +1125,7 @@ Page({
       );
 
       if (res.success) {
-        this.setData({ hasLocalChanges: false });
+        this.setData({ hasProjectChanges: false });
       }
 
       return res.success;
