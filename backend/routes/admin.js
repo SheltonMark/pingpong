@@ -67,10 +67,14 @@ async function getSubmittedTeamRowsForAdmin(eventId, connection = pool) {
 
   const submittedTeamNames = new Set(
     rows
-      .filter((row) => (row.team_submit_status || 'submitted') === 'submitted')
+      .filter((row) => (row.team_submit_status || 'submitted') === 'submitted' || !!row.team_submitted_at)
       .map((row) => row.team_name)
       .filter(Boolean)
   );
+
+  if (rows.length > 0 && submittedTeamNames.size === 0) {
+    return rows;
+  }
 
   return rows.filter((row) => submittedTeamNames.has(row.team_name));
 }
