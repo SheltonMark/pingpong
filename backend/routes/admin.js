@@ -165,21 +165,7 @@ function buildAdminTeamList(registrations = [], assignmentMap = {}, teamEventCon
 
   return Array.from(teamMap.values()).map((team) => {
     const assignments = assignmentMap[team.team_name] || [];
-    const memberProjects = {};
-
-    for (const assignment of assignments) {
-      if (!memberProjects[assignment.player_a_id]) {
-        memberProjects[assignment.player_a_id] = [];
-      }
-      memberProjects[assignment.player_a_id].push(assignment.project_type);
-
-      if (assignment.player_b_id) {
-        if (!memberProjects[assignment.player_b_id]) {
-          memberProjects[assignment.player_b_id] = [];
-        }
-        memberProjects[assignment.player_b_id].push(assignment.project_type);
-      }
-    }
+    const memberProjects = buildEffectiveMemberProjects(assignments);
 
     team.members = team.members
       .map((member) => ({
@@ -245,6 +231,61 @@ const TEAM_PROJECT_MEMBER_COUNTS = {
   women_doubles: 2,
   mixed_doubles: 2
 };
+
+function isEffectiveTeamProjectAssignment(projectType, assignment = {}) {
+  const memberCount = TEAM_PROJECT_MEMBER_COUNTS[projectType] || 0;
+  if (!memberCount) {
+    return false;
+  }
+
+  const hasPlayerA = !!assignment.player_a_id || !!assignment.player_a;
+  const hasPlayerB = !!assignment.player_b_id || !!assignment.player_b;
+
+  if (memberCount === 1) {
+    return hasPlayerA;
+  }
+
+  return hasPlayerA && hasPlayerB;
+}
+
+function buildEffectiveMemberProjects(assignments = [], withLabel = false) {
+  const memberProjects = {};
+
+  assignments.forEach((assignment) => {
+    const projectType = assignment.project_type || assignment.project;
+    if (!isEffectiveTeamProjectAssignment(projectType, assignment)) {
+      return;
+    }
+
+    const playerAId = assignment.player_a_id || assignment.player_a;
+    const playerBId = assignment.player_b_id || assignment.player_b;
+    const position = parseInt(assignment.position, 10) || 0;
+    const label = TEAM_PROJECT_MEMBER_COUNTS[projectType] === 1 ? String(position) : `对${position}`;
+
+    const applyProject = (playerId) => {
+      if (!playerId) {
+        return;
+      }
+      if (!memberProjects[playerId]) {
+        memberProjects[playerId] = withLabel ? {} : [];
+      }
+
+      if (withLabel) {
+        memberProjects[playerId][projectType] = label;
+        return;
+      }
+
+      if (!memberProjects[playerId].includes(projectType)) {
+        memberProjects[playerId].push(projectType);
+      }
+    };
+
+    applyProject(playerAId);
+    applyProject(playerBId);
+  });
+
+  return memberProjects;
+}
 
 function getRequiredTeamCompetitionPlayerCount(teamEventConfig) {
   const config = parseTeamEventConfig(teamEventConfig);
@@ -332,8 +373,9 @@ function buildAdminTeamExportRows(teamSummaries = [], teamAssignments = {}, team
 
   teamSummaries.forEach((team) => {
     const teamAssignment = teamAssignments[team.team_name] || [];
-    const completion = evaluateTeamProjectCompletion(teamEventConfig, teamAssignment, team.members.length);
-    const memberProjects = {};
+    const actualPlayerCount = team.actual_player_count || team.members.filter((member) => member.is_participating !== 0).length;
+    const completion = evaluateTeamProjectCompletion(teamEventConfig, teamAssignment, actualPlayerCount);
+    const memberProjects = buildEffectiveMemberProjects(teamAssignment, true);
 
     for (const assignment of teamAssignment) {
       const { project_type, position, player_a_id, player_b_id } = assignment;
@@ -354,8 +396,10 @@ function buildAdminTeamExportRows(teamSummaries = [], teamAssignments = {}, team
       }
     }
 
+    const effectiveMemberProjects = buildEffectiveMemberProjects(teamAssignment, true);
+
     team.members.forEach((member) => {
-      const projects = memberProjects[member.user_id] || {};
+      const projects = effectiveMemberProjects[member.user_id] || {};
       exportRows.push({
         name: member.name,
         gender: member.gender === 'male' ? '男' : '女',
@@ -2356,20 +2400,7 @@ router.get('/teams', requireAdmin, async (req, res) => {
       `, [team.event_id, team.team_name]);
 
       // 为每个成员添加项目列表
-      const memberProjects = {};
-      for (const assignment of assignments) {
-        if (!memberProjects[assignment.player_a_id]) {
-          memberProjects[assignment.player_a_id] = [];
-        }
-        memberProjects[assignment.player_a_id].push(assignment.project_type);
-
-        if (assignment.player_b_id) {
-          if (!memberProjects[assignment.player_b_id]) {
-            memberProjects[assignment.player_b_id] = [];
-          }
-          memberProjects[assignment.player_b_id].push(assignment.project_type);
-        }
-      }
+      const memberProjects = buildEffectiveMemberProjects(assignments);
 
       // 将项目信息附加到成员上
       members.forEach(member => {

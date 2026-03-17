@@ -8,6 +8,11 @@ const TEAM_PROJECT_MEMBER_COUNTS = {
   women_doubles: 2,
   mixed_doubles: 2
 };
+const DOUBLE_PROJECT_LABELS = {
+  men_doubles: '男双',
+  women_doubles: '女双',
+  mixed_doubles: '混双'
+};
 
 function getCurrentUserId() {
   return app.globalData.userInfo?.id || app.globalData.userInfo?.user_id || null;
@@ -73,6 +78,86 @@ function normalizeConfig(event = {}, draftConfig = {}) {
     requiredMaleCount,
     requiredFemaleCount
   };
+}
+
+function isEffectiveProjectAssignment(projectType, assignment = {}) {
+  const memberCount = TEAM_PROJECT_MEMBER_COUNTS[projectType] || 0;
+  if (!memberCount) {
+    return false;
+  }
+
+  const hasPlayerA = !!assignment.player_a;
+  const hasPlayerB = !!assignment.player_b;
+
+  if (memberCount === 1) {
+    return hasPlayerA;
+  }
+
+  return hasPlayerA && hasPlayerB;
+}
+
+function buildMemberProjectsFromAssignments(projectAssignments = {}) {
+  const memberProjects = {};
+
+  Object.keys(projectAssignments).forEach((projectType) => {
+    const positions = projectAssignments[projectType] || [];
+    positions.forEach((assignment) => {
+      if (!isEffectiveProjectAssignment(projectType, assignment)) {
+        return;
+      }
+
+      if (assignment.player_a) {
+        if (!memberProjects[assignment.player_a]) {
+          memberProjects[assignment.player_a] = [];
+        }
+        if (!memberProjects[assignment.player_a].includes(projectType)) {
+          memberProjects[assignment.player_a].push(projectType);
+        }
+      }
+
+      if (assignment.player_b) {
+        if (!memberProjects[assignment.player_b]) {
+          memberProjects[assignment.player_b] = [];
+        }
+        if (!memberProjects[assignment.player_b].includes(projectType)) {
+          memberProjects[assignment.player_b].push(projectType);
+        }
+      }
+    });
+  });
+
+  return memberProjects;
+}
+
+function getIncompleteDoubleWarnings(projectConfig = null, projectAssignments = {}) {
+  if (!projectConfig?.projects) {
+    return [];
+  }
+
+  const warnings = [];
+
+  Object.keys(DOUBLE_PROJECT_LABELS).forEach((projectType) => {
+    const project = projectConfig.projects[projectType];
+    if (!project?.enabled) {
+      return;
+    }
+
+    const positions = projectAssignments[projectType] || [];
+    for (let index = 0; index < (project.count || 0); index += 1) {
+      const assignment = positions[index];
+      if (!assignment) {
+        continue;
+      }
+
+      const hasPlayerA = !!assignment.player_a;
+      const hasPlayerB = !!assignment.player_b;
+      if ((hasPlayerA || hasPlayerB) && !(hasPlayerA && hasPlayerB)) {
+        warnings.push(`${DOUBLE_PROJECT_LABELS[projectType]}第${index + 1}对`);
+      }
+    }
+  });
+
+  return warnings;
 }
 
 function buildRuleText(config) {
@@ -357,6 +442,8 @@ Page({
     maleCount: 0,
     femaleCount: 0,
     singlesCount: 0,
+    canEdit: true,
+    viewerRole: 'leader',
     progressText: '',
     requirementText: '',
     assignedProjectSlots: 0,
@@ -558,6 +645,10 @@ Page({
 
       const draft = res.data;
       const config = normalizeConfig(this.data.event, draft.config);
+      this.setData({
+        canEdit: draft.can_edit !== false,
+        viewerRole: draft.viewer_role || (draft.can_edit === false ? 'member' : 'leader')
+      });
       const currentSinglesIds = new Set(
         (this.data.members || [])
           .filter((member) => member.isSingles)
@@ -566,6 +657,22 @@ Page({
 
       let members = (draft.members || []).map(normalizeMember);
       if (members.length === 0 && this.data.user) {
+        if (draft.can_edit === false && draft.can_view === false) {
+          this.syncState({
+            teamName: '',
+            leaderParticipates: !!draft.leader_participating,
+            members: [],
+            invitations: [],
+            pendingInvitations: [],
+            submitted: false,
+            config
+          });
+          this.setData({
+            hasDraftChanges: false,
+            hasProjectChanges: false
+          });
+          return;
+        }
         this.initDraftState(options.fallbackLeaderParticipates);
         return;
       }
@@ -612,6 +719,9 @@ Page({
   },
 
   onTeamNameInput(e) {
+    if (!this.data.canEdit) {
+      return;
+    }
     const teamName = e.detail.value;
     this.setData({
       teamName,
@@ -621,14 +731,14 @@ Page({
   },
 
   async onTeamNameBlur() {
-    if (this.data.submitted || !this.data.teamName.trim()) {
+    if (!this.data.canEdit || this.data.submitted || !this.data.teamName.trim()) {
       return;
     }
     await this.saveDraft({ silent: true, reloadAfterSave: false });
   },
 
   onLeaderParticipatingChange(e) {
-    if (this.data.submitted) {
+    if (!this.data.canEdit || this.data.submitted) {
       return;
     }
 
@@ -660,6 +770,9 @@ Page({
   },
 
   async saveDraft(options = {}) {
+    if (!this.data.canEdit) {
+      return false;
+    }
     const currentUserId = getCurrentUserId();
     const teamName = (this.data.teamName || '').trim();
 
@@ -723,6 +836,9 @@ Page({
   },
 
   async saveTeamState(options = {}) {
+    if (!this.data.canEdit) {
+      return false;
+    }
     const draftSaved = await this.saveDraft({
       silent: true,
       reloadAfterSave: false
@@ -754,7 +870,7 @@ Page({
   },
 
   async onCreateInvitation() {
-    if (this.data.submitted || this.data.isCreatingInvitation) {
+    if (!this.data.canEdit || this.data.submitted || this.data.isCreatingInvitation) {
       return;
     }
 
@@ -801,46 +917,10 @@ Page({
     }
   },
 
-  async onRemoveMember(e) {
-    const memberId = parseInt(e.currentTarget.dataset.memberId, 10);
-    if (!memberId) {
-      return;
-    }
-
-    const confirmed = await new Promise((resolve) => {
-      wx.showModal({
-        title: '删除队员',
-        content: '删除后该名额会立即释放，队员需要重新接受邀请才能再次加入。是否继续？',
-        success: (res) => resolve(!!res.confirm),
-        fail: () => resolve(false)
-      });
-    });
-
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      const res = await this.request(
-        `/api/events/${this.data.eventId}/team-members/${memberId}/remove`,
-        { user_id: getCurrentUserId() },
-        'POST'
-      );
-
-      if (!res.success) {
-        wx.showToast({ title: res.message || '删除失败', icon: 'none' });
-        return;
-      }
-
-      await this.loadDraftStatus({ silent: true });
-      wx.showToast({ title: '已删除', icon: 'success' });
-    } catch (error) {
-      console.error('删除队员失败:', error);
-      wx.showToast({ title: '删除失败', icon: 'none' });
-    }
-  },
-
   async onCancelInvitation(e) {
+    if (!this.data.canEdit) {
+      return;
+    }
     const invitationId = parseInt(e.currentTarget.dataset.invitationId, 10);
     if (!invitationId) {
       return;
@@ -880,11 +960,14 @@ Page({
   },
 
   async onSaveDraft() {
+    if (!this.data.canEdit) {
+      return;
+    }
     await this.saveTeamState();
   },
 
   async onSubmit() {
-    if (this.data.submitted || this.data.isSubmitting) {
+    if (!this.data.canEdit || this.data.submitted || this.data.isSubmitting) {
       return;
     }
 
@@ -966,7 +1049,7 @@ Page({
   },
 
   onProjectPlayerSelect(e) {
-    if (this.data.submitted) {
+    if (!this.data.canEdit || this.data.submitted) {
       return;
     }
 
@@ -1039,10 +1122,10 @@ Page({
 
   updateMemberProjects() {
     const { projectAssignments, members } = this.data;
-    const memberProjects = {};
+    const memberProjects = buildMemberProjectsFromAssignments(projectAssignments);
 
     // 遍历所有项目分配，构建每个队员参加的项目列表
-    Object.keys(projectAssignments).forEach(projectType => {
+    Object.keys({}).forEach(projectType => {
       const positions = projectAssignments[projectType];
       positions.forEach(assignment => {
         if (assignment && assignment.player_a) {
@@ -1131,6 +1214,9 @@ Page({
   },
 
   async saveProjectAssignments() {
+    if (!this.data.canEdit) {
+      return false;
+    }
     const currentUserId = getCurrentUserId();
     const teamName = (this.data.teamName || '').trim();
 
@@ -1146,7 +1232,7 @@ Page({
       Object.keys(projectAssignments).forEach(projectType => {
         const positions = projectAssignments[projectType];
         positions.forEach((assignment, index) => {
-          if (assignment && assignment.player_a) {
+          if (assignment && (assignment.player_a || assignment.player_b)) {
             assignments.push({
               project: projectType,
               position: index + 1,
@@ -1176,6 +1262,155 @@ Page({
       console.error('保存项目分配失败:', error);
       return false;
     }
+  },
+
+  async onRemoveMember(e) {
+    if (!this.data.canEdit) {
+      return;
+    }
+    const memberId = parseInt(e.currentTarget.dataset.memberId, 10);
+    if (!memberId) {
+      return;
+    }
+
+    const confirmed = await new Promise((resolve) => {
+      wx.showModal({
+        title: '删除队员',
+        content: '删除后该名额会立即释放，队员需要重新接受邀请才能再次加入。是否继续？',
+        success: (res) => resolve(!!res.confirm),
+        fail: () => resolve(false)
+      });
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const res = await this.request(
+        `/api/events/${this.data.eventId}/team-members/${memberId}/remove`,
+        { user_id: getCurrentUserId() },
+        'POST'
+      );
+
+      if (!res.success) {
+        wx.showToast({ title: res.message || '删除失败', icon: 'none' });
+        return;
+      }
+
+      await this.loadDraftStatus({ silent: true });
+      wx.showToast({ title: '已删除', icon: 'success' });
+    } catch (error) {
+      console.error('删除队员失败:', error);
+      wx.showToast({ title: '删除失败', icon: 'none' });
+    }
+  },
+
+  async onSubmit() {
+    if (!this.data.canEdit || this.data.submitted || this.data.isSubmitting) {
+      return;
+    }
+
+    const teamName = (this.data.teamName || '').trim();
+    if (!teamName) {
+      wx.showToast({ title: '请先填写队伍名称', icon: 'none' });
+      return;
+    }
+
+    if (this.data.pendingInvitations.length > 0) {
+      wx.showToast({ title: '还有待处理邀请，暂不能提交', icon: 'none' });
+      return;
+    }
+
+    if (this.data.actualPlayerCount < this.data.config.minTeamPlayers) {
+      wx.showToast({
+        title: `至少需要 ${this.data.config.minTeamPlayers} 名参赛队员`,
+        icon: 'none'
+      });
+      return;
+    }
+
+    if (this.data.actualPlayerCount > this.data.config.maxTeamPlayers) {
+      wx.showToast({
+        title: `每队最多 ${this.data.config.maxTeamPlayers} 人`,
+        icon: 'none'
+      });
+      return;
+    }
+
+    const inactiveDoubleWarnings = getIncompleteDoubleWarnings(
+      this.data.projectConfig,
+      this.data.projectAssignments
+    );
+    const warningText = inactiveDoubleWarnings.length > 0
+      ? `\n\n注意：以下双人项目未完整配置，提交后将不生效：\n${inactiveDoubleWarnings.join('、')}`
+      : '';
+
+    const confirmed = await new Promise((resolve) => {
+      wx.showModal({
+        title: '确认正式提交',
+        content: `提交后队名、队员名单和项目分配会立即锁定。${warningText}\n\n是否继续？`,
+        success: (res) => resolve(!!res.confirm),
+        fail: () => resolve(false)
+      });
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    const saved = await this.saveTeamState({ silent: true, reloadAfterSave: false });
+    if (!saved) {
+      return;
+    }
+
+    this.setData({ isSubmitting: true });
+
+    try {
+      await subscribe.requestEventSubscriptions();
+    } catch (error) {
+      console.log('订阅消息授权失败或被拒绝:', error);
+    }
+
+    try {
+      const res = await this.request(
+        `/api/events/${this.data.eventId}/team-submit`,
+        {
+          user_id: getCurrentUserId(),
+          team_name: teamName,
+          leader_participating: this.data.leaderParticipates ? 1 : 0
+        },
+        'POST'
+      );
+
+      if (!res.success) {
+        wx.showToast({ title: res.message || '提交失败', icon: 'none' });
+        return;
+      }
+
+      await this.loadDraftStatus({ silent: true });
+      wx.showToast({ title: '报名成功', icon: 'success' });
+    } catch (error) {
+      console.error('正式提交失败:', error);
+      wx.showToast({ title: '提交失败', icon: 'none' });
+    } finally {
+      this.setData({ isSubmitting: false });
+    }
+  },
+
+  updateMemberProjects() {
+    const { projectAssignments, members } = this.data;
+    const memberProjects = buildMemberProjectsFromAssignments(projectAssignments);
+    const updatedMembers = applyMemberProjects(members, memberProjects);
+    const memberState = buildMemberState(updatedMembers, this.data.pendingInvitations, this.data.config);
+    const assignmentStats = calcProjectAssignmentStats(this.data.projectConfig, projectAssignments);
+
+    this.setData({
+      members: updatedMembers,
+      assignedProjectSlots: assignmentStats.assignedProjectSlots,
+      totalProjectSlots: assignmentStats.totalProjectSlots,
+      ...memberState
+    });
   },
 
   onGoBack() {

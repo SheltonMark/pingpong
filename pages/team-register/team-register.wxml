@@ -20,7 +20,7 @@
         value="{{teamName}}"
         bindinput="onTeamNameInput"
         bindblur="onTeamNameBlur"
-        disabled="{{submitted}}"
+        disabled="{{submitted || !canEdit}}"
       />
     </view>
 
@@ -32,7 +32,7 @@
       <switch
         color="#FF6B00"
         checked="{{leaderParticipates}}"
-        disabled="{{submitted}}"
+        disabled="{{submitted || !canEdit}}"
         bindchange="onLeaderParticipatingChange"
       />
     </view>
@@ -70,6 +70,7 @@
       <text class="invite-tip" wx:else>被接受的邀请会进入队员列表；被拒绝、取消或移除后，名额会自动释放。</text>
 
       <button
+        wx:if="{{canEdit}}"
         class="invite-create-btn"
         bindtap="onCreateInvitation"
         disabled="{{submitted || !hasTeamName || occupiedSlots >= config.maxTeamPlayers || isCreatingInvitation}}"
@@ -91,7 +92,7 @@
         wx:for="{{members}}"
         wx:key="user_id"
         bindlongpress="onRemoveMember"
-        data-member-id="{{!submitted && !item.isLeader ? item.user_id : ''}}"
+        data-member-id="{{canEdit && !submitted && !item.isLeader ? item.user_id : ''}}"
       >
         <image class="member-avatar" src="{{item.avatar_url || '/assets/default-avatar.png'}}" mode="aspectFill" />
         <view class="member-main">
@@ -127,9 +128,12 @@
         <view class="invite-avatar placeholder">
           <text class="invite-avatar-text">{{index + 1}}</text>
         </view>
-        <view class="pending-inline-actions">
+        <view class="pending-inline-actions" wx:if="{{canEdit}}">
           <button class="small-btn pending-inline-btn" open-type="share" data-token="{{item.invite_token}}">分享邀请</button>
           <button class="small-btn danger pending-inline-btn" bindtap="onCancelInvitation" data-invitation-id="{{item.id}}">取消邀请</button>
+        </view>
+        <view class="pending-main" wx:else>
+          <text class="pending-name">邀请编号 {{index + 1}}</text>
         </view>
         <text class="invite-status-tag {{item.status}} pending-inline-status">{{item.status_text}}</text>
       </view>
@@ -188,7 +192,7 @@
             data-project="men_singles"
             data-position="{{idx}}"
             bind:change="onProjectPlayerSelect"
-            disabled="{{submitted}}"
+            disabled="{{submitted || !canEdit}}"
           />
         </view>
       </view>
@@ -211,7 +215,7 @@
             data-project="women_singles"
             data-position="{{idx}}"
             bind:change="onProjectPlayerSelect"
-            disabled="{{submitted}}"
+            disabled="{{submitted || !canEdit}}"
           />
         </view>
       </view>
@@ -240,7 +244,7 @@
                 data-position="{{idx}}"
                 data-player="a"
                 bind:change="onProjectPlayerSelect"
-                disabled="{{submitted}}"
+                disabled="{{submitted || !canEdit}}"
               />
             </view>
             <view class="pair-item">
@@ -253,7 +257,7 @@
                 data-position="{{idx}}"
                 data-player="b"
                 bind:change="onProjectPlayerSelect"
-                disabled="{{submitted}}"
+                disabled="{{submitted || !canEdit}}"
               />
             </view>
           </view>
@@ -284,7 +288,7 @@
                 data-position="{{idx}}"
                 data-player="a"
                 bind:change="onProjectPlayerSelect"
-                disabled="{{submitted}}"
+                disabled="{{submitted || !canEdit}}"
               />
             </view>
             <view class="pair-item">
@@ -297,7 +301,7 @@
                 data-position="{{idx}}"
                 data-player="b"
                 bind:change="onProjectPlayerSelect"
-                disabled="{{submitted}}"
+                disabled="{{submitted || !canEdit}}"
               />
             </view>
           </view>
@@ -328,7 +332,7 @@
                 data-position="{{idx}}"
                 data-player="a"
                 bind:change="onProjectPlayerSelect"
-                disabled="{{submitted}}"
+                disabled="{{submitted || !canEdit}}"
               />
             </view>
             <view class="pair-item">
@@ -341,7 +345,7 @@
                 data-position="{{idx}}"
                 data-player="b"
                 bind:change="onProjectPlayerSelect"
-                disabled="{{submitted}}"
+                disabled="{{submitted || !canEdit}}"
               />
             </view>
           </view>
@@ -351,7 +355,7 @@
   </view>
 
   <view class="bottom-actions">
-    <view class="action-row" wx:if="{{!submitted}}">
+    <view class="action-row" wx:if="{{canEdit && !submitted}}">
       <button class="secondary-btn" bindtap="onSaveDraft" disabled="{{isSavingDraft || isSubmitting}}">
         {{isSavingDraft ? '保存中...' : '保存队伍信息'}}
       </button>
@@ -360,8 +364,12 @@
       </button>
     </view>
 
-    <view class="action-row" wx:else>
+    <view class="action-row" wx:elif="{{canEdit}}">
       <button class="submit-btn" disabled="true">队伍已正式提交</button>
+      <button class="secondary-btn" bindtap="onGoBack">返回</button>
+    </view>
+    <view class="action-row" wx:else>
+      <button class="submit-btn" disabled="true">仅可查看队伍信息</button>
       <button class="secondary-btn" bindtap="onGoBack">返回</button>
     </view>
   </view>

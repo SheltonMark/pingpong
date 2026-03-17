@@ -193,6 +193,51 @@ async function getTeamMembers(eventId, leaderId, connection = pool) {
   return rows;
 }
 
+async function getUserTeamContext(eventId, userId, connection = pool) {
+  const numericUserId = parseInt(userId, 10);
+  if (!Number.isInteger(numericUserId)) {
+    return {
+      registration: null,
+      leaderId: null,
+      leaderReg: null,
+      viewerRole: null
+    };
+  }
+
+  const [rows] = await connection.query(
+    `SELECT *
+     FROM event_registrations
+     WHERE event_id = ?
+       AND user_id = ?
+       AND status != 'cancelled'
+     ORDER BY is_team_leader DESC, id DESC
+     LIMIT 1`,
+    [eventId, numericUserId]
+  );
+
+  const registration = rows[0] || null;
+  if (!registration) {
+    return {
+      registration: null,
+      leaderId: null,
+      leaderReg: null,
+      viewerRole: null
+    };
+  }
+
+  const leaderId = registration.is_team_leader
+    ? numericUserId
+    : parseInt(registration.team_leader_id, 10) || null;
+  const leaderReg = leaderId ? await getLeaderRegistration(eventId, leaderId, connection) : null;
+
+  return {
+    registration,
+    leaderId,
+    leaderReg,
+    viewerRole: registration.is_team_leader ? 'leader' : 'member'
+  };
+}
+
 async function getTeamInvitations(eventId, leaderId, connection = pool, statuses = null) {
   const params = [eventId, leaderId];
   let statusClause = '';
@@ -381,6 +426,52 @@ async function getTeamProjectAssignments(eventId, teamName, connection = pool) {
   return rows;
 }
 
+function isEffectiveTeamProjectAssignment(projectType, assignment) {
+  const rule = TEAM_PROJECT_RULES[projectType];
+  if (!rule || !assignment) {
+    return false;
+  }
+
+  const hasPlayerA = !!assignment.player_a_id || !!assignment.player_a;
+  const hasPlayerB = !!assignment.player_b_id || !!assignment.player_b;
+
+  if (rule.playerCount === 1) {
+    return hasPlayerA;
+  }
+
+  return hasPlayerA && hasPlayerB;
+}
+
+function buildMemberProjectsFromAssignments(assignments = []) {
+  const memberProjects = {};
+
+  assignments.forEach((assignment) => {
+    const projectType = assignment.project_type || assignment.project;
+    if (!isEffectiveTeamProjectAssignment(projectType, assignment)) {
+      return;
+    }
+
+    const playerAId = assignment.player_a_id || assignment.player_a;
+    const playerBId = assignment.player_b_id || assignment.player_b;
+
+    if (playerAId) {
+      if (!memberProjects[playerAId]) {
+        memberProjects[playerAId] = [];
+      }
+      memberProjects[playerAId].push(projectType);
+    }
+
+    if (playerBId) {
+      if (!memberProjects[playerBId]) {
+        memberProjects[playerBId] = [];
+      }
+      memberProjects[playerBId].push(projectType);
+    }
+  });
+
+  return memberProjects;
+}
+
 function validateTeamSubmitParticipants(event, participants = []) {
   const config = normalizeTeamEventConfig(event);
   const errors = [];
@@ -515,6 +606,10 @@ function validateTeamProjectAssignmentsForSubmit({ teamProjectConfig, participan
           continue;
         }
         errors.add(`请先完成${projectRule.label}项目分配`);
+        continue;
+      }
+
+      if (!requireComplete && !isEffectiveTeamProjectAssignment(projectType, assignment)) {
         continue;
       }
 
@@ -1468,24 +1563,40 @@ router.get('/:id/captain-status', async (req, res) => {
     const { user_id } = req.query;
 
     if (!user_id) {
-      return res.json({ success: true, data: { isCaptain: false, application: null } });
+      return res.json({
+        success: true,
+        data: {
+          isCaptain: false,
+          application: null,
+          canManageTeam: false,
+          canViewTeam: false,
+          teamRole: null,
+          teamName: '',
+          teamSubmitted: false
+        }
+      });
     }
 
     const [applications] = await pool.query(
       'SELECT * FROM captain_applications WHERE event_id = ? AND user_id = ?',
       [id, user_id]
     );
+    const teamContext = await getUserTeamContext(id, user_id);
+    const application = applications[0] || null;
+    const canManageTeam = application?.status === 'approved';
+    const canViewTeam = canManageTeam || !!teamContext.registration;
+    const leaderReg = teamContext.leaderReg;
 
-    if (applications.length === 0) {
-      return res.json({ success: true, data: { isCaptain: false, application: null } });
-    }
-
-    const app = applications[0];
     res.json({
       success: true,
       data: {
-        isCaptain: app.status === 'approved',
-        application: app
+        isCaptain: canManageTeam,
+        application,
+        canManageTeam,
+        canViewTeam,
+        teamRole: canManageTeam ? 'leader' : teamContext.viewerRole,
+        teamName: leaderReg?.team_name || teamContext.registration?.team_name || '',
+        teamSubmitted: !!(leaderReg && (leaderReg.team_submit_status || 'submitted') === 'submitted')
       }
     });
   } catch (error) {
@@ -2370,18 +2481,23 @@ router.get('/:id/team-draft-status', async (req, res) => {
       return res.status(400).json({ success: false, message: '该赛事不是团体赛' });
     }
 
-    const leaderReg = await getLeaderRegistration(id, user_id);
-    const members = leaderReg && leaderReg.status !== 'cancelled'
-      ? await getTeamMembers(id, user_id)
-      : [];
-    const invitations = leaderReg && leaderReg.status !== 'cancelled'
-      ? await getTeamInvitations(id, user_id)
-      : [];
-    const pendingInvitations = invitations.filter((invitation) => invitation.status === 'pending');
-    const config = normalizeTeamEventConfig(event);
-    const actualParticipants = members.filter((member) => {
-      if (member.is_team_leader) {
-        return member.is_participating !== 0;
+      const captainApp = await getCaptainApplication(id, user_id);
+      const teamContext = await getUserTeamContext(id, user_id);
+      const canEdit = captainApp?.status === 'approved';
+      const leaderId = teamContext.leaderId || (canEdit ? parseInt(user_id, 10) : null);
+      const leaderReg = teamContext.leaderReg || (leaderId ? await getLeaderRegistration(id, leaderId) : null);
+      const hasActiveTeam = !!(leaderReg && leaderReg.status !== 'cancelled');
+      const members = hasActiveTeam && leaderId
+        ? await getTeamMembers(id, leaderId)
+        : [];
+      const invitations = hasActiveTeam && leaderId
+        ? await getTeamInvitations(id, leaderId)
+        : [];
+      const pendingInvitations = invitations.filter((invitation) => invitation.status === 'pending');
+      const config = normalizeTeamEventConfig(event);
+      const actualParticipants = members.filter((member) => {
+        if (member.is_team_leader) {
+          return member.is_participating !== 0;
       }
       return true;
     });
@@ -2393,6 +2509,9 @@ router.get('/:id/team-draft-status', async (req, res) => {
         team_name: leaderReg && leaderReg.status !== 'cancelled' ? (leaderReg.team_name || '') : '',
         submitted: !!(leaderReg && leaderReg.status !== 'cancelled' && (leaderReg.team_submit_status || 'submitted') === 'submitted'),
         leader_participating: !!(leaderReg && leaderReg.status !== 'cancelled' && leaderReg.is_participating !== 0),
+        can_edit: canEdit,
+        viewer_role: canEdit ? 'leader' : teamContext.viewerRole,
+        can_view: canEdit || !!teamContext.registration,
         actual_player_count: actualParticipants.length,
         occupied_slots: occupiedSlots,
         members,
@@ -3250,8 +3369,9 @@ router.put('/:id/team-project-assignments', async (req, res) => {
     // 插入新分配
     for (const assignment of assignments) {
       const { project, position, player_a, player_b } = assignment;
+      const hasAnyPlayer = !!player_a || !!player_b;
 
-      if (!project || !position || !player_a) {
+      if (!project || !position || !hasAnyPlayer) {
         continue;
       }
 
@@ -3285,6 +3405,14 @@ router.get('/:id/team-project-assignments', async (req, res) => {
     }
 
     // 获取用户的队伍名称
+    const captainApp = await getCaptainApplication(eventId, user_id);
+    const teamContext = await getUserTeamContext(eventId, user_id);
+    const leaderId = teamContext.leaderId || (captainApp?.status === 'approved' ? parseInt(user_id, 10) : null);
+    const leaderReg = teamContext.leaderReg || (leaderId ? await getLeaderRegistration(eventId, leaderId) : null);
+    if (!leaderId && captainApp?.status !== 'approved') {
+      return res.json({ success: false, message: '未找到队伍信息' });
+    }
+
     const [captain] = await pool.query(
       `SELECT team_name
        FROM event_registrations
@@ -3297,11 +3425,11 @@ router.get('/:id/team-project-assignments', async (req, res) => {
       [eventId, user_id]
     );
 
-    if (captain.length === 0) {
+    if (captain.length === 0 && !leaderReg) {
       return res.json({ success: false, message: '未找到队伍信息' });
     }
 
-    const teamName = captain[0].team_name;
+    const teamName = leaderReg?.team_name || captain[0]?.team_name || '';
     if (!teamName) {
       return res.json({
         success: true,
@@ -3322,23 +3450,8 @@ router.get('/:id/team-project-assignments', async (req, res) => {
     );
 
     // 构建每个队员参加的项目列表
-    const memberProjects = {};
+    const memberProjects = buildMemberProjectsFromAssignments(assignments);
 
-    for (const assignment of assignments) {
-      const { project_type, player_a_id, player_b_id } = assignment;
-
-      if (!memberProjects[player_a_id]) {
-        memberProjects[player_a_id] = [];
-      }
-      memberProjects[player_a_id].push(project_type);
-
-      if (player_b_id) {
-        if (!memberProjects[player_b_id]) {
-          memberProjects[player_b_id] = [];
-        }
-        memberProjects[player_b_id].push(project_type);
-      }
-    }
 
     res.json({
       success: true,

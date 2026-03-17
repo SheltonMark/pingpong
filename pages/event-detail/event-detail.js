@@ -45,6 +45,10 @@ Page({
     captainStatus: null, // null: 未申请, pending: 待审批, approved: 已通过, rejected: 已拒绝
     isCaptain: false,
     captainParticipating: true,
+    canViewTeam: false,
+    canManageTeam: false,
+    teamRole: null,
+    teamSubmitted: false,
     // 团体赛相关
     teamCount: 0,
     hasTeamRegistered: false,
@@ -146,7 +150,11 @@ Page({
         this.setData({
           isCaptain: res.data.isCaptain,
           captainStatus: application?.status || null,
-          captainParticipating: application ? application.is_participating !== 0 : true
+          captainParticipating: application ? application.is_participating !== 0 : true,
+          canViewTeam: !!res.data.canViewTeam,
+          canManageTeam: !!res.data.canManageTeam,
+          teamRole: res.data.teamRole || null,
+          teamSubmitted: !!res.data.teamSubmitted
         });
       }
     } catch (error) {
@@ -422,6 +430,21 @@ Page({
       wx.showToast({ title: '请先申请成为领队', icon: 'none' });
       return;
     }
+    wx.navigateTo({
+      url: `/pages/team-register/team-register?id=${this.data.eventId}`
+    });
+  },
+
+  onStartTeamRegistration() {
+    this.onApplyCaptain();
+  },
+
+  onOpenTeamView() {
+    if (!app.globalData.isLoggedIn) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+
     wx.navigateTo({
       url: `/pages/team-register/team-register?id=${this.data.eventId}`
     });

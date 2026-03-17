@@ -91,6 +91,13 @@
           <text>申请被拒绝，可重新申请</text>
           <button class="apply-btn small" bindtap="onApplyCaptain">重新申请</button>
         </view>
+        <view wx:elif="{{canViewTeam}}" class="captain-status approved">
+          <text class="status-icon">✓</text>
+          <view class="captain-status-texts">
+            <text>您已加入这支队伍</text>
+            <text class="captain-subtext">当前为只读查看模式</text>
+          </view>
+        </view>
         <view wx:else class="captain-tip">
           <text>领队可以组建队伍并管理队员报名</text>
           <button class="apply-btn" bindtap="onApplyCaptain">申请成为领队</button>
@@ -222,11 +229,9 @@
     </block>
     <!-- 团体赛：只有领队可以报名队伍，普通用户不能直接报名 -->
     <block wx:elif="{{event.event_type === 'team'}}">
-      <button class="cancel-btn" wx:if="{{hasTeamRegistered}}" bindtap="onCancelTeamRegister">取消队伍报名</button>
-      <button class="register-btn" wx:elif="{{isCaptain}}" bindtap="onRegisterTeam">报名队伍</button>
-      <view class="team-tip" wx:else>
-        <text>团体赛需要先申请成为领队，再组建队伍报名</text>
-      </view>
+      <button class="register-btn" wx:if="{{canViewTeam}}" bindtap="onOpenTeamView">查看队伍</button>
+      <button class="cancel-btn" wx:elif="{{captainStatus === 'pending'}}" disabled="true">申请审核中</button>
+      <button class="register-btn" wx:else bindtap="onStartTeamRegistration">开始报名</button>
     </block>
   </view>
 </view>
