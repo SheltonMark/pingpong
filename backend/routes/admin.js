@@ -45,6 +45,193 @@ async function resolveCloudUrls(urls) {
 
 const { requireAdmin, requireSuperAdmin, getUserRoles, isSchoolAdmin } = require('../middleware/adminAuth');
 
+async function getSubmittedTeamRowsForAdmin(eventId, connection = pool) {
+  const [rows] = await connection.query(
+    `SELECT er.*,
+            u.name,
+            u.phone,
+            u.gender,
+            u.avatar_url,
+            s.name as school_name,
+            c.name as college_name
+     FROM event_registrations er
+     JOIN users u ON er.user_id = u.id
+     LEFT JOIN schools s ON u.school_id = s.id
+     LEFT JOIN colleges c ON u.college_id = c.id
+     WHERE er.event_id = ?
+       AND er.status != 'cancelled'
+       AND er.team_name IS NOT NULL
+     ORDER BY er.team_submitted_at DESC, er.registered_at, er.id`,
+    [eventId]
+  );
+
+  const submittedTeamNames = new Set(
+    rows
+      .filter((row) => (row.team_submit_status || 'submitted') === 'submitted')
+      .map((row) => row.team_name)
+      .filter(Boolean)
+  );
+
+  return rows.filter((row) => submittedTeamNames.has(row.team_name));
+}
+
+async function getTeamAssignmentMap(eventId, connection = pool) {
+  const [assignments] = await connection.query(
+    `SELECT team_name, project_type, position, player_a_id, player_b_id
+     FROM team_project_assignments
+     WHERE event_id = ?
+     ORDER BY team_name, project_type, position`,
+    [eventId]
+  );
+
+  const assignmentMap = {};
+  for (const assignment of assignments) {
+    if (!assignmentMap[assignment.team_name]) {
+      assignmentMap[assignment.team_name] = [];
+    }
+    assignmentMap[assignment.team_name].push(assignment);
+  }
+
+  return assignmentMap;
+}
+
+function buildAdminTeamList(registrations = [], assignmentMap = {}) {
+  const teamMap = new Map();
+
+  for (const row of registrations) {
+    if (!row.team_name) {
+      continue;
+    }
+
+    if (!teamMap.has(row.team_name)) {
+      teamMap.set(row.team_name, {
+        id: row.id,
+        event_id: row.event_id,
+        team_name: row.team_name,
+        status: row.status || 'confirmed',
+        team_submit_status: row.team_submit_status || 'submitted',
+        team_submitted_at: row.team_submitted_at || row.confirmed_at || row.registered_at || row.created_at || null,
+        leader_participating: row.is_participating === 0 ? 0 : 1,
+        created_at: row.created_at || row.registered_at || null,
+        captain_id: null,
+        captain_name: '',
+        captain_phone: '',
+        captain_avatar: '',
+        captain_gender: '',
+        members: []
+      });
+    }
+
+    const team = teamMap.get(row.team_name);
+    const submittedAt = row.team_submitted_at || row.confirmed_at || row.registered_at || row.created_at || null;
+    if (submittedAt && (!team.team_submitted_at || new Date(submittedAt).getTime() > new Date(team.team_submitted_at).getTime())) {
+      team.team_submitted_at = submittedAt;
+    }
+
+    const member = {
+      id: row.id,
+      status: row.status,
+      is_team_leader: !!row.is_team_leader,
+      is_participating: row.is_participating === 0 ? 0 : 1,
+      is_singles_player: row.is_singles_player === 1 ? 1 : 0,
+      user_id: row.user_id,
+      name: row.name,
+      phone: row.phone || '',
+      avatar_url: row.avatar_url || '',
+      gender: row.gender || '',
+      school_name: row.school_name || '',
+      college_name: row.college_name || ''
+    };
+
+    if (member.is_team_leader) {
+      team.id = row.id;
+      team.status = row.status || team.status;
+      team.team_submit_status = row.team_submit_status || team.team_submit_status;
+      team.leader_participating = member.is_participating;
+      team.created_at = row.created_at || row.registered_at || team.created_at;
+      team.captain_id = row.user_id;
+      team.captain_name = row.name || '';
+      team.captain_phone = row.phone || '';
+      team.captain_avatar = row.avatar_url || '';
+      team.captain_gender = row.gender || '';
+    }
+
+    team.members.push(member);
+  }
+
+  return Array.from(teamMap.values()).map((team) => {
+    const assignments = assignmentMap[team.team_name] || [];
+    const memberProjects = {};
+
+    for (const assignment of assignments) {
+      if (!memberProjects[assignment.player_a_id]) {
+        memberProjects[assignment.player_a_id] = [];
+      }
+      memberProjects[assignment.player_a_id].push(assignment.project_type);
+
+      if (assignment.player_b_id) {
+        if (!memberProjects[assignment.player_b_id]) {
+          memberProjects[assignment.player_b_id] = [];
+        }
+        memberProjects[assignment.player_b_id].push(assignment.project_type);
+      }
+    }
+
+    team.members = team.members
+      .map((member) => ({
+        ...member,
+        projects: memberProjects[member.user_id] || []
+      }))
+      .sort((left, right) => {
+        if (left.is_team_leader !== right.is_team_leader) {
+          return left.is_team_leader ? -1 : 1;
+        }
+        return left.id - right.id;
+      });
+
+    if (!team.captain_id && team.members.length > 0) {
+      const fallbackCaptain = team.members[0];
+      team.id = fallbackCaptain.id;
+      team.captain_id = fallbackCaptain.user_id;
+      team.captain_name = fallbackCaptain.name;
+      team.captain_phone = fallbackCaptain.phone;
+      team.captain_avatar = fallbackCaptain.avatar_url;
+      team.captain_gender = fallbackCaptain.gender;
+      team.leader_participating = fallbackCaptain.is_participating;
+    }
+
+    team.actual_player_count = team.members.filter((member) => member.is_participating !== 0).length;
+    team.singles_count = team.members.filter((member) => member.is_participating !== 0 && member.is_singles_player === 1).length;
+    team.confirmed_count = team.members.filter((member) => member.is_participating !== 0 && member.status === 'confirmed').length;
+    team.total_slots = team.members.length;
+    team.assignments = assignments;
+    return team;
+  }).sort((left, right) => {
+    const leftTime = left.team_submitted_at ? new Date(left.team_submitted_at).getTime() : 0;
+    const rightTime = right.team_submitted_at ? new Date(right.team_submitted_at).getTime() : 0;
+    if (leftTime !== rightTime) {
+      return rightTime - leftTime;
+    }
+    const leftCreated = left.created_at ? new Date(left.created_at).getTime() : 0;
+    const rightCreated = right.created_at ? new Date(right.created_at).getTime() : 0;
+    return rightCreated - leftCreated;
+  });
+}
+
+function parseTeamEventConfig(rawConfig) {
+  if (!rawConfig) {
+    return null;
+  }
+  if (typeof rawConfig === 'string') {
+    try {
+      return JSON.parse(rawConfig);
+    } catch (error) {
+      return null;
+    }
+  }
+  return rawConfig;
+}
+
 // 初始化超级管理员（仅用于首次设置）
 router.get('/init-super-admin', async (req, res) => {
   try {
@@ -1956,6 +2143,14 @@ router.get('/teams', requireAdmin, async (req, res) => {
       return res.json({ success: true, data: [], total: 0 });
     }
 
+    const adminTeamRows = await getSubmittedTeamRowsForAdmin(event_id);
+    const adminAssignmentMap = await getTeamAssignmentMap(event_id);
+    const adminTeams = buildAdminTeamList(adminTeamRows, adminAssignmentMap);
+    const adminTotal = adminTeams.length;
+    const pagedAdminTeams = adminTeams.slice(parseInt(offset), parseInt(offset) + parseInt(limit));
+
+    return res.json({ success: true, data: pagedAdminTeams, total: adminTotal });
+
     // 获取队伍列表（通过 is_team_leader 标识队长/领队，只显示已提交的队伍）
     const sql = `
       SELECT
@@ -2058,26 +2253,117 @@ router.get('/teams/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // 获取队伍信息（通过领队报名记录）
-    const [[team]] = await pool.execute(`
+    if (id === 'export') {
+      const { event_id } = req.query;
+
+      if (!event_id) {
+        return res.status(400).json({ success: false, message: '缺少赛事ID' });
+      }
+
+      const [[event]] = await pool.query(
+        'SELECT team_event_config FROM events WHERE id = ?',
+        [event_id]
+      );
+
+      const teamEventConfig = parseTeamEventConfig(event?.team_event_config);
+      const { buildSubmittedTeamSummaries } = require('../utils/teamEvent');
+      const rows = await getSubmittedTeamRowsForAdmin(event_id);
+      const teamSummaries = buildSubmittedTeamSummaries(rows);
+      const teamAssignments = await getTeamAssignmentMap(event_id);
+
+      const exportRows = [];
+      teamSummaries.forEach((team) => {
+        const teamAssignment = teamAssignments[team.team_name] || [];
+        const memberProjects = {};
+
+        for (const assignment of teamAssignment) {
+          const { project_type, position, player_a_id, player_b_id } = assignment;
+
+          if (project_type.includes('singles')) {
+            if (!memberProjects[player_a_id]) {
+              memberProjects[player_a_id] = {};
+            }
+            memberProjects[player_a_id][project_type] = position.toString();
+          } else {
+            const label = `对${position}`;
+            if (!memberProjects[player_a_id]) {
+              memberProjects[player_a_id] = {};
+            }
+            memberProjects[player_a_id][project_type] = label;
+
+            if (player_b_id) {
+              if (!memberProjects[player_b_id]) {
+                memberProjects[player_b_id] = {};
+              }
+              memberProjects[player_b_id][project_type] = label;
+            }
+          }
+        }
+
+        team.members.forEach((member) => {
+          const projects = memberProjects[member.user_id] || {};
+          exportRows.push({
+            name: member.name,
+            gender: member.gender === 'male' ? '男' : '女',
+            phone: member.phone || '',
+            school_name: member.school_name || '',
+            college_name: member.college_name || '',
+            is_team: '是',
+            men_singles: projects.men_singles || '',
+            women_singles: projects.women_singles || '',
+            men_doubles: projects.men_doubles || '',
+            women_doubles: projects.women_doubles || '',
+            mixed_doubles: projects.mixed_doubles || ''
+          });
+        });
+      });
+
+      return res.json({
+        success: true,
+        data: {
+          rows: exportRows,
+          config: teamEventConfig
+        }
+      });
+    }
+
+    const [[baseRow]] = await pool.execute(
+      'SELECT id, event_id, team_name, status, created_at FROM event_registrations WHERE id = ?',
+      [id]
+    );
+
+    if (!baseRow) {
+      return res.json({ success: false, message: '队伍不存在' });
+    }
+
+    const [[captain]] = await pool.execute(`
       SELECT
         er.id,
-        er.event_id,
-        er.team_name,
-        er.status,
-        er.created_at,
         u.id as captain_id,
         u.name as captain_name,
         u.phone as captain_phone,
         u.avatar_url as captain_avatar
       FROM event_registrations er
       JOIN users u ON er.user_id = u.id
-      WHERE er.id = ?
-    `, [id]);
+      WHERE er.event_id = ?
+        AND er.team_name = ?
+        AND er.status != 'cancelled'
+        AND er.is_team_leader = 1
+      ORDER BY er.id DESC
+      LIMIT 1
+    `, [baseRow.event_id, baseRow.team_name]);
 
-    if (!team) {
-      return res.json({ success: false, message: '队伍不存在' });
-    }
+    const team = {
+      id: captain?.id || baseRow.id,
+      event_id: baseRow.event_id,
+      team_name: baseRow.team_name,
+      status: baseRow.status,
+      created_at: baseRow.created_at,
+      captain_id: captain?.captain_id || null,
+      captain_name: captain?.captain_name || '',
+      captain_phone: captain?.captain_phone || '',
+      captain_avatar: captain?.captain_avatar || ''
+    };
 
     // 获取队员列表
     const [members] = await pool.execute(`
@@ -2086,7 +2372,7 @@ router.get('/teams/:id', requireAdmin, async (req, res) => {
         u.id as user_id, u.name, u.phone, u.avatar_url
       FROM event_registrations er
       JOIN users u ON er.user_id = u.id
-      WHERE er.team_name = ? AND er.event_id = ?
+      WHERE er.team_name = ? AND er.event_id = ? AND er.status != 'cancelled'
     `, [team.team_name, team.event_id]);
 
     team.members = members;
@@ -2113,49 +2399,16 @@ router.get('/teams/export', requireAdmin, async (req, res) => {
       [event_id]
     );
 
-    const teamEventConfig = event?.team_event_config || null;
+    const teamEventConfig = parseTeamEventConfig(event?.team_event_config);
 
     const { buildSubmittedTeamSummaries } = require('../utils/teamEvent');
 
-    const [rows] = await pool.query(
-      `SELECT er.*,
-              u.name,
-              u.phone,
-              u.gender,
-              u.avatar_url,
-              s.name as school_name,
-              c.name as college_name
-       FROM event_registrations er
-       JOIN users u ON er.user_id = u.id
-       LEFT JOIN schools s ON u.school_id = s.id
-       LEFT JOIN colleges c ON u.college_id = c.id
-       WHERE er.event_id = ?
-         AND er.status != 'cancelled'
-         AND er.team_name IS NOT NULL
-         AND COALESCE(er.team_submit_status, 'submitted') = 'submitted'
-       ORDER BY er.team_submitted_at, er.registered_at, er.id`,
-      [event_id]
-    );
+    const rows = await getSubmittedTeamRowsForAdmin(event_id);
 
     const teamSummaries = buildSubmittedTeamSummaries(rows);
 
     // 获取所有队伍的项目分配
-    const [assignments] = await pool.query(
-      `SELECT team_name, project_type, position, player_a_id, player_b_id
-       FROM team_project_assignments
-       WHERE event_id = ?
-       ORDER BY team_name, project_type, position`,
-      [event_id]
-    );
-
-    // 构建项目分配映射
-    const teamAssignments = {};
-    for (const assignment of assignments) {
-      if (!teamAssignments[assignment.team_name]) {
-        teamAssignments[assignment.team_name] = [];
-      }
-      teamAssignments[assignment.team_name].push(assignment);
-    }
+    const teamAssignments = await getTeamAssignmentMap(event_id);
 
     // 构建导出行
     const exportRows = [];
