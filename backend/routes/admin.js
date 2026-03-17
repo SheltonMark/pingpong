@@ -95,7 +95,7 @@ async function getTeamAssignmentMap(eventId, connection = pool) {
   return assignmentMap;
 }
 
-function buildAdminTeamList(registrations = [], assignmentMap = {}) {
+function buildAdminTeamList(registrations = [], assignmentMap = {}, teamEventConfig = null) {
   const teamMap = new Map();
 
   for (const row of registrations) {
@@ -201,9 +201,11 @@ function buildAdminTeamList(registrations = [], assignmentMap = {}) {
     }
 
     team.actual_player_count = team.members.filter((member) => member.is_participating !== 0).length;
+    const completion = evaluateTeamProjectCompletion(teamEventConfig, assignments, team.actual_player_count);
     team.singles_count = team.members.filter((member) => member.is_participating !== 0 && member.is_singles_player === 1).length;
     team.confirmed_count = team.members.filter((member) => member.is_participating !== 0 && member.status === 'confirmed').length;
     team.total_slots = team.members.length;
+    team.is_team_complete = completion.isComplete;
     team.assignments = assignments;
     return team;
   }).sort((left, right) => {
@@ -230,6 +232,144 @@ function parseTeamEventConfig(rawConfig) {
     }
   }
   return rawConfig;
+}
+
+const TEAM_PROJECT_MEMBER_COUNTS = {
+  men_singles: 1,
+  women_singles: 1,
+  men_doubles: 2,
+  women_doubles: 2,
+  mixed_doubles: 2
+};
+
+function getRequiredTeamCompetitionPlayerCount(teamEventConfig) {
+  const config = parseTeamEventConfig(teamEventConfig);
+  const projects = config?.projects || {};
+
+  return Object.entries(projects).reduce((total, [projectType, projectConfig]) => {
+    if (!projectConfig?.enabled) {
+      return total;
+    }
+    const projectCount = Math.max(0, parseInt(projectConfig.count, 10) || 0);
+    return total + (projectCount * (TEAM_PROJECT_MEMBER_COUNTS[projectType] || 0));
+  }, 0);
+}
+
+function evaluateTeamProjectCompletion(teamEventConfig, assignments = [], actualPlayerCount = 0) {
+  const config = parseTeamEventConfig(teamEventConfig);
+  const projects = config?.projects || {};
+  const groupedAssignments = {};
+  let hasEnabledProjects = false;
+  let isComplete = true;
+  const requiredPlayerCount = getRequiredTeamCompetitionPlayerCount(teamEventConfig);
+
+  if (actualPlayerCount < requiredPlayerCount) {
+    isComplete = false;
+  }
+
+  assignments.forEach((assignment) => {
+    const projectType = assignment.project_type || assignment.project;
+    const projectConfig = projects[projectType];
+    const requiredMemberCount = TEAM_PROJECT_MEMBER_COUNTS[projectType];
+    const position = parseInt(assignment.position, 10);
+
+    if (!projectConfig?.enabled || !requiredMemberCount) {
+      return;
+    }
+
+    if (!Number.isInteger(position) || position < 1 || position > (parseInt(projectConfig.count, 10) || 0)) {
+      isComplete = false;
+      return;
+    }
+
+    if (!groupedAssignments[projectType]) {
+      groupedAssignments[projectType] = new Map();
+    }
+
+    if (groupedAssignments[projectType].has(position)) {
+      isComplete = false;
+      return;
+    }
+
+    if (!assignment.player_a_id || (requiredMemberCount === 2 && !assignment.player_b_id)) {
+      isComplete = false;
+      return;
+    }
+
+    groupedAssignments[projectType].set(position, assignment);
+  });
+
+  Object.entries(projects).forEach(([projectType, projectConfig]) => {
+    if (!projectConfig?.enabled) {
+      return;
+    }
+
+    const expectedCount = Math.max(0, parseInt(projectConfig.count, 10) || 0);
+    if (expectedCount <= 0) {
+      return;
+    }
+
+    hasEnabledProjects = true;
+    const positionAssignments = groupedAssignments[projectType] || new Map();
+    for (let position = 1; position <= expectedCount; position += 1) {
+      if (!positionAssignments.has(position)) {
+        isComplete = false;
+      }
+    }
+  });
+
+  return {
+    isComplete: hasEnabledProjects ? isComplete : true
+  };
+}
+
+function buildAdminTeamExportRows(teamSummaries = [], teamAssignments = {}, teamEventConfig = null) {
+  const exportRows = [];
+
+  teamSummaries.forEach((team) => {
+    const teamAssignment = teamAssignments[team.team_name] || [];
+    const completion = evaluateTeamProjectCompletion(teamEventConfig, teamAssignment, team.members.length);
+    const memberProjects = {};
+
+    for (const assignment of teamAssignment) {
+      const { project_type, position, player_a_id, player_b_id } = assignment;
+      const label = project_type.includes('singles') ? position.toString() : `对${position}`;
+
+      if (player_a_id) {
+        if (!memberProjects[player_a_id]) {
+          memberProjects[player_a_id] = {};
+        }
+        memberProjects[player_a_id][project_type] = label;
+      }
+
+      if (player_b_id) {
+        if (!memberProjects[player_b_id]) {
+          memberProjects[player_b_id] = {};
+        }
+        memberProjects[player_b_id][project_type] = label;
+      }
+    }
+
+    team.members.forEach((member) => {
+      const projects = memberProjects[member.user_id] || {};
+      exportRows.push({
+        name: member.name,
+        gender: member.gender === 'male' ? '男' : '女',
+        phone: member.phone || '',
+        school_name: member.school_name || '',
+        college_name: member.college_name || '',
+        is_leader: member.is_team_leader ? '是' : '',
+        is_team: completion.isComplete ? '是' : '否',
+        men_singles: projects.men_singles || '',
+        women_singles: projects.women_singles || '',
+        men_doubles: projects.men_doubles || '',
+        women_doubles: projects.women_doubles || '',
+        mixed_doubles: projects.mixed_doubles || ''
+      });
+    });
+  });
+
+  return exportRows;
 }
 
 // 初始化超级管理员（仅用于首次设置）
@@ -2143,9 +2283,14 @@ router.get('/teams', requireAdmin, async (req, res) => {
       return res.json({ success: true, data: [], total: 0 });
     }
 
+    const [[event]] = await pool.query(
+      'SELECT team_event_config FROM events WHERE id = ?',
+      [event_id]
+    );
+
     const adminTeamRows = await getSubmittedTeamRowsForAdmin(event_id);
     const adminAssignmentMap = await getTeamAssignmentMap(event_id);
-    const adminTeams = buildAdminTeamList(adminTeamRows, adminAssignmentMap);
+    const adminTeams = buildAdminTeamList(adminTeamRows, adminAssignmentMap, event?.team_event_config || null);
     const adminTotal = adminTeams.length;
     const pagedAdminTeams = adminTeams.slice(parseInt(offset), parseInt(offset) + parseInt(limit));
 
@@ -2270,6 +2415,15 @@ router.get('/teams/:id', requireAdmin, async (req, res) => {
       const rows = await getSubmittedTeamRowsForAdmin(event_id);
       const teamSummaries = buildSubmittedTeamSummaries(rows);
       const teamAssignments = await getTeamAssignmentMap(event_id);
+      const adminExportRows = buildAdminTeamExportRows(teamSummaries, teamAssignments, teamEventConfig);
+
+      return res.json({
+        success: true,
+        data: {
+          rows: adminExportRows,
+          config: teamEventConfig
+        }
+      });
 
       const exportRows = [];
       teamSummaries.forEach((team) => {
@@ -2409,6 +2563,15 @@ router.get('/teams/export', requireAdmin, async (req, res) => {
 
     // 获取所有队伍的项目分配
     const teamAssignments = await getTeamAssignmentMap(event_id);
+    const adminExportRows = buildAdminTeamExportRows(teamSummaries, teamAssignments, teamEventConfig);
+
+    return res.json({
+      success: true,
+      data: {
+        rows: adminExportRows,
+        config: teamEventConfig
+      }
+    });
 
     // 构建导出行
     const exportRows = [];

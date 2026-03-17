@@ -861,11 +861,6 @@ Page({
       return;
     }
 
-    if (this.data.totalProjectSlots > 0 && this.data.assignedProjectSlots !== this.data.totalProjectSlots) {
-      wx.showToast({ title: '请先完成项目分配', icon: 'none' });
-      return;
-    }
-
     const confirmed = await new Promise((resolve) => {
       wx.showModal({
         title: '确认正式提交',

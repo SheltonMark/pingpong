@@ -441,7 +441,7 @@ function validateTeamSubmitParticipants(event, participants = []) {
   };
 }
 
-function validateTeamProjectAssignmentsForSubmit({ teamProjectConfig, participants = [], assignments = [] }) {
+function validateTeamProjectAssignmentsForSubmit({ teamProjectConfig, participants = [], assignments = [], requireComplete = true }) {
   const config = normalizeTeamProjectConfig(teamProjectConfig);
   const participantMap = new Map(
     participants.map((participant) => [
@@ -502,6 +502,9 @@ function validateTeamProjectAssignmentsForSubmit({ teamProjectConfig, participan
     for (let position = 1; position <= projectConfig.count; position += 1) {
       const assignment = positionAssignments.get(position);
       if (!assignment) {
+        if (!requireComplete) {
+          continue;
+        }
         errors.add(`请先完成${projectRule.label}项目分配`);
         continue;
       }
@@ -2245,7 +2248,8 @@ router.post('/:id/team-submit', async (req, res) => {
       const projectValidation = validateTeamProjectAssignmentsForSubmit({
         teamProjectConfig: event.team_event_config,
         participants: actualParticipants,
-        assignments: projectAssignments
+        assignments: projectAssignments,
+        requireComplete: false
       });
       if (!projectValidation.valid) {
         throw new Error(projectValidation.errors[0]);

@@ -278,14 +278,14 @@
         <el-table-column prop="school_name" label="学校" min-width="220" />
         <el-table-column prop="college_name" label="学院" min-width="180" />
         <el-table-column prop="team_name" label="队伍" min-width="180" v-if="regEvent && regEvent.event_type === 'team'" />
-        <el-table-column prop="is_team_leader" label="队长" width="80" v-if="regEvent && regEvent.event_type === 'team'">
+        <el-table-column prop="is_team_leader" label="领队" width="80" v-if="regEvent && regEvent.event_type === 'team'">
           <template #default="{ row }">
             {{ row.is_team_leader ? '是' : '' }}
           </template>
         </el-table-column>
-        <el-table-column prop="is_participating" label="参赛" width="80" v-if="regEvent && regEvent.event_type === 'team'">
+        <el-table-column prop="is_team_complete" label="团体" width="80" v-if="regEvent && regEvent.event_type === 'team'">
           <template #default="{ row }">
-            {{ row.is_participating ? '是' : '否' }}
+            {{ row.is_team_complete ? '是' : '否' }}
           </template>
         </el-table-column>
         <el-table-column prop="is_singles_player" label="单打" width="80" v-if="regEvent && regEvent.event_type === 'team'">
@@ -683,6 +683,7 @@ const viewRegistrations = async (row) => {
             team_name: team.team_name,
             is_team_leader: 1,
             is_participating: team.leader_participating,
+            is_team_complete: !!team.is_team_complete,
             is_singles_player: captainMember?.is_singles_player || 0,
             projects: captainMember?.projects || [],
             status: 'confirmed'
@@ -700,6 +701,7 @@ const viewRegistrations = async (row) => {
                   team_name: team.team_name,
                   is_team_leader: 0,
                   is_participating: member.is_participating,
+                  is_team_complete: !!team.is_team_complete,
                   is_singles_player: member.is_singles_player,
                   projects: member.projects || [],
                   status: member.status
@@ -747,7 +749,7 @@ const exportRegistrations = async () => {
         }
 
         // 动态构建表头
-        const baseHeaders = ['姓名', '性别', '电话号码', '学校', '学院', '团体']
+        const baseHeaders = ['姓名', '性别', '电话号码', '学校', '学院', '领队', '团体']
         const projectHeaders = []
 
         // 根据配置添加项目列
@@ -771,6 +773,7 @@ const exportRegistrations = async () => {
               row.phone,
               `"${row.school_name}"`,
               `"${row.college_name}"`,
+              row.is_leader || '',
               row.is_team
             ]
 
