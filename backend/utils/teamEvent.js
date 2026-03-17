@@ -17,26 +17,73 @@ const DEFAULT_TEAM_CONFIG = {
   requiredFemaleCount: 0
 };
 
+const TEAM_PROJECT_MEMBER_COUNTS = {
+  men_singles: 1,
+  women_singles: 1,
+  men_doubles: 2,
+  women_doubles: 2,
+  mixed_doubles: 2
+};
+
 function toInt(value, fallback = 0) {
   const parsed = parseInt(value, 10);
   return Number.isInteger(parsed) ? parsed : fallback;
 }
 
+function parseTeamEventConfig(teamEventConfig = null) {
+  if (!teamEventConfig) {
+    return null;
+  }
+  if (typeof teamEventConfig === 'string') {
+    try {
+      return JSON.parse(teamEventConfig);
+    } catch (error) {
+      return null;
+    }
+  }
+  return teamEventConfig;
+}
+
+function getRequiredTeamCompetitionPlayerCount(teamEventConfig = null) {
+  const config = parseTeamEventConfig(teamEventConfig);
+  const projects = config?.projects || {};
+
+  return Object.entries(projects).reduce((total, [projectType, projectConfig]) => {
+    if (!projectConfig?.enabled) {
+      return total;
+    }
+
+    const projectCount = Math.max(0, toInt(projectConfig.count, 0));
+    return total + (projectCount * (TEAM_PROJECT_MEMBER_COUNTS[projectType] || 0));
+  }, 0);
+}
+
 function normalizeTeamEventConfig(event = {}) {
-  const minTeamPlayers = Math.max(2, toInt(event.min_team_players, DEFAULT_TEAM_CONFIG.minTeamPlayers));
-  const maxTeamPlayers = Math.max(minTeamPlayers, toInt(event.max_team_players, DEFAULT_TEAM_CONFIG.maxTeamPlayers));
+  const configuredMinTeamPlayers = Math.max(2, toInt(event.min_team_players, DEFAULT_TEAM_CONFIG.minTeamPlayers));
   const singlesPlayerCount = Math.max(1, toInt(event.singles_player_count, DEFAULT_TEAM_CONFIG.singlesPlayerCount));
   const genderRule = Object.values(TEAM_GENDER_RULES).includes(event.gender_rule)
     ? event.gender_rule
     : DEFAULT_TEAM_CONFIG.genderRule;
+  const requiredMaleCount = Math.max(0, toInt(event.required_male_count, DEFAULT_TEAM_CONFIG.requiredMaleCount));
+  const requiredFemaleCount = Math.max(0, toInt(event.required_female_count, DEFAULT_TEAM_CONFIG.requiredFemaleCount));
+  const legacyDerivedMinTeamPlayers = (genderRule === TEAM_GENDER_RULES.FIXED || genderRule === TEAM_GENDER_RULES.MINIMUM)
+    ? (requiredMaleCount + requiredFemaleCount)
+    : 0;
+  const minTeamPlayers = legacyDerivedMinTeamPlayers >= DEFAULT_TEAM_CONFIG.minTeamPlayers &&
+    configuredMinTeamPlayers === legacyDerivedMinTeamPlayers
+    ? DEFAULT_TEAM_CONFIG.minTeamPlayers
+    : configuredMinTeamPlayers;
+  const maxTeamPlayers = Math.max(minTeamPlayers, toInt(event.max_team_players, DEFAULT_TEAM_CONFIG.maxTeamPlayers));
 
   return {
     minTeamPlayers,
+    configuredMinTeamPlayers,
+    legacyDerivedMinTeamPlayers,
     maxTeamPlayers,
     singlesPlayerCount,
     genderRule,
-    requiredMaleCount: Math.max(0, toInt(event.required_male_count, DEFAULT_TEAM_CONFIG.requiredMaleCount)),
-    requiredFemaleCount: Math.max(0, toInt(event.required_female_count, DEFAULT_TEAM_CONFIG.requiredFemaleCount))
+    requiredMaleCount,
+    requiredFemaleCount
   };
 }
 
@@ -56,8 +103,8 @@ function validateTeamEventConfig(event = {}) {
 
   if (config.genderRule === TEAM_GENDER_RULES.FIXED) {
     const total = config.requiredMaleCount + config.requiredFemaleCount;
-    if (total < config.minTeamPlayers || total > config.maxTeamPlayers) {
-      errors.push('固定男女人数之和必须落在每队人数范围内');
+    if (total > config.maxTeamPlayers) {
+      errors.push('固定男女人数之和不能大于每队最多人数');
     }
   }
 
@@ -132,18 +179,7 @@ function validateTeamParticipants({ event, participants = [], singlesPlayerIds =
       }
       break;
     case TEAM_GENDER_RULES.FIXED:
-      if (
-        summary.maleCount !== config.requiredMaleCount ||
-        summary.femaleCount !== config.requiredFemaleCount
-      ) {
-        errors.push(`实际参赛名单必须为男${config.requiredMaleCount}人、女${config.requiredFemaleCount}人`);
-      }
-      break;
     case TEAM_GENDER_RULES.MINIMUM:
-      if (summary.maleCount < config.requiredMaleCount || summary.femaleCount < config.requiredFemaleCount) {
-        errors.push(`实际参赛名单至少需要男${config.requiredMaleCount}人、女${config.requiredFemaleCount}人`);
-      }
-      break;
     default:
       break;
   }
@@ -275,6 +311,7 @@ module.exports = {
   normalizeTeamEventConfig,
   validateTeamEventConfig,
   validateTeamParticipants,
+  getRequiredTeamCompetitionPlayerCount,
   summarizeParticipants,
   buildSubmittedTeamSummaries,
   buildTeamExportRows,

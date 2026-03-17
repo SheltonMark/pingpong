@@ -405,6 +405,15 @@ function validateTeamSubmitParticipants(event, participants = []) {
     errors.push(`每队最多只能有 ${config.maxTeamPlayers} 名实际参赛队员`);
   }
 
+  if (config.genderRule === 'fixed' || config.genderRule === 'minimum') {
+    return {
+      valid: errors.length === 0,
+      errors,
+      config,
+      summary
+    };
+  }
+
   switch (config.genderRule) {
     case 'male_only':
       if (summary.femaleCount > 0) {
@@ -1719,7 +1728,7 @@ router.post('/team-invitations/:token/respond', async (req, res) => {
       if (config.genderRule === 'female_only' && currentUser.gender !== 'female') {
         return res.status(400).json({ success: false, message: '该赛事仅允许女子团体报名' });
       }
-      if (config.genderRule === 'fixed') {
+      if (false && config.genderRule === 'fixed') {
         if (currentUser.gender === 'male' && maleCount >= config.requiredMaleCount) {
           return res.status(400).json({ success: false, message: '当前队伍男生人数已达上限' });
         }
@@ -2504,12 +2513,17 @@ router.post('/:id/register-team', async (req, res) => {
     }
 
     const participantCount = member_ids.length + (leaderParticipating ? 1 : 0);
-    const minParticipants = leaderParticipating ? 2 : 3;
+    const config = normalizeTeamEventConfig(event);
+    const minParticipants = config.minTeamPlayers;
     if (participantCount < minParticipants) {
       return res.status(400).json({ success: false, message: `当前设置下至少需要${minParticipants}名参赛队员` });
     }
 
     // 检查队员是否已报名其他队伍
+    if (participantCount > config.maxTeamPlayers) {
+      return res.status(400).json({ success: false, message: `当前设置下最多只能有${config.maxTeamPlayers}名参赛队员` });
+    }
+
     const [memberRegs] = await pool.query(
       'SELECT er.*, u.name FROM event_registrations er JOIN users u ON er.user_id = u.id WHERE er.event_id = ? AND er.user_id IN (?) AND er.status != "cancelled"',
       [id, member_ids]

@@ -1,13 +1,61 @@
 const app = getApp();
 const subscribe = require('../../utils/subscribe');
 const AUTO_REFRESH_INTERVAL = 10000;
+const TEAM_PROJECT_MEMBER_COUNTS = {
+  men_singles: 1,
+  women_singles: 1,
+  men_doubles: 2,
+  women_doubles: 2,
+  mixed_doubles: 2
+};
 
 function getCurrentUserId() {
   return app.globalData.userInfo?.id || app.globalData.userInfo?.user_id || null;
 }
 
+function parseTeamEventConfig(teamEventConfig = null) {
+  if (!teamEventConfig) {
+    return null;
+  }
+  if (typeof teamEventConfig === 'string') {
+    try {
+      return JSON.parse(teamEventConfig);
+    } catch (error) {
+      return null;
+    }
+  }
+  return teamEventConfig;
+}
+
+function getRequiredTeamCompetitionPlayerCount(teamEventConfig = null) {
+  const config = parseTeamEventConfig(teamEventConfig);
+  const projects = config?.projects || {};
+
+  return Object.entries(projects).reduce((total, [projectType, projectConfig]) => {
+    if (!projectConfig?.enabled) {
+      return total;
+    }
+
+    const projectCount = Math.max(0, parseInt(projectConfig.count, 10) || 0);
+    return total + (projectCount * (TEAM_PROJECT_MEMBER_COUNTS[projectType] || 0));
+  }, 0);
+}
+
 function normalizeConfig(event = {}, draftConfig = {}) {
-  const minTeamPlayers = Math.max(2, parseInt(draftConfig.minTeamPlayers || event.min_team_players || 2, 10) || 2);
+  const configuredMinTeamPlayers = Math.max(
+    2,
+    parseInt(draftConfig.minTeamPlayers || event.min_team_players || 2, 10) || 2
+  );
+  const genderRule = draftConfig.genderRule || event.gender_rule || 'unlimited';
+  const requiredMaleCount = parseInt(draftConfig.requiredMaleCount || event.required_male_count || 0, 10) || 0;
+  const requiredFemaleCount = parseInt(draftConfig.requiredFemaleCount || event.required_female_count || 0, 10) || 0;
+  const legacyDerivedMinTeamPlayers = (genderRule === 'fixed' || genderRule === 'minimum')
+    ? (requiredMaleCount + requiredFemaleCount)
+    : 0;
+  const minTeamPlayers = legacyDerivedMinTeamPlayers >= 2 &&
+    configuredMinTeamPlayers === legacyDerivedMinTeamPlayers
+    ? 2
+    : configuredMinTeamPlayers;
   const maxTeamPlayers = Math.max(
     minTeamPlayers,
     parseInt(draftConfig.maxTeamPlayers || event.max_team_players || 10, 10) || 10
@@ -21,9 +69,9 @@ function normalizeConfig(event = {}, draftConfig = {}) {
     minTeamPlayers,
     maxTeamPlayers,
     singlesPlayerCount,
-    genderRule: draftConfig.genderRule || event.gender_rule || 'unlimited',
-    requiredMaleCount: parseInt(draftConfig.requiredMaleCount || event.required_male_count || 0, 10) || 0,
-    requiredFemaleCount: parseInt(draftConfig.requiredFemaleCount || event.required_female_count || 0, 10) || 0
+    genderRule,
+    requiredMaleCount,
+    requiredFemaleCount
   };
 }
 

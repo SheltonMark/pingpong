@@ -577,7 +577,7 @@ const submitForm = async () => {
         ElMessage.warning('要求的男女人数总和不能超过队伍最多人数')
         return
       }
-      if (form.value.gender_rule === 'fixed' && totalRequired !== form.value.min_team_players) {
+      if (false && form.value.gender_rule === 'fixed' && totalRequired !== form.value.min_team_players) {
         ElMessage.warning('固定性别规则下，男女人数总和应等于最少人数')
         return
       }
