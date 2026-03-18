@@ -426,6 +426,50 @@ async function getTeamProjectAssignments(eventId, teamName, connection = pool) {
   return rows;
 }
 
+function sanitizeTeamProjectAssignments(assignments = [], participants = []) {
+  const participantIds = new Set(
+    participants
+      .map((participant) => parseInt(participant.user_id || participant.id, 10))
+      .filter((id) => Number.isInteger(id))
+  );
+  let changed = false;
+
+  const sanitizedAssignments = assignments.reduce((result, assignment) => {
+    if (!assignment) {
+      return result;
+    }
+
+    const nextAssignment = { ...assignment };
+    const playerAKey = Object.prototype.hasOwnProperty.call(nextAssignment, 'player_a_id') ? 'player_a_id' : 'player_a';
+    const playerBKey = Object.prototype.hasOwnProperty.call(nextAssignment, 'player_b_id') ? 'player_b_id' : 'player_b';
+    const playerAId = parseInt(nextAssignment[playerAKey], 10);
+    const playerBId = parseInt(nextAssignment[playerBKey], 10);
+
+    if (Number.isInteger(playerAId) && !participantIds.has(playerAId)) {
+      nextAssignment[playerAKey] = null;
+      changed = true;
+    }
+
+    if (Number.isInteger(playerBId) && !participantIds.has(playerBId)) {
+      nextAssignment[playerBKey] = null;
+      changed = true;
+    }
+
+    if (nextAssignment[playerAKey] || nextAssignment[playerBKey]) {
+      result.push(nextAssignment);
+    } else {
+      changed = true;
+    }
+
+    return result;
+  }, []);
+
+  return {
+    assignments: sanitizedAssignments,
+    changed
+  };
+}
+
 function isEffectiveTeamProjectAssignment(projectType, assignment) {
   const rule = TEAM_PROJECT_RULES[projectType];
   if (!rule || !assignment) {
@@ -2258,6 +2302,27 @@ router.post('/:id/team-members/:memberId/remove', async (req, res) => {
     }
 
     // 通知被删除的队员
+    if (leaderReg.team_name) {
+      await pool.execute(
+        `UPDATE team_project_assignments
+         SET player_a_id = CASE WHEN player_a_id = ? THEN NULL ELSE player_a_id END,
+             player_b_id = CASE WHEN player_b_id = ? THEN NULL ELSE player_b_id END
+         WHERE event_id = ?
+           AND team_name = ?
+           AND (player_a_id = ? OR player_b_id = ?)`,
+        [memberId, memberId, id, leaderReg.team_name, memberId, memberId]
+      );
+
+      await pool.execute(
+        `DELETE FROM team_project_assignments
+         WHERE event_id = ?
+           AND team_name = ?
+           AND player_a_id IS NULL
+           AND player_b_id IS NULL`,
+        [id, leaderReg.team_name]
+      );
+    }
+
     if (rows[0].openid) {
       try {
         await subscribeMessage.sendTeamInvitationResult(rows[0].openid, {
@@ -2365,10 +2430,11 @@ router.post('/:id/team-submit', async (req, res) => {
       }
 
       const projectAssignments = await getTeamProjectAssignments(id, normalizedTeamName, connection);
+      const sanitizedProjectAssignments = sanitizeTeamProjectAssignments(projectAssignments, actualParticipants).assignments;
       const projectValidation = validateTeamProjectAssignmentsForSubmit({
         teamProjectConfig: event.team_event_config,
         participants: actualParticipants,
-        assignments: projectAssignments,
+        assignments: sanitizedProjectAssignments,
         requireComplete: false
       });
       if (!projectValidation.valid) {
@@ -3448,15 +3514,17 @@ router.get('/:id/team-project-assignments', async (req, res) => {
        ORDER BY project_type, position`,
       [eventId, teamName]
     );
+    const teamMembers = await getTeamMembers(eventId, leaderId);
+    const sanitizedAssignments = sanitizeTeamProjectAssignments(assignments, teamMembers).assignments;
 
     // 构建每个队员参加的项目列表
-    const memberProjects = buildMemberProjectsFromAssignments(assignments);
+    const memberProjects = buildMemberProjectsFromAssignments(sanitizedAssignments);
 
 
     res.json({
       success: true,
       data: {
-        assignments,
+          assignments: sanitizedAssignments,
         member_projects: memberProjects
       }
     });
