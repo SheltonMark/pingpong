@@ -119,11 +119,33 @@ Page({
     this.setData({ invitationState: state });
   },
 
-  onGoRegister() {
+  async onGoRegister() {
     const redirect = `/pages/team-invite/team-invite?token=${this.data.token}`;
-    wx.navigateTo({
-      url: `/pages/register/register?redirect=${encodeURIComponent(redirect)}`
-    });
+    try {
+      if (!getCurrentUserId()) {
+        wx.showLoading({ title: '登录中...' });
+        await app.wxLogin();
+      }
+
+      if (getCurrentUserId()) {
+        this.setData({ isLoggedIn: true });
+        this.updateInvitationState();
+        await this.loadInvitation({ silent: true });
+        return;
+      }
+
+      wx.navigateTo({
+        url: `/pages/register/register?redirect=${encodeURIComponent(redirect)}`
+      });
+    } catch (error) {
+      console.error('补登录失败:', error);
+      wx.showToast({
+        title: error.message || '登录失败，请重试',
+        icon: 'none'
+      });
+    } finally {
+      wx.hideLoading();
+    }
   },
 
   async onRespond(e) {

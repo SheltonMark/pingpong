@@ -44,7 +44,7 @@ Page({
     submitting: false
   },
 
-  onLoad(options) {
+  async onLoad(options) {
     const isEditMode = options.mode === 'edit';
     const redirect = options.redirect ? decodeURIComponent(options.redirect) : '';
     this.setData({ isEditMode, redirect });
@@ -54,11 +54,40 @@ Page({
     }
 
     this.generateYearOptions();
-    this.loadSchools().then(() => {
-      if (isEditMode) {
-        this.loadUserData();
+    await this.ensureLoginSession({ silent: true, showLoading: false });
+    await this.loadSchools();
+    if (isEditMode && app.globalData.openid) {
+      this.loadUserData();
+    }
+  },
+
+  async ensureLoginSession(options = {}) {
+    if (app.globalData.openid) {
+      return true;
+    }
+
+    const shouldShowLoading = options.showLoading !== false;
+    if (shouldShowLoading) {
+      wx.showLoading({ title: '登录中...' });
+    }
+
+    try {
+      await app.wxLogin();
+      return !!app.globalData.openid;
+    } catch (error) {
+      console.error('补登录失败:', error);
+      if (!options.silent) {
+        wx.showToast({
+          title: error.message || '登录失败，请重试',
+          icon: 'none'
+        });
       }
-    });
+      return false;
+    } finally {
+      if (shouldShowLoading) {
+        wx.hideLoading();
+      }
+    }
   },
 
   // 加载用户现有数据
@@ -288,6 +317,11 @@ Page({
         title: errors[0],
         icon: 'none'
       });
+      return;
+    }
+
+    const sessionReady = await this.ensureLoginSession();
+    if (!sessionReady) {
       return;
     }
 
