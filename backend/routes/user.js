@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
 const { calculateInitialRating } = require('../utils/ratingCalculator');
+const subscribeMessage = require('../utils/subscribeMessage');
 const { computeEventStatus } = require('./events');
 
 // 检查用户是否存在
@@ -489,7 +490,13 @@ router.post('/invitations/:invitationId/respond', async (req, res) => {
 
     // 验证邀请存在且属于该用户
     const [invitations] = await pool.query(
-      'SELECT * FROM team_invitations WHERE id = ? AND invitee_id = ? AND status = "pending"',
+      `SELECT i.*,
+              e.title as event_title,
+              inviter.openid as inviter_openid
+       FROM team_invitations i
+       LEFT JOIN events e ON i.event_id = e.id
+       LEFT JOIN users inviter ON i.inviter_id = inviter.id
+       WHERE i.id = ? AND i.invitee_id = ? AND i.status = "pending"`,
       [invitationId, user_id]
     );
 
@@ -499,6 +506,103 @@ router.post('/invitations/:invitationId/respond', async (req, res) => {
 
     const invitation = invitations[0];
     const newStatus = action === 'accept' ? 'accepted' : 'rejected';
+
+    const [users] = await pool.query(
+      'SELECT id, name FROM users WHERE id = ? LIMIT 1',
+      [user_id]
+    );
+    const currentUser = users[0] || { name: '受邀用户' };
+
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      await connection.query(
+        'UPDATE team_invitations SET status = ?, responded_at = NOW() WHERE id = ?',
+        [newStatus, invitationId]
+      );
+
+      if (invitation.type === 'doubles') {
+        if (action === 'accept') {
+          await connection.query(
+            `UPDATE event_registrations
+             SET status = 'confirmed', partner_status = 'confirmed', confirmed_at = NOW()
+             WHERE event_id = ? AND user_id = ? AND partner_id = ?`,
+            [invitation.event_id, invitation.inviter_id, user_id]
+          );
+          await connection.query(
+            `UPDATE event_registrations
+             SET status = 'confirmed', partner_status = 'confirmed', confirmed_at = NOW()
+             WHERE event_id = ? AND user_id = ? AND partner_id = ?`,
+            [invitation.event_id, user_id, invitation.inviter_id]
+          );
+        } else {
+          await connection.query(
+            `UPDATE event_registrations
+             SET status = 'waiting_partner', partner_id = NULL, partner_status = NULL
+             WHERE event_id = ? AND user_id IN (?, ?)`,
+            [invitation.event_id, invitation.inviter_id, user_id]
+          );
+        }
+      } else if (invitation.type === 'team') {
+        if (action === 'accept') {
+          await connection.query(
+            `UPDATE event_registrations
+             SET status = 'confirmed'
+             WHERE event_id = ? AND user_id = ? AND team_leader_id = ? AND status = 'pending'`,
+            [invitation.event_id, user_id, invitation.inviter_id]
+          );
+        } else {
+          await connection.query(
+            `UPDATE event_registrations
+             SET status = 'cancelled'
+             WHERE event_id = ? AND user_id = ? AND team_leader_id = ? AND status = 'pending'`,
+            [invitation.event_id, user_id, invitation.inviter_id]
+          );
+        }
+      }
+
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+
+    if (invitation.inviter_openid) {
+      try {
+        if (invitation.type === 'doubles') {
+          await subscribeMessage.sendDoublesInvitationResult(invitation.inviter_openid, {
+            partnerName: currentUser.name,
+            eventName: invitation.event_title || '双打赛事',
+            status: action === 'accept' ? '已接受' : '已拒绝',
+            time: subscribeMessage.formatTime(new Date()),
+            page: `pages/event-detail/event-detail?id=${invitation.event_id}`
+          });
+        } else if (invitation.type === 'team') {
+          const [leaderRegs] = await pool.query(
+            `SELECT team_name
+             FROM event_registrations
+             WHERE event_id = ? AND user_id = ? AND is_team_leader = 1
+             ORDER BY id DESC
+             LIMIT 1`,
+            [invitation.event_id, invitation.inviter_id]
+          );
+          await subscribeMessage.sendTeamInvitationResult(invitation.inviter_openid, {
+            memberName: currentUser.name,
+            teamName: leaderRegs[0]?.team_name || '队伍',
+            status: action === 'accept' ? '已接受' : '已拒绝',
+            time: subscribeMessage.formatTime(new Date()),
+            page: `pages/team-register/team-register?id=${invitation.event_id}`
+          });
+        }
+      } catch (notifyError) {
+        console.error('发送邀请结果通知失败:', notifyError);
+      }
+    }
+
+    return res.json({ success: true, message: action === 'accept' ? '已同意' : '已拒绝' });
 
     await pool.query(
       'UPDATE team_invitations SET status = ?, responded_at = NOW() WHERE id = ?',

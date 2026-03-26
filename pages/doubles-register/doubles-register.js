@@ -6,9 +6,10 @@ Page({
     eventId: null,
     event: null,
     user: null,
-    partnerMode: 'select', // 'select' or 'wait'
+    partnerMode: 'select',
     availablePartners: [],
     selectedPartner: null,
+    pendingInvite: null,
     isLoading: true,
     isSubmitting: false
   },
@@ -52,6 +53,11 @@ Page({
   },
 
   onModeChange(e) {
+    if (this.data.pendingInvite) {
+      wx.showToast({ title: '邀请已创建，请先分享给搭档', icon: 'none' });
+      return;
+    }
+
     const mode = e.currentTarget.dataset.mode;
     this.setData({
       partnerMode: mode,
@@ -60,11 +66,26 @@ Page({
   },
 
   onSelectPartner(e) {
-    if (this.data.partnerMode !== 'select') return;
+    if (this.data.partnerMode !== 'select' || this.data.pendingInvite) {
+      return;
+    }
+
     const partner = e.currentTarget.dataset.partner;
     this.setData({
       selectedPartner: this.data.selectedPartner?.id === partner.id ? null : partner
     });
+  },
+
+  async requestEventSubscriptions() {
+    try {
+      await subscribe.requestSubscription([
+        subscribe.TEMPLATE_TYPES.INVITATION_RESULT,
+        subscribe.TEMPLATE_TYPES.MATCH_REMINDER,
+        subscribe.TEMPLATE_TYPES.SCORE_CONFIRM
+      ]);
+    } catch (error) {
+      console.log('Subscription request failed or declined:', error);
+    }
   },
 
   async onSubmit() {
@@ -73,21 +94,22 @@ Page({
       return;
     }
 
+    if (this.data.pendingInvite) {
+      wx.showToast({ title: '邀请已创建，请先分享给搭档', icon: 'none' });
+      return;
+    }
+
     if (this.data.partnerMode === 'select' && !this.data.selectedPartner) {
       wx.showToast({ title: '请选择搭档', icon: 'none' });
       return;
     }
 
-    if (this.data.isSubmitting) return;
-    this.setData({ isSubmitting: true });
-
-    // 请求赛事相关订阅消息授权（比赛提醒、比分确认）
-    try {
-      await subscribe.requestEventSubscriptions();
-    } catch (err) {
-      console.log('订阅请求失败或用户拒绝:', err);
-      // 订阅失败不影响报名操作
+    if (this.data.isSubmitting) {
+      return;
     }
+
+    this.setData({ isSubmitting: true });
+    await this.requestEventSubscriptions();
 
     try {
       const payload = {
@@ -105,19 +127,53 @@ Page({
         'POST'
       );
 
-      if (res.success) {
-        const msg = this.data.partnerMode === 'wait' ? '已加入配对队列' : '报名成功';
-        wx.showToast({ title: msg, icon: 'success' });
-        setTimeout(() => wx.navigateBack(), 1500);
-      } else {
+      if (!res.success) {
         wx.showToast({ title: res.message || '报名失败', icon: 'none' });
+        return;
       }
+
+      if (this.data.partnerMode === 'wait') {
+        wx.showToast({ title: '已加入配对队列', icon: 'success' });
+        setTimeout(() => wx.navigateBack(), 1200);
+        return;
+      }
+
+      this.setData({
+        pendingInvite: {
+          invite_token: res.data?.invite_token || '',
+          share_path: res.data?.share_path || '',
+          partner_name: this.data.selectedPartner?.name || '指定搭档'
+        }
+      });
+
+      wx.showModal({
+        title: '邀请已创建',
+        content: '请点击下方“分享邀请”发给搭档，对方确认后即可完成双打报名。',
+        showCancel: false
+      });
     } catch (error) {
       console.error('Submit error:', error);
       wx.showToast({ title: '报名失败', icon: 'none' });
     } finally {
       this.setData({ isSubmitting: false });
     }
+  },
+
+  onShareAppMessage(res) {
+    const sharePath = res?.target?.dataset?.sharePath || this.data.pendingInvite?.share_path;
+    const eventTitle = this.data.event?.title || '双打比赛';
+
+    if (!sharePath) {
+      return {
+        title: `邀请搭档参加${eventTitle}`,
+        path: `/pages/event-detail/event-detail?id=${this.data.eventId}`
+      };
+    }
+
+    return {
+      title: `邀请你和我搭档参加${eventTitle}`,
+      path: sharePath
+    };
   },
 
   formatDate(dateStr) {

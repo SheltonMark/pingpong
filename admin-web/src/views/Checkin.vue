@@ -2,11 +2,11 @@
   <div class="page">
     <div class="page-header">
       <h2>签到管理</h2>
-      <el-button type="primary" @click="showCreateDialog" v-if="activeTab === 'points'">
+      <el-button v-if="activeTab === 'points'" type="primary" @click="showCreateDialog">
         <el-icon><Plus /></el-icon>
         添加签到点
       </el-button>
-      <el-button type="success" @click="exportRecords" v-if="activeTab === 'records'">
+      <el-button v-if="activeTab === 'records'" type="success" @click="exportRecords">
         <el-icon><Download /></el-icon>
         导出数据
       </el-button>
@@ -18,7 +18,6 @@
         <el-tab-pane label="签到记录" name="records" />
       </el-tabs>
 
-      <!-- 签到点管理 -->
       <div v-if="activeTab === 'points'">
         <el-table :data="points" v-loading="loading" stripe>
           <el-table-column prop="id" label="ID" width="60" />
@@ -41,7 +40,8 @@
           <el-table-column label="签到时间范围" min-width="200">
             <template #default="{ row }">
               <span v-if="row.start_time || row.end_time" class="time-range-text">
-                {{ row.start_time ? formatDateTime(row.start_time) : '不限' }} ~ {{ row.end_time ? formatDateTime(row.end_time) : '不限' }}
+                {{ row.start_time ? formatDateTime(row.start_time) : '不限' }} ~
+                {{ row.end_time ? formatDateTime(row.end_time) : '不限' }}
               </span>
               <span v-else class="time-range-text muted">不限</span>
             </template>
@@ -62,11 +62,10 @@
         </el-table>
       </div>
 
-      <!-- 签到记录 -->
       <div v-if="activeTab === 'records'">
         <div class="filter-bar">
           <el-select v-model="recordFilter.school_id" placeholder="选择学校" clearable style="width: 200px">
-            <el-option v-for="s in schools" :key="s.id" :label="s.name" :value="s.id" />
+            <el-option v-for="school in schools" :key="school.id" :label="school.name" :value="school.id" />
           </el-select>
           <el-date-picker
             v-model="recordFilter.dateRange"
@@ -75,9 +74,8 @@
             start-placeholder="开始日期"
             end-placeholder="结束日期"
             value-format="YYYY-MM-DD"
-            style="margin-left: 12px"
           />
-          <el-button type="primary" @click="loadRecords" style="margin-left: 12px">查询</el-button>
+          <el-button type="primary" @click="loadRecords">查询</el-button>
         </div>
 
         <el-table :data="records" v-loading="recordsLoading" stripe style="margin-top: 16px">
@@ -90,16 +88,25 @@
               {{ formatDateTime(row.check_in_time) }}
             </template>
           </el-table-column>
+          <el-table-column label="签退时间" width="160">
+            <template #default="{ row }">
+              {{ row.check_out_time ? formatDateTime(row.check_out_time) : '未签退' }}
+            </template>
+          </el-table-column>
+          <el-table-column label="总时长" width="120">
+            <template #default="{ row }">
+              {{ row.check_out_time ? formatDurationMinutes(row.duration_minutes) : '未签退' }}
+            </template>
+          </el-table-column>
           <el-table-column prop="checkin_count" label="累计签到" width="100" />
         </el-table>
 
-        <div class="record-summary" v-if="records.length > 0">
+        <div v-if="records.length > 0" class="record-summary">
           共 {{ recordTotal }} 条签到记录
         </div>
       </div>
     </el-card>
 
-    <!-- 创建/编辑对话框 -->
     <el-dialog
       v-model="dialogVisible"
       :title="isEdit ? '编辑签到点' : '添加签到点'"
@@ -125,7 +132,7 @@
         </el-form-item>
 
         <el-form-item label="地图选点">
-          <div class="map-container" id="mapContainer">
+          <div id="mapContainer" class="map-container">
             <div class="map-tip">点击地图选择位置</div>
           </div>
         </el-form-item>
@@ -146,13 +153,13 @@
             show-input
             @change="updateCircle"
           />
-          <span class="radius-hint">用户需在此范围内才能签到</span>
+          <span class="radius-hint">用户需在此范围内才能签到或签退</span>
         </el-form-item>
 
         <el-form-item label="所属学校">
           <el-select v-model="form.school_id" :disabled="!isSuperAdmin" placeholder="请选择">
             <el-option v-if="isSuperAdmin" label="所有学校（通用）" :value="0" />
-            <el-option v-for="s in schools" :key="s.id" :label="s.name" :value="s.id" />
+            <el-option v-for="school in schools" :key="school.id" :label="school.name" :value="school.id" />
           </el-select>
         </el-form-item>
 
@@ -176,16 +183,17 @@
           />
         </el-form-item>
       </el-form>
+
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitForm" :loading="submitting">确定</el-button>
+        <el-button type="primary" :loading="submitting" @click="submitForm">确定</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, watch, computed } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { formatDateTime } from '../utils/format'
 
@@ -198,7 +206,6 @@ const submitting = ref(false)
 const searchAddress = ref('')
 const activeTab = ref('points')
 
-// 签到记录相关
 const records = ref([])
 const recordsLoading = ref(false)
 const recordTotal = ref(0)
@@ -210,12 +217,15 @@ const recordFilter = ref({
 let map = null
 let marker = null
 let circle = null
+
 const form = ref({
   name: '',
   latitude: '',
   longitude: '',
   radius: 100,
-  school_id: null
+  school_id: null,
+  start_time: null,
+  end_time: null
 })
 
 const getUserId = () => {
@@ -223,16 +233,16 @@ const getUserId = () => {
   return user.id
 }
 
-// 角色判断
 const adminRoles = JSON.parse(localStorage.getItem('adminRoles') || '[]')
-const isSuperAdmin = computed(() => adminRoles.some(r => r.code === 'super_admin'))
+const isSuperAdmin = computed(() => adminRoles.some((role) => role.code === 'super_admin'))
 const adminSchoolId = computed(() => {
-  if (isSuperAdmin.value) return null
-  const schoolRole = adminRoles.find(r => r.code === 'school_admin')
+  if (isSuperAdmin.value) {
+    return null
+  }
+  const schoolRole = adminRoles.find((role) => role.code === 'school_admin')
   return schoolRole?.school_id || JSON.parse(localStorage.getItem('adminUser') || '{}').school_id || null
 })
 
-// 初始化地图
 const initMap = () => {
   nextTick(() => {
     if (!window.TMap) {
@@ -241,13 +251,13 @@ const initMap = () => {
     }
 
     const container = document.getElementById('mapContainer')
-    if (!container) return
+    if (!container) {
+      return
+    }
 
-    // 默认中心点（杭州）
     const defaultCenter = new window.TMap.LatLng(30.2741, 120.1551)
-
-    // 如果有已选坐标，使用已选坐标
     let center = defaultCenter
+
     if (form.value.latitude && form.value.longitude) {
       center = new window.TMap.LatLng(
         parseFloat(form.value.latitude),
@@ -256,30 +266,26 @@ const initMap = () => {
     }
 
     map = new window.TMap.Map(container, {
-      center: center,
+      center,
       zoom: 16,
       viewMode: '2D'
     })
 
-    // 点击地图选点
-    map.on('click', (e) => {
-      const lat = e.latLng.getLat().toFixed(6)
-      const lng = e.latLng.getLng().toFixed(6)
+    map.on('click', (event) => {
+      const lat = event.latLng.getLat().toFixed(6)
+      const lng = event.latLng.getLng().toFixed(6)
       form.value.latitude = lat
       form.value.longitude = lng
-      updateMarker(e.latLng)
+      updateMarker(event.latLng)
     })
 
-    // 如果编辑模式，显示已有标记
     if (form.value.latitude && form.value.longitude) {
       updateMarker(center)
     }
   })
 }
 
-// 更新标记点
 const updateMarker = (position) => {
-  // 移除旧标记
   if (marker) {
     marker.setMap(null)
   }
@@ -287,9 +293,8 @@ const updateMarker = (position) => {
     circle.setMap(null)
   }
 
-  // 添加新标记
   marker = new window.TMap.MultiMarker({
-    map: map,
+    map,
     styles: {
       default: new window.TMap.MarkerStyle({
         width: 30,
@@ -299,13 +304,12 @@ const updateMarker = (position) => {
     },
     geometries: [{
       id: 'point',
-      position: position
+      position
     }]
   })
 
-  // 添加范围圆圈
   circle = new window.TMap.MultiCircle({
-    map: map,
+    map,
     styles: {
       default: new window.TMap.CircleStyle({
         color: 'rgba(64, 158, 255, 0.2)',
@@ -320,25 +324,24 @@ const updateMarker = (position) => {
     }]
   })
 
-  // 移动地图中心
   map.setCenter(position)
 }
 
-// 更新圆圈半径
 const updateCircle = () => {
-  if (circle && form.value.latitude && form.value.longitude) {
-    circle.updateGeometries([{
-      id: 'circle',
-      center: new window.TMap.LatLng(
-        parseFloat(form.value.latitude),
-        parseFloat(form.value.longitude)
-      ),
-      radius: form.value.radius
-    }])
+  if (!circle || !form.value.latitude || !form.value.longitude) {
+    return
   }
+
+  circle.updateGeometries([{
+    id: 'circle',
+    center: new window.TMap.LatLng(
+      parseFloat(form.value.latitude),
+      parseFloat(form.value.longitude)
+    ),
+    radius: form.value.radius
+  }])
 }
 
-// 搜索地址
 const applySearchResult = (lat, lng, title) => {
   form.value.latitude = Number(lat).toFixed(6)
   form.value.longitude = Number(lng).toFixed(6)
@@ -357,28 +360,32 @@ const searchLocation = async () => {
   }
 
   try {
-    const res = await fetch(`/api/admin/geocode/search?keyword=${encodeURIComponent(keyword)}&user_id=${getUserId()}`)
+    const res = await fetch(
+      `/api/admin/geocode/search?keyword=${encodeURIComponent(keyword)}&user_id=${getUserId()}`
+    )
     const result = await res.json()
 
     if (result.success && result.data) {
       applySearchResult(result.data.lat, result.data.lng, result.data.title)
-    } else {
-      ElMessage.warning(result.message || '未找到该地址，请尝试更详细的关键字')
+      return
     }
+
+    ElMessage.warning(result.message || '未找到该地址，请尝试更详细的关键字')
   } catch (error) {
     console.error('搜索失败:', error)
     ElMessage.error('搜索失败，请重试')
   }
 }
 
-// 销毁地图
 const destroyMap = () => {
-  if (map) {
-    map.destroy()
-    map = null
-    marker = null
-    circle = null
+  if (!map) {
+    return
   }
+
+  map.destroy()
+  map = null
+  marker = null
+  circle = null
 }
 
 const loadPoints = async () => {
@@ -411,14 +418,27 @@ const loadSchools = async () => {
 
 const showCreateDialog = () => {
   isEdit.value = false
-  form.value = { name: '', latitude: '', longitude: '', radius: 100, school_id: isSuperAdmin.value ? 0 : adminSchoolId.value, start_time: null, end_time: null }
+  form.value = {
+    name: '',
+    latitude: '',
+    longitude: '',
+    radius: 100,
+    school_id: isSuperAdmin.value ? 0 : adminSchoolId.value,
+    start_time: null,
+    end_time: null
+  }
   searchAddress.value = ''
   dialogVisible.value = true
 }
 
 const editPoint = (row) => {
   isEdit.value = true
-  form.value = { ...row, school_id: row.school_id || 0, start_time: row.start_time || null, end_time: row.end_time || null }
+  form.value = {
+    ...row,
+    school_id: row.school_id || 0,
+    start_time: row.start_time || null,
+    end_time: row.end_time || null
+  }
   searchAddress.value = ''
   dialogVisible.value = true
 }
@@ -439,8 +459,11 @@ const submitForm = async () => {
       ? `/api/admin/checkin-points/${form.value.id}`
       : '/api/admin/checkin-points'
     const method = isEdit.value ? 'PUT' : 'POST'
-
-    const submitData = { ...form.value, user_id: getUserId(), school_id: form.value.school_id || null }
+    const submitData = {
+      ...form.value,
+      user_id: getUserId(),
+      school_id: form.value.school_id || null
+    }
 
     const res = await fetch(url, {
       method,
@@ -453,9 +476,10 @@ const submitForm = async () => {
       ElMessage.success(isEdit.value ? '更新成功' : '添加成功')
       dialogVisible.value = false
       loadPoints()
-    } else {
-      ElMessage.error(data.message || '操作失败')
+      return
     }
+
+    ElMessage.error(data.message || '操作失败')
   } catch (error) {
     console.error('提交失败:', error)
     ElMessage.error('操作失败')
@@ -468,15 +492,18 @@ const deletePoint = async (row) => {
   try {
     await ElMessageBox.confirm('确定要删除这个签到点吗？', '提示', { type: 'warning' })
 
-    const res = await fetch(`/api/admin/checkin-points/${row.id}?user_id=${getUserId()}`, { method: 'DELETE' })
+    const res = await fetch(`/api/admin/checkin-points/${row.id}?user_id=${getUserId()}`, {
+      method: 'DELETE'
+    })
     const data = await res.json()
 
     if (data.success) {
       ElMessage.success('删除成功')
       loadPoints()
-    } else {
-      ElMessage.error(data.message || '删除失败')
+      return
     }
+
+    ElMessage.error(data.message || '删除失败')
   } catch (error) {
     if (error !== 'cancel') {
       console.error('删除失败:', error)
@@ -485,7 +512,6 @@ const deletePoint = async (row) => {
   }
 }
 
-// 加载签到记录
 const loadRecords = async () => {
   recordsLoading.value = true
   try {
@@ -512,7 +538,6 @@ const loadRecords = async () => {
   }
 }
 
-// 导出签到数据
 const exportRecords = async () => {
   try {
     const params = new URLSearchParams({ user_id: getUserId(), export: 'csv' })
@@ -526,29 +551,47 @@ const exportRecords = async () => {
 
     const res = await fetch(`/api/admin/checkin-records/export?${params}`)
 
-    if (res.ok) {
-      const blob = await res.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `签到记录_${new Date().toISOString().slice(0, 10)}.csv`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-      ElMessage.success('导出成功')
-    } else {
+    if (!res.ok) {
       ElMessage.error('导出失败')
+      return
     }
+
+    const blob = await res.blob()
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `签到记录_${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(link)
+    link.click()
+    window.URL.revokeObjectURL(url)
+    document.body.removeChild(link)
+    ElMessage.success('导出成功')
   } catch (error) {
     console.error('导出失败:', error)
     ElMessage.error('导出失败')
   }
 }
 
-// 切换tab时加载数据
-watch(activeTab, (val) => {
-  if (val === 'records') {
+const formatDurationMinutes = (minutes) => {
+  const totalMinutes = Number(minutes)
+  if (!Number.isFinite(totalMinutes) || totalMinutes < 0) {
+    return '未签退'
+  }
+
+  const hours = Math.floor(totalMinutes / 60)
+  const remainMinutes = totalMinutes % 60
+
+  if (hours > 0 && remainMinutes > 0) {
+    return `${hours}小时${remainMinutes}分钟`
+  }
+  if (hours > 0) {
+    return `${hours}小时`
+  }
+  return `${remainMinutes}分钟`
+}
+
+watch(activeTab, (value) => {
+  if (value === 'records') {
     loadRecords()
   }
 })
@@ -584,7 +627,7 @@ onMounted(() => {
   top: 10px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(0,0,0,0.6);
+  background: rgba(0, 0, 0, 0.6);
   color: #fff;
   padding: 5px 15px;
   border-radius: 4px;
@@ -634,6 +677,7 @@ onMounted(() => {
 .time-range-text {
   font-size: 13px;
 }
+
 .time-range-text.muted {
   color: #c0c4cc;
 }

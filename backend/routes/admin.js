@@ -11,6 +11,24 @@ function formatDateForMySQL(dateStr) {
   return d.toISOString().slice(0, 19).replace('T', ' ');
 }
 
+function formatDurationMinutes(minutes) {
+  const totalMinutes = Number(minutes);
+  if (!Number.isFinite(totalMinutes) || totalMinutes < 0) {
+    return '';
+  }
+
+  const hours = Math.floor(totalMinutes / 60);
+  const remainMinutes = totalMinutes % 60;
+
+  if (hours > 0 && remainMinutes > 0) {
+    return `${hours}小时${remainMinutes}分钟`;
+  }
+  if (hours > 0) {
+    return `${hours}小时`;
+  }
+  return `${remainMinutes}分钟`;
+}
+
 // 将相对URL转为完整URL
 function toFullUrl(url, req) {
   if (!url) return url;
@@ -207,7 +225,10 @@ function buildAdminTeamList(registrations = [], assignmentMap = {}, teamEventCon
     const leftCreated = left.created_at ? new Date(left.created_at).getTime() : 0;
     const rightCreated = right.created_at ? new Date(right.created_at).getTime() : 0;
     return rightCreated - leftCreated;
-  });
+  }).map((team, index) => ({
+    ...team,
+    group_index: index + 1
+  }));
 }
 
 function parseTeamEventConfig(rawConfig) {
@@ -371,7 +392,7 @@ function evaluateTeamProjectCompletion(teamEventConfig, assignments = [], actual
 function buildAdminTeamExportRows(teamSummaries = [], teamAssignments = {}, teamEventConfig = null) {
   const exportRows = [];
 
-  teamSummaries.forEach((team) => {
+  teamSummaries.forEach((team, teamIndex) => {
     const teamAssignment = teamAssignments[team.team_name] || [];
     const actualPlayerCount = team.actual_player_count || team.members.filter((member) => member.is_participating !== 0).length;
     const completion = evaluateTeamProjectCompletion(teamEventConfig, teamAssignment, actualPlayerCount);
@@ -401,6 +422,7 @@ function buildAdminTeamExportRows(teamSummaries = [], teamAssignments = {}, team
     team.members.forEach((member) => {
       const projects = effectiveMemberProjects[member.user_id] || {};
       exportRows.push({
+        group_index: teamIndex + 1,
         name: member.name,
         gender: member.gender === 'male' ? '男' : '女',
         phone: member.phone || '',
@@ -1376,7 +1398,13 @@ router.get('/checkin-records', requireAdmin, async (req, res) => {
     const offset = (page - 1) * limit;
 
     let sql = `
-      SELECT ci.id, ci.check_in_time,
+      SELECT ci.id,
+             ci.check_in_time,
+             ci.check_out_time,
+             CASE
+               WHEN ci.check_out_time IS NULL THEN NULL
+               ELSE TIMESTAMPDIFF(MINUTE, ci.check_in_time, ci.check_out_time)
+             END as duration_minutes,
              u.id as user_id, u.name as user_name, u.phone,
              s.name as school_name,
              cp.name as point_name,
@@ -1441,48 +1469,65 @@ router.get('/checkin-records/export', requireAdmin, async (req, res) => {
   try {
     const { school_id, start_date, end_date } = req.query;
 
-    let sql = `
-      SELECT u.name as 用户姓名, u.phone as 手机号,
-             s.name as 学校,
-             cp.name as 签到点,
-             DATE_FORMAT(ci.check_in_time, '%Y-%m-%d %H:%i:%s') as 签到时间,
-             (SELECT COUNT(*) FROM check_ins WHERE user_id = u.id) as 累计签到次数
+    let exportSql = `
+      SELECT u.name as user_name,
+             u.phone,
+             s.name as school_name,
+             cp.name as point_name,
+             DATE_FORMAT(ci.check_in_time, '%Y-%m-%d %H:%i:%s') as check_in_time_text,
+             CASE
+               WHEN ci.check_out_time IS NULL THEN ''
+               ELSE DATE_FORMAT(ci.check_out_time, '%Y-%m-%d %H:%i:%s')
+             END as check_out_time_text,
+             CASE
+               WHEN ci.check_out_time IS NULL THEN NULL
+               ELSE TIMESTAMPDIFF(MINUTE, ci.check_in_time, ci.check_out_time)
+             END as duration_minutes,
+             (SELECT COUNT(*) FROM check_ins WHERE user_id = u.id) as checkin_count
       FROM check_ins ci
       JOIN users u ON ci.user_id = u.id
       LEFT JOIN schools s ON u.school_id = s.id
       LEFT JOIN check_in_points cp ON ci.point_id = cp.id
       WHERE 1=1
     `;
-    const params = [];
+    const exportParams = [];
 
     if (school_id) {
-      sql += ' AND u.school_id = ?';
-      params.push(school_id);
+      exportSql += ' AND u.school_id = ?';
+      exportParams.push(school_id);
     }
     if (start_date) {
-      sql += ' AND DATE(ci.check_in_time) >= ?';
-      params.push(start_date);
+      exportSql += ' AND DATE(ci.check_in_time) >= ?';
+      exportParams.push(start_date);
     }
     if (end_date) {
-      sql += ' AND DATE(ci.check_in_time) <= ?';
-      params.push(end_date);
+      exportSql += ' AND DATE(ci.check_in_time) <= ?';
+      exportParams.push(end_date);
     }
 
-    sql += ' ORDER BY ci.check_in_time DESC';
+    exportSql += ' ORDER BY ci.check_in_time DESC';
 
-    const [records] = await pool.execute(sql, params);
-
-    // 生成CSV
-    const BOM = '\uFEFF';
-    const headers = ['用户姓名', '手机号', '学校', '签到点', '签到时间', '累计签到次数'];
-    const csvContent = BOM + headers.join(',') + '\n' +
-      records.map(row =>
-        headers.map(h => `"${(row[h] || '').toString().replace(/"/g, '""')}"`).join(',')
+    const [exportRows] = await pool.execute(exportSql, exportParams);
+    const headers = ['用户姓名', '手机号', '学校', '签到点', '签到时间', '签退时间', '总时长', '累计签到次数'];
+    const bom = '\uFEFF';
+    const csvRows = exportRows.map((row) => ({
+      用户姓名: row.user_name,
+      手机号: row.phone,
+      学校: row.school_name,
+      签到点: row.point_name,
+      签到时间: row.check_in_time_text,
+      签退时间: row.check_out_time_text || '未签退',
+      总时长: row.check_out_time_text ? formatDurationMinutes(row.duration_minutes) : '未签退',
+      累计签到次数: row.checkin_count
+    }));
+    const csvContent = bom + headers.join(',') + '\n' +
+      csvRows.map((row) =>
+        headers.map((header) => `"${(row[header] || '').toString().replace(/"/g, '""')}"`).join(',')
       ).join('\n');
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename=checkin_records.csv');
-    res.send(csvContent);
+    return res.send(csvContent);
   } catch (error) {
     console.error('Export checkin records error:', error);
     res.status(500).json({ success: false, message: '导出失败' });
@@ -3061,21 +3106,21 @@ router.post('/invitations/:id/accept', requireAdmin, async (req, res) => {
       [id]
     );
 
-    // 如果是双打邀请，更新报名记录
+    // 如果是双打邀请，接受后双方都进入 confirmed
     if (invitation.type === 'doubles') {
-      // 检查邀请人是否已报名
-      const [inviterReg] = await pool.execute(
-        'SELECT id FROM event_registrations WHERE event_id = ? AND user_id = ?',
-        [invitation.event_id, invitation.inviter_id]
+      await pool.execute(
+        `UPDATE event_registrations
+         SET status = 'confirmed', partner_status = 'confirmed', confirmed_at = NOW()
+         WHERE event_id = ? AND user_id = ? AND partner_id = ?`,
+        [invitation.event_id, invitation.inviter_id, invitation.invitee_id]
       );
 
-      if (inviterReg.length > 0) {
-        // 更新邀请人的报名记录，添加搭档
-        await pool.execute(
-          "UPDATE event_registrations SET partner_id = ?, status = 'confirmed' WHERE event_id = ? AND user_id = ?",
-          [invitation.invitee_id, invitation.event_id, invitation.inviter_id]
-        );
-      }
+      await pool.execute(
+        `UPDATE event_registrations
+         SET status = 'confirmed', partner_status = 'confirmed', confirmed_at = NOW()
+         WHERE event_id = ? AND user_id = ? AND partner_id = ?`,
+        [invitation.event_id, invitation.invitee_id, invitation.inviter_id]
+      );
     }
 
     res.json({ success: true, message: '已接受邀请' });
@@ -3109,6 +3154,15 @@ router.post('/invitations/:id/reject', requireAdmin, async (req, res) => {
       "UPDATE team_invitations SET status = 'rejected', responded_at = NOW() WHERE id = ?",
       [id]
     );
+
+    if (invitation.type === 'doubles') {
+      await pool.execute(
+        `UPDATE event_registrations
+         SET status = 'waiting_partner', partner_id = NULL, partner_status = NULL
+         WHERE event_id = ? AND user_id IN (?, ?)`,
+        [invitation.event_id, invitation.inviter_id, invitation.invitee_id]
+      );
+    }
 
     res.json({ success: true, message: '已拒绝邀请' });
   } catch (error) {

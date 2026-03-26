@@ -389,6 +389,26 @@ async function sendTeamInvitation(openid, params) {
 }
 
 /**
+ * 发送双打邀请通知
+ * @param {string} openid - 接收者的 openid
+ * @param {object} params - 参数
+ * @param {string} params.inviterName - 邀请人姓名
+ * @param {string} params.eventName - 赛事名称
+ * @param {string} params.time - 邀请时间
+ * @param {string} params.page - 跳转页面
+ */
+async function sendDoublesInvitation(openid, params) {
+  const data = {
+    thing1: { value: truncateString(params.inviterName, 20) },
+    time2: { value: params.time },
+    thing3: { value: truncateString(params.eventName, 20) },
+    phrase4: { value: '待确认' }
+  };
+
+  return sendSubscribeMessage(openid, 'INVITATION_RESULT', data, params.page || 'pages/doubles-invite/doubles-invite');
+}
+
+/**
  * 发送团体赛邀请响应通知（通知领队）
  * @param {string} openid - 接收者的 openid（领队）
  * @param {object} params - 参数
@@ -407,6 +427,27 @@ async function sendTeamInvitationResult(openid, params) {
   };
 
   return sendSubscribeMessage(openid, 'INVITATION_RESULT', data, params.page || 'pages/team-register/team-register');
+}
+
+/**
+ * 发送双打邀请响应结果通知
+ * @param {string} openid - 接收者的 openid
+ * @param {object} params - 参数
+ * @param {string} params.partnerName - 搭档姓名
+ * @param {string} params.eventName - 赛事名称
+ * @param {string} params.status - 状态（已接受、已拒绝）
+ * @param {string} params.time - 响应时间
+ * @param {string} params.page - 跳转页面
+ */
+async function sendDoublesInvitationResult(openid, params) {
+  const data = {
+    thing1: { value: truncateString(params.partnerName, 20) },
+    time2: { value: params.time },
+    thing3: { value: truncateString(params.eventName, 20) },
+    phrase4: { value: params.status }
+  };
+
+  return sendSubscribeMessage(openid, 'INVITATION_RESULT', data, params.page || 'pages/events/event-detail');
 }
 
 /**
@@ -439,7 +480,9 @@ module.exports = {
   sendMatchReminderNotice,
   sendScoreConfirmNotice,
   sendTeamInvitation,
+  sendDoublesInvitation,
   sendTeamInvitationResult,
+  sendDoublesInvitationResult,
   sendTeamRegistrationSuccess,
   updateTemplateId,
   getTemplateConfig,

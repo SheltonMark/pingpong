@@ -24,6 +24,7 @@
     "pages/announcement-detail/announcement-detail",
     "pages/singles-register/singles-register",
     "pages/doubles-register/doubles-register",
+    "pages/doubles-invite/doubles-invite",
     "pages/team-register/team-register",
     "pages/team-invite/team-invite",
     "pages/my-posts/my-posts"

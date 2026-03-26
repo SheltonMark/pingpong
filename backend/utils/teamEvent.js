@@ -213,6 +213,7 @@ function buildSubmittedTeamSummaries(registrations = []) {
         male_count: 0,
         female_count: 0,
         submitted_at: row.team_submitted_at || row.confirmed_at || row.registered_at || null,
+        created_at: row.created_at || row.registered_at || null,
         members: [],
         singles_players: []
       });
@@ -240,6 +241,9 @@ function buildSubmittedTeamSummaries(registrations = []) {
       team.leader_is_participating = member.is_participating;
       if (row.team_submitted_at || row.confirmed_at || row.registered_at) {
         team.submitted_at = row.team_submitted_at || row.confirmed_at || row.registered_at;
+      }
+      if (row.created_at || row.registered_at) {
+        team.created_at = row.created_at || row.registered_at;
       }
     }
 
@@ -270,7 +274,13 @@ function buildSubmittedTeamSummaries(registrations = []) {
   })).sort((left, right) => {
     const leftTime = left.submitted_at ? new Date(left.submitted_at).getTime() : 0;
     const rightTime = right.submitted_at ? new Date(right.submitted_at).getTime() : 0;
-    return leftTime - rightTime;
+    if (leftTime !== rightTime) {
+      return rightTime - leftTime;
+    }
+
+    const leftCreated = left.created_at ? new Date(left.created_at).getTime() : 0;
+    const rightCreated = right.created_at ? new Date(right.created_at).getTime() : 0;
+    return rightCreated - leftCreated;
   });
 }
 

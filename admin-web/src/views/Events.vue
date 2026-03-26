@@ -269,6 +269,7 @@
       </div>
 
       <el-table :data="regData" v-loading="regLoading" stripe max-height="500" table-layout="auto" class="reg-table">
+        <el-table-column prop="group_index" label="组别" width="80" v-if="regEvent && regEvent.event_type === 'team'" />
         <el-table-column prop="name" label="姓名" min-width="120" />
         <el-table-column prop="gender" label="性别" width="80">
           <template #default="{ row }">
@@ -675,6 +676,7 @@ const viewRegistrations = async (row) => {
           // 添加领队
           const captainMember = team.members?.find(m => m.user_id === team.captain_id)
           registrations.push({
+            group_index: team.group_index,
             name: team.captain_name,
             gender: team.captain_gender,
             phone: team.captain_phone,
@@ -693,6 +695,7 @@ const viewRegistrations = async (row) => {
             team.members.forEach(member => {
               if (!member.is_team_leader) {
                 registrations.push({
+                  group_index: team.group_index,
                   name: member.name,
                   gender: member.gender,
                   phone: member.phone,
@@ -761,13 +764,14 @@ const exportRegistrations = async () => {
           if (config.projects.mixed_doubles?.enabled) projectHeaders.push('混双')
         }
 
-        const headers = [...baseHeaders, ...projectHeaders]
+        const headers = ['组别', ...baseHeaders, ...projectHeaders]
 
         // 构建CSV内容
         const csvContent = [
           headers.join(','),
           ...rows.map(row => {
             const baseData = [
+              row.group_index ?? '',
               `"${row.name}"`,
               row.gender,
               row.phone,
