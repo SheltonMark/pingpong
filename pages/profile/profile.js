@@ -66,29 +66,37 @@ Page({
   async loadPendingInvitationCount() {
     const { isLoggedIn, isRegistered, userInfo } = app.globalData;
     if (!isLoggedIn || !isRegistered || !userInfo) {
+      this.updateInvitationBadge(0);
       return;
     }
 
     try {
-      const res = await app.request(`/api/user/${userInfo.id}/invitations`, { status: 'pending' });
-
-      if (res.success && res.data) {
-        const count = res.data.length;
-        // 更新菜单项的 badge
-        const menuItems = this.data.menuItems.map(item => {
-          if (item.label === '邀请管理') {
-            return { ...item, badge: count };
-          }
-          return item;
-        });
-        this.setData({ menuItems });
-      }
+      const count = await app.getPendingInvitationCount();
+      this.updateInvitationBadge(count);
     } catch (error) {
       console.error('加载邀请数量失败:', error);
     }
   },
 
   // 更新用户信息
+  updateInvitationBadge(count) {
+    const menuItems = this.data.menuItems.map((item) => {
+      if (item.url === '/pages/invitations/invitations') {
+        return { ...item, badge: count };
+      }
+      return item;
+    });
+
+    this.setData({ menuItems });
+
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
+      const tabBar = this.getTabBar();
+      if (typeof tabBar.setInvitationBadge === 'function') {
+        tabBar.setInvitationBadge(count);
+      }
+    }
+  },
+
   updateUserInfo() {
     const { isLoggedIn, isRegistered, userInfo } = app.globalData;
 

@@ -46,7 +46,11 @@ Page({
     this.loadRankings();
     // 更新自定义 tabBar 选中状态
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
-      this.getTabBar().setData({ selected: 0 });
+      const tabBar = this.getTabBar();
+      tabBar.setData({ selected: 0 });
+      if (typeof tabBar.syncInvitationBadge === 'function') {
+        tabBar.syncInvitationBadge();
+      }
     }
   },
 
@@ -116,6 +120,12 @@ Page({
       this.loadSchools();
       this.loadAnnouncements();
       this.loadRankings();
+      if (typeof this.getTabBar === 'function' && this.getTabBar()) {
+        const tabBar = this.getTabBar();
+        if (typeof tabBar.syncInvitationBadge === 'function') {
+          tabBar.syncInvitationBadge();
+        }
+      }
 
       wx.hideLoading();
 

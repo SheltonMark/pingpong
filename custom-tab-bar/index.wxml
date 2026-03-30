@@ -7,7 +7,10 @@
     data-index="{{index}}"
     bindtap="switchTab"
   >
-    <image class="tab-bar-icon" src="{{selected === index ? item.selectedIconPath : item.iconPath}}"></image>
+    <view class="tab-bar-icon-wrap">
+      <image class="tab-bar-icon" src="{{selected === index ? item.selectedIconPath : item.iconPath}}"></image>
+      <view class="tab-bar-badge" wx:if="{{item.badge > 0}}">{{item.badgeText}}</view>
+    </view>
     <text class="tab-bar-text" style="color: {{selected === index ? selectedColor : color}}">{{item.text}}</text>
   </view>
 </view>

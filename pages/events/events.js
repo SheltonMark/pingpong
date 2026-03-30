@@ -27,7 +27,11 @@ Page({
   onShow() {
     // 更新自定义 tabBar 选中状态
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
-      this.getTabBar().setData({ selected: 2 });
+      const tabBar = this.getTabBar();
+      tabBar.setData({ selected: 2 });
+      if (typeof tabBar.syncInvitationBadge === 'function') {
+        tabBar.syncInvitationBadge();
+      }
     }
   },
 

@@ -47,7 +47,11 @@ Page({
     }
     // 更新自定义 tabBar 选中状态
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
-      this.getTabBar().setData({ selected: 1 });
+      const tabBar = this.getTabBar();
+      tabBar.setData({ selected: 1 });
+      if (typeof tabBar.syncInvitationBadge === 'function') {
+        tabBar.syncInvitationBadge();
+      }
     }
   },
 

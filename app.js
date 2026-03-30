@@ -40,6 +40,7 @@ App({
     isLoggedIn: false,
     isRegistered: false,
     hasAgreedPrivacy: false,
+    pendingInvitationCount: 0,
 
     // ============================================================
     // 【审核模式】
@@ -122,6 +123,26 @@ App({
           fail: reject
         });
       });
+    }
+  },
+
+  async getPendingInvitationCount() {
+    const { isLoggedIn, isRegistered, userInfo } = this.globalData;
+    const userId = userInfo && (userInfo.id || userInfo.user_id);
+
+    if (!isLoggedIn || !isRegistered || !userId) {
+      this.globalData.pendingInvitationCount = 0;
+      return 0;
+    }
+
+    try {
+      const res = await this.request(`/api/user/${userId}/invitations`, { status: 'pending' });
+      const count = res.success && Array.isArray(res.data) ? res.data.length : 0;
+      this.globalData.pendingInvitationCount = count;
+      return count;
+    } catch (error) {
+      console.error('Load pending invitation count failed:', error);
+      return this.globalData.pendingInvitationCount || 0;
     }
   },
 
@@ -215,6 +236,7 @@ App({
     this.globalData.isLoggedIn = false;
     this.globalData.isRegistered = false;
     this.globalData.hasAgreedPrivacy = false;
+    this.globalData.pendingInvitationCount = 0;
 
     wx.removeStorageSync('openid');
     wx.removeStorageSync('userInfo');
