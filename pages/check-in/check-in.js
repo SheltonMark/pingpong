@@ -1,5 +1,229 @@
 const app = getApp();
 
+function parseDateTimeValue(dateLike) {
+  if (!dateLike) {
+    return null;
+  }
+
+  if (dateLike instanceof Date) {
+    return Number.isNaN(dateLike.getTime()) ? null : dateLike;
+  }
+
+  if (typeof dateLike === 'number') {
+    const date = new Date(dateLike);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  if (typeof dateLike === 'string') {
+    const value = dateLike.trim();
+    if (!value) {
+      return null;
+    }
+
+    const localMatch = value.match(
+      /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/
+    );
+    if (localMatch) {
+      const [, year, month, day, hour = '0', minute = '0', second = '0'] = localMatch;
+      return new Date(
+        Number(year),
+        Number(month) - 1,
+        Number(day),
+        Number(hour),
+        Number(minute),
+        Number(second)
+      );
+    }
+
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  return null;
+}
+
+function isSameCalendarDay(dateLike, now = new Date()) {
+  if (!dateLike) {
+    return false;
+  }
+
+  const date = parseDateTimeValue(dateLike);
+  if (!date) {
+    return false;
+  }
+
+  return date.getFullYear() === now.getFullYear()
+    && date.getMonth() === now.getMonth()
+    && date.getDate() === now.getDate();
+}
+
+function buildDerivedActionButtonText(actionMode, canSubmit, timeStatus) {
+  if (actionMode === 'checked_out') {
+    return '已签退';
+  }
+  if (actionMode === 'check_out') {
+    return canSubmit ? '立即签退' : '请回到签到点签退';
+  }
+  if (canSubmit) {
+    return '立即签到';
+  }
+  if (timeStatus === 'not_started') {
+    return '未到签到时间';
+  }
+  if (timeStatus === 'ended') {
+    return '签到已结束';
+  }
+  return '距离过远';
+}
+
+function getPointTimeStatus(point = {}, now = new Date()) {
+  const startTime = parseDateTimeValue(point.start_time);
+  const endTime = parseDateTimeValue(point.end_time);
+
+  if (startTime && now < startTime) {
+    return 'not_started';
+  }
+  if (endTime && now > endTime) {
+    return 'ended';
+  }
+  return 'ok';
+}
+
+function getPointStatusPriority(point = {}, now = new Date()) {
+  const status = getPointTimeStatus(point, now);
+  if (status === 'ok') {
+    return 0;
+  }
+  if (status === 'not_started') {
+    return 1;
+  }
+  return 2;
+}
+
+function getDateSortValue(dateLike, fallbackValue) {
+  const date = parseDateTimeValue(dateLike);
+  return date ? date.getTime() : fallbackValue;
+}
+
+function buildFallbackActivePoint(activeRecord, location, calculateDistance) {
+  if (!activeRecord?.point_latitude || !activeRecord.point_longitude) {
+    return null;
+  }
+
+  return {
+    id: activeRecord.point_id,
+    name: activeRecord.point_name,
+    latitude: activeRecord.point_latitude,
+    longitude: activeRecord.point_longitude,
+    radius: activeRecord.point_radius,
+    start_time: activeRecord.start_time,
+    end_time: activeRecord.end_time,
+    distance: location && typeof calculateDistance === 'function'
+      ? calculateDistance(
+        location.lat,
+        location.lng,
+        activeRecord.point_latitude,
+        activeRecord.point_longitude
+      )
+      : 0
+  };
+}
+
+function selectDisplayPoint({
+  points = [],
+  activeRecord = null,
+  location = null,
+  calculateDistance = null,
+  now = new Date()
+}) {
+  if (activeRecord?.point_id) {
+    const matchedPoint = points.find(
+      (item) => parseInt(item.id, 10) === parseInt(activeRecord.point_id, 10)
+    );
+    if (matchedPoint) {
+      return matchedPoint;
+    }
+
+    const fallbackPoint = buildFallbackActivePoint(activeRecord, location, calculateDistance);
+    if (fallbackPoint) {
+      return fallbackPoint;
+    }
+  }
+
+  const sortedPoints = [...points].sort((left, right) => {
+    const statusDiff = getPointStatusPriority(left, now) - getPointStatusPriority(right, now);
+    if (statusDiff !== 0) {
+      return statusDiff;
+    }
+
+    const leftStatus = getPointTimeStatus(left, now);
+    if (leftStatus === 'not_started') {
+      const startDiff = getDateSortValue(left.start_time, Number.MAX_SAFE_INTEGER)
+        - getDateSortValue(right.start_time, Number.MAX_SAFE_INTEGER);
+      if (startDiff !== 0) {
+        return startDiff;
+      }
+    }
+
+    if (leftStatus === 'ended') {
+      const endDiff = getDateSortValue(right.end_time, 0) - getDateSortValue(left.end_time, 0);
+      if (endDiff !== 0) {
+        return endDiff;
+      }
+    }
+
+    const distanceDiff = Number(left.distance || 0) - Number(right.distance || 0);
+    if (distanceDiff !== 0) {
+      return distanceDiff;
+    }
+
+    return Number(left.id || 0) - Number(right.id || 0);
+  });
+
+  return sortedPoints[0] || null;
+}
+
+function buildStatusDescription(actionMode, distance) {
+  if (actionMode === 'checked_out') {
+    return '今日签到签退已完成';
+  }
+
+  const safeDistance = Number.isFinite(Number(distance)) ? Math.round(Number(distance)) : 0;
+  const label = actionMode === 'check_out' ? '当前距离签退点' : '当前距离签到点';
+  return `${label} ${safeDistance}m`;
+}
+
+function deriveCheckInActionState({ activeRecord, records = [], withinRange = false, timeStatus = 'ok', now = new Date() }) {
+  if (activeRecord) {
+    return {
+      actionMode: 'check_out',
+      canSubmit: !!withinRange,
+      actionButtonText: buildDerivedActionButtonText('check_out', !!withinRange, timeStatus)
+    };
+  }
+
+  const hasCheckedOutToday = (records || []).some((record) =>
+    record &&
+    record.check_out_time &&
+    isSameCalendarDay(record.check_in_time, now)
+  );
+
+  if (hasCheckedOutToday) {
+    return {
+      actionMode: 'checked_out',
+      canSubmit: false,
+      actionButtonText: buildDerivedActionButtonText('checked_out', false, timeStatus)
+    };
+  }
+
+  const canSubmit = !!withinRange && timeStatus === 'ok';
+  return {
+    actionMode: 'check_in',
+    canSubmit,
+    actionButtonText: buildDerivedActionButtonText('check_in', canSubmit, timeStatus)
+  };
+}
+
 Page({
   data: {
     location: null,
@@ -13,6 +237,7 @@ Page({
     monthlyCount: 0,
     isLoading: true,
     isSubmitting: false,
+    statusDescription: '',
     timeStatus: 'ok',
     timeRangeText: '',
     mapScale: 16,
@@ -71,33 +296,12 @@ Page({
   },
 
   buildTargetPoint(points = []) {
-    const activeRecord = this.data.activeRecord;
-    if (activeRecord?.point_id) {
-      const matchedPoint = points.find((item) => parseInt(item.id, 10) === parseInt(activeRecord.point_id, 10));
-      if (matchedPoint) {
-        return matchedPoint;
-      }
-
-      if (activeRecord.point_latitude && activeRecord.point_longitude) {
-        return {
-          id: activeRecord.point_id,
-          name: activeRecord.point_name,
-          latitude: activeRecord.point_latitude,
-          longitude: activeRecord.point_longitude,
-          radius: activeRecord.point_radius,
-          start_time: activeRecord.start_time,
-          end_time: activeRecord.end_time,
-          distance: this.calculateDistance(
-            this.data.location.lat,
-            this.data.location.lng,
-            activeRecord.point_latitude,
-            activeRecord.point_longitude
-          )
-        };
-      }
-    }
-
-    return points[0] || null;
+    return selectDisplayPoint({
+      points,
+      activeRecord: this.data.activeRecord,
+      location: this.data.location,
+      calculateDistance: (lat1, lng1, lat2, lng2) => this.calculateDistance(lat1, lng1, lat2, lng2)
+    });
   },
 
   buildActionButtonText(actionMode, canSubmit, timeStatus) {
@@ -139,15 +343,15 @@ Page({
           canSubmit: false,
           markers: [],
           circles: [],
+          statusDescription: '',
           actionButtonText: '暂无可用签到点'
         });
         return;
       }
 
-      const actionMode = this.data.activeRecord ? 'check_out' : 'check_in';
       const withinRange = Number(point.distance || 0) <= Number(point.radius || 0);
       const now = new Date();
-      let timeStatus = 'ok';
+      let timeStatus = this.data.activeRecord ? 'ok' : getPointTimeStatus(point, now);
       let timeRangeText = '';
 
       if (point.start_time || point.end_time) {
@@ -155,19 +359,18 @@ Page({
         if (point.start_time) parts.push(this.formatDateTime(point.start_time));
         if (point.end_time) parts.push(this.formatDateTime(point.end_time));
         timeRangeText = parts.join(' ~ ');
-
-        if (actionMode === 'check_in') {
-          if (point.start_time && now < new Date(point.start_time)) {
-            timeStatus = 'not_started';
-          } else if (point.end_time && now > new Date(point.end_time)) {
-            timeStatus = 'ended';
-          }
-        }
       }
 
-      const canSubmit = actionMode === 'check_out'
-        ? withinRange
-        : withinRange && timeStatus === 'ok';
+      const actionState = deriveCheckInActionState({
+        activeRecord: this.data.activeRecord,
+        records: this.data.records,
+        withinRange,
+        timeStatus,
+        now
+      });
+      const actionMode = actionState.actionMode;
+      const canSubmit = actionState.canSubmit;
+      const markerIsCheckout = actionMode === 'check_out';
 
       const markers = [
         {
@@ -183,7 +386,7 @@ Page({
             fontSize: 13,
             borderRadius: 6,
             padding: 8,
-            bgColor: actionMode === 'check_out' ? '#F97316' : '#10B981',
+            bgColor: markerIsCheckout ? '#F97316' : '#10B981',
             color: '#fff',
             borderWidth: 0
           }
@@ -212,8 +415,8 @@ Page({
           latitude: parseFloat(point.latitude),
           longitude: parseFloat(point.longitude),
           radius: point.radius,
-          color: actionMode === 'check_out' ? '#F9731633' : '#10B98133',
-          fillColor: actionMode === 'check_out' ? '#F9731622' : '#10B98122',
+          color: markerIsCheckout ? '#F9731633' : '#10B98133',
+          fillColor: markerIsCheckout ? '#F9731622' : '#10B98122',
           strokeWidth: 2
         }
       ];
@@ -223,7 +426,8 @@ Page({
         distance: Math.round(point.distance || 0),
         canSubmit,
         actionMode,
-        actionButtonText: this.buildActionButtonText(actionMode, canSubmit, timeStatus),
+        actionButtonText: actionState.actionButtonText,
+        statusDescription: buildStatusDescription(actionMode, point.distance || 0),
         timeStatus,
         timeRangeText,
         markers,
@@ -347,13 +551,19 @@ Page({
   },
 
   formatDate(dateStr) {
-    const date = new Date(dateStr);
+    const date = parseDateTimeValue(dateStr);
+    if (!date) {
+      return '-';
+    }
     const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
     return `${date.getMonth() + 1}月${date.getDate()}日 ${weekDays[date.getDay()]}`;
   },
 
   formatDateTime(dateStr) {
-    const date = new Date(dateStr);
+    const date = parseDateTimeValue(dateStr);
+    if (!date) {
+      return '-';
+    }
     return `${date.getMonth() + 1}月${date.getDate()}日 ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
   },
 
@@ -389,3 +599,11 @@ Page({
     return app.request(url, data, method);
   }
 });
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    deriveCheckInActionState,
+    getPointTimeStatus,
+    selectDisplayPoint
+  };
+}

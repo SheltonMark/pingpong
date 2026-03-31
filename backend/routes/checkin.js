@@ -2,6 +2,61 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
 
+function parseDateTimeValue(dateLike) {
+  if (!dateLike) {
+    return null;
+  }
+
+  if (dateLike instanceof Date) {
+    return Number.isNaN(dateLike.getTime()) ? null : dateLike;
+  }
+
+  if (typeof dateLike === 'number') {
+    const date = new Date(dateLike);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  if (typeof dateLike === 'string') {
+    const value = dateLike.trim();
+    if (!value) {
+      return null;
+    }
+
+    const localMatch = value.match(
+      /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/
+    );
+    if (localMatch) {
+      const [, year, month, day, hour = '0', minute = '0', second = '0'] = localMatch;
+      return new Date(
+        Number(year),
+        Number(month) - 1,
+        Number(day),
+        Number(hour),
+        Number(minute),
+        Number(second)
+      );
+    }
+
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  return null;
+}
+
+function getPointTimeStatus(point = {}, now = new Date()) {
+  const startTime = parseDateTimeValue(point.start_time);
+  const endTime = parseDateTimeValue(point.end_time);
+
+  if (startTime && now < startTime) {
+    return 'not_started';
+  }
+  if (endTime && now > endTime) {
+    return 'ended';
+  }
+  return 'ok';
+}
+
 async function getTodayActiveCheckIn(userId, connection = pool) {
   const [rows] = await connection.query(
     `SELECT ci.*,
@@ -73,11 +128,11 @@ router.post('/check-in', async (req, res) => {
     }
 
     const point = points[0];
-    const now = new Date();
-    if (point.start_time && now < new Date(point.start_time)) {
+    const timeStatus = getPointTimeStatus(point, new Date());
+    if (timeStatus === 'not_started') {
       return res.json({ success: false, message: '签到尚未开始' });
     }
-    if (point.end_time && now > new Date(point.end_time)) {
+    if (timeStatus === 'ended') {
       return res.json({ success: false, message: '签到已结束' });
     }
 
@@ -266,3 +321,4 @@ function calculateDistance(lat1, lng1, lat2, lng2) {
 }
 
 module.exports = router;
+module.exports.getPointTimeStatus = getPointTimeStatus;

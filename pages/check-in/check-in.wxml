@@ -25,15 +25,20 @@
 
     <block wx:if="{{isLoading}}">
       <text class="status-title">定位中...</text>
-      <text class="status-desc">正在获取你的位置信息</text>
+      <text class="status-desc">正在获取你的位置和签到点信息</text>
     </block>
 
     <block wx:elif="{{nearestPoint}}">
-      <text class="status-tag {{actionMode}}">{{actionMode === 'check_out' ? '待签退' : '待签到'}}</text>
+      <text class="status-tag {{actionMode}}">
+        {{actionMode === 'check_out' ? '待签退' : actionMode === 'checked_out' ? '已签退' : '待签到'}}
+      </text>
       <text class="status-title">{{nearestPoint.name}}</text>
-      <text class="status-desc">{{actionMode === 'check_out' ? '当前距离签退点' : '当前距离签到点'}} {{distance}}m</text>
+      <text class="status-desc">{{statusDescription}}</text>
 
-      <text class="status-hint" wx:if="{{actionMode === 'check_out' && !canSubmit}}">
+      <text class="status-hint" wx:if="{{actionMode === 'checked_out'}}">
+        今日已完成签到，明天可再次签到
+      </text>
+      <text class="status-hint" wx:elif="{{actionMode === 'check_out' && !canSubmit}}">
         需要回到 {{nearestPoint.radius}}m 范围内才能签退
       </text>
       <text class="status-hint" wx:elif="{{!canSubmit && timeStatus === 'not_started'}}">签到尚未开始</text>

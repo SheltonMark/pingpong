@@ -575,7 +575,13 @@ router.get('/events', requireAdmin, async (req, res) => {
     let sql = `
       SELECT e.*, s.name as school_name, u.name as creator_name,
              (SELECT COUNT(*) FROM event_registrations WHERE event_id = e.id) as registration_count,
-             (SELECT COUNT(*) FROM event_registrations WHERE event_id = e.id AND status != 'cancelled') as participant_count
+             (SELECT COUNT(*) FROM event_registrations WHERE event_id = e.id AND status != 'cancelled') as participant_count,
+             (SELECT COUNT(DISTINCT team_name)
+              FROM event_registrations
+              WHERE event_id = e.id
+                AND status != 'cancelled'
+                AND team_name IS NOT NULL
+                AND COALESCE(team_submit_status, 'submitted') = 'submitted') as team_count
       FROM events e
       LEFT JOIN schools s ON e.school_id = s.id
       LEFT JOIN users u ON e.created_by = u.id

@@ -80,6 +80,13 @@ function processDescription(description, req) {
 }
 
 // 动态计算赛事状态
+function getEventCapacityCount(event) {
+  if (event?.event_type === 'team') {
+    return parseInt(event.team_count, 10) || 0;
+  }
+  return parseInt(event.participant_count, 10) || 0;
+}
+
 function computeEventStatus(event) {
   const now = new Date();
   const regEnd = event.registration_end ? new Date(event.registration_end) : null;
@@ -116,7 +123,7 @@ function computeEventStatus(event) {
   }
 
   // 人满也变待开始
-  if (event.participant_count >= event.max_participants) {
+  if (getEventCapacityCount(event) >= (parseInt(event.max_participants, 10) || 0) && parseInt(event.max_participants, 10) > 0) {
     return 'pending_start';
   }
 
