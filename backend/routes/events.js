@@ -1371,7 +1371,8 @@ router.get('/:id/doubles-status', async (req, res) => {
               er.status,
               er.partner_id,
               er.partner_status,
-              u.name as partner_name
+              u.name as partner_name,
+              u.avatar_url as partner_avatar_url
        FROM event_registrations er
        LEFT JOIN users u ON er.partner_id = u.id
        WHERE er.event_id = ?
@@ -1405,7 +1406,8 @@ router.get('/:id/doubles-status', async (req, res) => {
               i.invite_token,
               i.invitee_id,
               i.created_at,
-              u.name as invitee_name
+              u.name as invitee_name,
+              u.avatar_url as invitee_avatar_url
        FROM team_invitations i
        LEFT JOIN users u ON i.invitee_id = u.id
        WHERE i.event_id = ?
@@ -1424,12 +1426,13 @@ router.get('/:id/doubles-status', async (req, res) => {
         share_path: `/pages/doubles-invite/doubles-invite?token=${invitation.invite_token}`,
         invite_mode: invitation.invitee_id ? 'targeted' : 'open_link',
         partner_id: invitation.invitee_id || registration?.partner_id || null,
-        partner_name: invitation.invitee_name || registration?.partner_name || ''
+        partner_name: invitation.invitee_name || registration?.partner_name || '',
+        partner_avatar_url: invitation.invitee_avatar_url || registration?.partner_avatar_url || ''
       };
     }
 
     let registrationState = 'not_registered';
-    if (activeInvitation) {
+    if (activeInvitation?.invite_mode === 'targeted') {
       registrationState = 'invite_pending';
     } else if (registration?.status === 'waiting_partner') {
       registrationState = 'waiting_partner';
@@ -1733,22 +1736,33 @@ router.post('/:id/register-doubles', async (req, res, next) => {
     }
 
     const [existing] = await pool.query(
-      'SELECT * FROM event_registrations WHERE event_id = ? AND user_id = ? AND status != "cancelled"',
+      `SELECT *
+       FROM event_registrations
+       WHERE event_id = ? AND user_id = ? AND status != "cancelled"
+       ORDER BY id DESC
+       LIMIT 1`,
       [id, user_id]
     );
-    if (existing.length > 0) {
-      return res.status(400).json({ success: false, message: '已报名该赛事' });
-    }
+    const activeRegistration = existing[0] || null;
 
     const [cancelled] = await pool.query(
       'SELECT id FROM event_registrations WHERE event_id = ? AND user_id = ? AND status = "cancelled"',
       [id, user_id]
     );
     const hasCancelledRecord = cancelled.length > 0;
+    const canReuseWaitingRegistration = activeRegistration
+      && activeRegistration.status === 'waiting_partner'
+      && !activeRegistration.partner_id;
 
     if (partner_mode === 'select') {
       if (!partner_id) {
         return res.status(400).json({ success: false, message: '请选择搭档' });
+      }
+      if (activeRegistration && !canReuseWaitingRegistration) {
+        return res.status(400).json({
+          success: false,
+          message: activeRegistration.status === 'confirmed' ? '您已完成双打报名' : '当前已有待处理的配对，请先处理后再邀请队友'
+        });
       }
 
       const inviteToken = createInviteToken();
@@ -1756,6 +1770,17 @@ router.post('/:id/register-doubles', async (req, res, next) => {
 
       try {
         await connection.beginTransaction();
+
+        await connection.execute(
+          `UPDATE team_invitations
+           SET status = 'cancelled', responded_at = NOW()
+           WHERE event_id = ?
+             AND inviter_id = ?
+             AND type = 'doubles'
+             AND status = 'pending'
+             AND invitee_id IS NULL`,
+          [id, user_id]
+        );
 
         const [partnerReg] = await connection.query(
           `SELECT *
@@ -1770,7 +1795,14 @@ router.post('/:id/register-doubles', async (req, res, next) => {
           return res.status(400).json({ success: false, message: '所选搭档不在配对队列中' });
         }
 
-        if (hasCancelledRecord) {
+        if (canReuseWaitingRegistration) {
+          await connection.execute(
+            `UPDATE event_registrations
+             SET partner_id = ?, partner_status = 'pending', status = 'pending', team_name = NULL, is_team_leader = 0, team_leader_id = NULL
+             WHERE id = ?`,
+            [partner_id, activeRegistration.id]
+          );
+        } else if (hasCancelledRecord) {
           await connection.execute(
             `UPDATE event_registrations
              SET partner_id = ?, partner_status = 'pending', status = 'pending', team_name = NULL, is_team_leader = 0, team_leader_id = NULL
@@ -1837,6 +1869,13 @@ router.post('/:id/register-doubles', async (req, res, next) => {
       } finally {
         connection.release();
       }
+    }
+
+    if (activeRegistration) {
+      return res.status(400).json({
+        success: false,
+        message: canReuseWaitingRegistration ? '您已在配对池中' : '当前已有待处理的配对'
+      });
     }
 
     if (hasCancelledRecord) {

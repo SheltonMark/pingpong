@@ -7,41 +7,62 @@
 
 .event-card,
 .mode-card,
-.partner-card,
-.wait-tip,
-.invite-card {
+.submode-card,
+.panel-card,
+.status-card {
   background: #ffffff;
   border-radius: 24rpx;
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
+  margin-bottom: 24rpx;
 }
 
 .event-card {
   padding: 32rpx;
-  margin-bottom: 24rpx;
 }
 
-.event-name {
+.event-name,
+.status-title,
+.wait-title,
+.wechat-title,
+.pending-partner-name,
+.partner-name {
   display: block;
+  color: #1a1a1a;
+}
+
+.event-name,
+.status-title,
+.wait-title,
+.wechat-title {
   font-size: 32rpx;
   font-weight: 600;
-  color: #1a1a1a;
+}
+
+.event-info,
+.status-desc,
+.mode-desc,
+.partner-meta,
+.wechat-desc,
+.helper-tip,
+.wait-desc,
+.pending-partner-desc {
+  color: #6b7280;
+  line-height: 1.6;
 }
 
 .event-info {
   display: block;
   margin-top: 12rpx;
   font-size: 26rpx;
-  color: #9ca3af;
 }
 
-.mode-card {
-  padding: 40rpx;
-  margin-bottom: 24rpx;
+.mode-card,
+.submode-card {
+  padding: 32rpx;
 }
 
 .card-title {
   display: block;
-  margin-bottom: 32rpx;
   font-size: 28rpx;
   font-weight: 600;
   color: #374151;
@@ -51,13 +72,14 @@
   display: flex;
   flex-direction: column;
   gap: 24rpx;
+  margin-top: 24rpx;
 }
 
 .mode-item {
   display: flex;
-  gap: 20rpx;
   align-items: center;
-  padding: 32rpx;
+  gap: 20rpx;
+  padding: 28rpx;
   border: 4rpx solid #e5e7eb;
   border-radius: 24rpx;
 }
@@ -75,14 +97,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  color: #ffffff;
+  font-size: 24rpx;
   flex-shrink: 0;
 }
 
 .mode-radio.checked {
-  background: #ff6b00;
   border-color: #ff6b00;
-  color: #ffffff;
-  font-size: 24rpx;
+  background: #ff6b00;
 }
 
 .mode-content {
@@ -98,27 +120,43 @@
 
 .mode-desc {
   display: block;
-  margin-top: 4rpx;
+  margin-top: 8rpx;
   font-size: 24rpx;
-  color: #9ca3af;
 }
 
-.invite-card,
-.partner-card {
-  margin-bottom: 24rpx;
-  overflow: hidden;
+.submode-tabs {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 24rpx;
+  padding: 8rpx;
+  border-radius: 24rpx;
+  background: #f3f4f6;
+}
+
+.submode-tab {
+  flex: 1;
+  height: 76rpx;
+  border-radius: 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26rpx;
+  color: #6b7280;
+}
+
+.submode-tab.active {
+  background: #ffffff;
+  color: #ff6b00;
+  font-weight: 600;
+  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.08);
 }
 
 .card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 36rpx;
+  padding: 32rpx;
   border-bottom: 1rpx solid #f0f0f0;
-}
-
-.card-header .card-title {
-  margin-bottom: 0;
 }
 
 .card-count {
@@ -126,94 +164,19 @@
   color: #ff6b00;
 }
 
-.invite-body {
-  display: flex;
-  gap: 24rpx;
-  align-items: center;
-  padding: 32rpx 36rpx 40rpx;
-}
-
-.invite-avatar {
-  width: 88rpx;
-  height: 88rpx;
-  border-radius: 24rpx;
-  background: linear-gradient(135deg, #ff8a00, #ff6b00);
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 32rpx;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.invite-main {
-  flex: 1;
-}
-
-.invite-name {
-  display: block;
-  font-size: 30rpx;
-  font-weight: 600;
-  color: #1a1a1a;
-}
-
-.invite-desc {
-  display: block;
-  margin-top: 8rpx;
-  font-size: 24rpx;
-  line-height: 1.6;
-  color: #6b7280;
-}
-
 .partner-list {
-  padding: 0 36rpx 36rpx;
-}
-
-.invite-link-panel {
-  margin: 0 36rpx 36rpx;
-  padding: 28rpx 32rpx 32rpx;
-  border-radius: 24rpx;
-  background: #fff5eb;
-}
-
-.invite-link-title {
-  display: block;
-  font-size: 28rpx;
-  font-weight: 600;
-  color: #1a1a1a;
-}
-
-.invite-link-desc {
-  display: block;
-  margin-top: 8rpx;
-  font-size: 24rpx;
-  line-height: 1.6;
-  color: #6b7280;
-}
-
-.inline-invite-btn {
-  margin-top: 20rpx;
-  height: 80rpx;
-  border: none;
-  border-radius: 20rpx;
-  background: #ff6b00;
-  color: #ffffff;
-  font-size: 28rpx;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  padding: 8rpx 32rpx 32rpx;
 }
 
 .partner-item {
   display: flex;
   align-items: center;
+  gap: 20rpx;
   padding: 24rpx;
   margin-top: 20rpx;
   background: #f9fafb;
-  border-radius: 24rpx;
   border: 4rpx solid transparent;
+  border-radius: 24rpx;
 }
 
 .partner-item.selected {
@@ -221,71 +184,112 @@
   border-color: #ff6b00;
 }
 
-.partner-avatar {
+.partner-avatar,
+.invite-partner-avatar {
   width: 80rpx;
   height: 80rpx;
   border-radius: 24rpx;
+  flex-shrink: 0;
   background: #e5e7eb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 36rpx;
 }
 
-.partner-info {
+.partner-info,
+.pending-partner-main,
+.wechat-main {
   flex: 1;
-  margin-left: 24rpx;
 }
 
 .partner-name {
-  display: block;
   font-size: 28rpx;
   font-weight: 600;
-  color: #1a1a1a;
 }
 
-.partner-college {
-  display: block;
-  margin-top: 4rpx;
+.partner-meta,
+.pending-partner-desc,
+.wechat-desc,
+.helper-tip,
+.wait-desc,
+.status-desc {
   font-size: 24rpx;
-  color: #9ca3af;
+}
+
+.partner-meta {
+  display: block;
+  margin-top: 6rpx;
 }
 
 .partner-check {
   color: #ff6b00;
   font-size: 36rpx;
+  font-weight: 700;
+}
+
+.pending-partner-card,
+.wechat-card,
+.wait-content,
+.status-card {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 32rpx;
+}
+
+.pending-partner-avatar,
+.wechat-icon,
+.wait-icon {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.wechat-icon,
+.wait-icon {
+  background: linear-gradient(135deg, #ff8a00, #ff6b00);
+  color: #ffffff;
+  font-size: 34rpx;
+  font-weight: 700;
+}
+
+.pending-partner-name,
+.wechat-title {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.helper-tip {
+  display: block;
+  padding: 0 32rpx 32rpx;
+}
+
+.wait-card .card-header {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.wait-content {
+  flex-direction: column;
+  align-items: flex-start;
+  padding-top: 24rpx;
+}
+
+.status-card.confirmed {
+  background: linear-gradient(180deg, #fff7ed, #ffffff);
+}
+
+.status-card {
+  align-items: flex-start;
+  flex-direction: column;
 }
 
 .empty-tip {
-  padding: 40rpx;
+  padding: 40rpx 32rpx 32rpx;
   text-align: center;
   font-size: 26rpx;
   color: #9ca3af;
-}
-
-.wait-tip {
-  padding: 60rpx 40rpx;
-  margin-bottom: 24rpx;
-  text-align: center;
-}
-
-.tip-icon {
-  font-size: 72rpx;
-  margin-bottom: 24rpx;
-}
-
-.tip-title {
-  display: block;
-  margin-bottom: 16rpx;
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #1a1a1a;
-}
-
-.tip-desc {
-  font-size: 26rpx;
-  line-height: 1.6;
-  color: #6b7280;
 }
 
 .submit-btn {
@@ -308,10 +312,6 @@
 
 .submit-btn[disabled] {
   opacity: 0.5;
-}
-
-.share-submit-btn {
-  background: linear-gradient(135deg, #ff8a00, #ff6b00);
 }
 
 .loading {
