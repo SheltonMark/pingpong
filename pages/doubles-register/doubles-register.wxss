@@ -170,6 +170,42 @@
   padding: 0 36rpx 36rpx;
 }
 
+.invite-link-panel {
+  margin: 0 36rpx 36rpx;
+  padding: 28rpx 32rpx 32rpx;
+  border-radius: 24rpx;
+  background: #fff5eb;
+}
+
+.invite-link-title {
+  display: block;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.invite-link-desc {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: #6b7280;
+}
+
+.inline-invite-btn {
+  margin-top: 20rpx;
+  height: 80rpx;
+  border: none;
+  border-radius: 20rpx;
+  background: #ff6b00;
+  color: #ffffff;
+  font-size: 28rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .partner-item {
   display: flex;
   align-items: center;

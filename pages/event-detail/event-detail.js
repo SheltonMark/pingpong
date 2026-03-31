@@ -31,6 +31,12 @@ const processRichTextImages = (html) => {
   return processed;
 };
 
+const formatGenderLabel = (gender) => {
+  if (gender === 'male') return '男';
+  if (gender === 'female') return '女';
+  return '';
+};
+
 Page({
   data: {
     eventId: null,
@@ -98,19 +104,25 @@ Page({
         }
         event.descriptionImages = descriptionImages;
 
+        const registrations = (res.data.registrations || []).map((item) => ({
+          ...item,
+          gender_label: formatGenderLabel(item.gender),
+          partner_gender_label: formatGenderLabel(item.partner_gender)
+        }));
+
         this.setData({
           event: event,
-          registrations: res.data.registrations,
+          registrations,
           loading: false
         });
         this.checkRegistrationStatus();
         this.loadMatches();
         // 双打赛事分组处理
         if (event.event_type === 'doubles') {
-          this.processDoublesRegistrations(res.data.registrations);
+          this.processDoublesRegistrations(registrations);
         }
         if (event.event_type === 'team') {
-          this.processTeamRegistrations(res.data.registrations);
+          this.processTeamRegistrations(registrations);
         }
         // 团体赛加载领队状态
         if (event.event_type === 'team') {
@@ -248,7 +260,8 @@ Page({
           name: reg.name,
           avatar_url: reg.avatar_url,
           school_name: reg.school_name,
-          college_name: reg.college_name
+          college_name: reg.college_name,
+          gender_label: reg.gender_label
         });
         continue;
       }
@@ -268,14 +281,16 @@ Page({
             name: reg.name,
             avatar_url: reg.avatar_url,
             school_name: reg.school_name,
-            college_name: reg.college_name
+            college_name: reg.college_name,
+            gender_label: reg.gender_label
           },
           player2: {
             user_id: reg.partner_id,
             name: reg.partner_name,
             avatar_url: reg.partner_avatar_url,
             school_name: reg.partner_school_name,
-            college_name: reg.partner_college_name
+            college_name: reg.partner_college_name,
+            gender_label: reg.partner_gender_label
           }
         });
       }
@@ -304,6 +319,7 @@ Page({
         avatar_url: reg.avatar_url,
         school_name: reg.school_name,
         college_name: reg.college_name,
+        gender_label: reg.gender_label,
         is_team_leader: !!reg.is_team_leader
       });
     }

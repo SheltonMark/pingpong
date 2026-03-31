@@ -1,6 +1,30 @@
 const app = getApp();
 const subscribe = require('../../utils/subscribe');
 
+function getCurrentUserId() {
+  return app.globalData.userInfo?.id || app.globalData.userInfo?.user_id || null;
+}
+
+function getGenderLabel(gender) {
+  if (gender === 'male') return '男';
+  if (gender === 'female') return '女';
+  return '';
+}
+
+function buildPendingInvite(invite = {}, fallbackPartnerName = '') {
+  if (!invite.invite_token) {
+    return null;
+  }
+
+  const inviteMode = invite.invite_mode || 'targeted';
+  return {
+    invite_token: invite.invite_token,
+    share_path: invite.share_path || '',
+    invite_mode: inviteMode,
+    partner_name: invite.partner_name || fallbackPartnerName || (inviteMode === 'open_link' ? '待队友确认' : '指定搭档')
+  };
+}
+
 Page({
   data: {
     eventId: null,
@@ -10,6 +34,7 @@ Page({
     availablePartners: [],
     selectedPartner: null,
     pendingInvite: null,
+    registrationState: 'not_registered',
     isLoading: true,
     isSubmitting: false
   },
@@ -21,32 +46,56 @@ Page({
     }
   },
 
+  onShow() {
+    if (this.data.eventId) {
+      this.loadData();
+    }
+  },
+
   async loadData() {
+    const userId = getCurrentUserId();
+
     try {
-      const [eventRes, userRes, partnersRes] = await Promise.all([
+      const [eventRes, userRes, statusRes, partnersRes] = await Promise.all([
         this.request(`/api/events/${this.data.eventId}`),
         app.globalData.userInfo?.openid
           ? this.request('/api/user/profile', { openid: app.globalData.userInfo.openid })
           : Promise.resolve({ success: false }),
-        this.request(`/api/events/${this.data.eventId}/available-partners`)
+        userId
+          ? this.request(`/api/events/${this.data.eventId}/doubles-status`, { user_id: userId })
+          : Promise.resolve({ success: false }),
+        userId
+          ? Promise.resolve({ success: false })
+          : this.request(`/api/events/${this.data.eventId}/available-partners`)
       ]);
+
+      const nextData = {};
 
       if (eventRes.success) {
         const event = eventRes.data.event;
         event.name = event.title;
         event.date_label = this.formatDate(event.event_start);
-        this.setData({ event });
+        nextData.event = event;
       }
 
       if (userRes.success) {
-        this.setData({ user: userRes.data });
+        nextData.user = userRes.data;
       }
 
-      if (partnersRes.success) {
-        this.setData({ availablePartners: partnersRes.data || [] });
+      if (statusRes.success) {
+        nextData.availablePartners = statusRes.data?.available_partners || [];
+        nextData.registrationState = statusRes.data?.registration_state || 'not_registered';
+        nextData.pendingInvite = buildPendingInvite(statusRes.data?.pending_invite || {});
+        nextData.partnerMode = nextData.pendingInvite
+          ? 'select'
+          : (nextData.registrationState === 'waiting_partner' ? 'wait' : this.data.partnerMode);
+      } else if (partnersRes.success) {
+        nextData.availablePartners = partnersRes.data || [];
       }
+
+      this.setData(nextData);
     } catch (error) {
-      console.error('Load data error:', error);
+      console.error('Load doubles register data failed:', error);
     } finally {
       this.setData({ isLoading: false });
     }
@@ -54,7 +103,7 @@ Page({
 
   onModeChange(e) {
     if (this.data.pendingInvite) {
-      wx.showToast({ title: '邀请已创建，请先分享给搭档', icon: 'none' });
+      wx.showToast({ title: '已有待确认邀请，请先分享给队友', icon: 'none' });
       return;
     }
 
@@ -88,19 +137,68 @@ Page({
     }
   },
 
+  async onCreateInviteLink() {
+    const userId = getCurrentUserId();
+    if (!userId) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+    if (this.data.pendingInvite) {
+      wx.showToast({ title: '已有待确认邀请，请先分享给队友', icon: 'none' });
+      return;
+    }
+    if (this.data.isSubmitting) {
+      return;
+    }
+
+    this.setData({ isSubmitting: true });
+    await this.requestEventSubscriptions();
+
+    try {
+      const res = await this.request(
+        `/api/events/${this.data.eventId}/doubles-open-invitations`,
+        { user_id: userId },
+        'POST'
+      );
+
+      if (!res.success) {
+        wx.showToast({ title: res.message || '创建邀请失败', icon: 'none' });
+        return;
+      }
+
+      this.setData({
+        pendingInvite: buildPendingInvite(res.data || {}, '待队友确认'),
+        registrationState: 'invite_pending',
+        partnerMode: 'select'
+      });
+
+      wx.showModal({
+        title: '邀请链接已创建',
+        content: '现在点“邀请队友”，就可以直接发到微信好友对话框。',
+        showCancel: false
+      });
+    } catch (error) {
+      console.error('Create doubles invite link failed:', error);
+      wx.showToast({ title: '创建邀请失败', icon: 'none' });
+    } finally {
+      this.setData({ isSubmitting: false });
+    }
+  },
+
   async onSubmit() {
-    if (!app.globalData.isLoggedIn) {
+    const userId = getCurrentUserId();
+    if (!userId) {
       wx.showToast({ title: '请先登录', icon: 'none' });
       return;
     }
 
     if (this.data.pendingInvite) {
-      wx.showToast({ title: '邀请已创建，请先分享给搭档', icon: 'none' });
+      wx.showToast({ title: '已有待确认邀请，请先分享给队友', icon: 'none' });
       return;
     }
 
     if (this.data.partnerMode === 'select' && !this.data.selectedPartner) {
-      wx.showToast({ title: '请选择搭档', icon: 'none' });
+      wx.showToast({ title: '请选择搭档，或直接邀请队友', icon: 'none' });
       return;
     }
 
@@ -113,7 +211,7 @@ Page({
 
     try {
       const payload = {
-        user_id: app.globalData.userInfo.id,
+        user_id: userId,
         partner_mode: this.data.partnerMode
       };
 
@@ -133,26 +231,30 @@ Page({
       }
 
       if (this.data.partnerMode === 'wait') {
-        wx.showToast({ title: '已加入配对队列', icon: 'success' });
-        setTimeout(() => wx.navigateBack(), 1200);
+        wx.showToast({ title: '已加入配对池', icon: 'success' });
+        await this.loadData();
         return;
       }
 
       this.setData({
-        pendingInvite: {
-          invite_token: res.data?.invite_token || '',
-          share_path: res.data?.share_path || '',
-          partner_name: this.data.selectedPartner?.name || '指定搭档'
-        }
+        pendingInvite: buildPendingInvite(
+          {
+            ...res.data,
+            invite_mode: 'targeted',
+            partner_name: this.data.selectedPartner?.name || '指定搭档'
+          },
+          this.data.selectedPartner?.name || '指定搭档'
+        ),
+        registrationState: 'invite_pending'
       });
 
       wx.showModal({
         title: '邀请已创建',
-        content: '请点击下方“分享邀请”发给搭档，对方确认后即可完成双打报名。',
+        content: '现在点“邀请队友”，就可以直接发到微信好友对话框。',
         showCancel: false
       });
     } catch (error) {
-      console.error('Submit error:', error);
+      console.error('Submit doubles register failed:', error);
       wx.showToast({ title: '报名失败', icon: 'none' });
     } finally {
       this.setData({ isSubmitting: false });
@@ -174,6 +276,13 @@ Page({
       title: `邀请你和我搭档参加${eventTitle}`,
       path: sharePath
     };
+  },
+
+  getPartnerMeta(partner) {
+    const genderLabel = getGenderLabel(partner?.gender);
+    const schoolLabel = partner?.school_name || '';
+    const collegeLabel = partner?.college_name || '';
+    return [genderLabel, schoolLabel, collegeLabel].filter(Boolean).join(' · ');
   },
 
   formatDate(dateStr) {

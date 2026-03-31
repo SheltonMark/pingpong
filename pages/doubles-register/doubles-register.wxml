@@ -1,5 +1,5 @@
-<view class="register-page" wx:if="{{event && !isLoading}}">
-  <view class="event-card">
+<view class="register-page" wx:if="{{!isLoading}}">
+  <view class="event-card" wx:if="{{event}}">
     <text class="event-name">{{event.name}}</text>
     <text class="event-info">{{event.date_label}} · {{event.location}}</text>
   </view>
@@ -16,8 +16,8 @@
           <text wx:if="{{partnerMode === 'select'}}">✓</text>
         </view>
         <view class="mode-content">
-          <text class="mode-title">指定搭档</text>
-          <text class="mode-desc">选择正在找搭档的队友，生成邀请链接后由对方确认</text>
+          <text class="mode-title">邀请队友</text>
+          <text class="mode-desc">可以从配对池里直接选人，也可以生成邀请链接分享给你自己的队友。</text>
         </view>
       </view>
       <view
@@ -29,8 +29,8 @@
           <text wx:if="{{partnerMode === 'wait'}}">✓</text>
         </view>
         <view class="mode-content">
-          <text class="mode-title">等待配对</text>
-          <text class="mode-desc">先加入找搭档列表，等待其他选手向你发起邀请</text>
+          <text class="mode-title">加入配对池</text>
+          <text class="mode-desc">先进入等待配对列表，其他选手可以直接向你发起邀请。</text>
         </view>
       </view>
     </view>
@@ -39,24 +39,28 @@
   <view class="invite-card" wx:if="{{pendingInvite}}">
     <view class="card-header">
       <text class="card-title">邀请已创建</text>
-      <text class="card-count">待对方确认</text>
+      <text class="card-count">{{pendingInvite.invite_mode === 'open_link' ? '分享给队友' : '待对方确认'}}</text>
     </view>
 
     <view class="invite-body">
       <view class="invite-avatar">邀</view>
       <view class="invite-main">
         <text class="invite-name">{{pendingInvite.partner_name}}</text>
-        <text class="invite-desc">把邀请链接分享给搭档，对方在邀请页确认后即可完成组队报名。</text>
+        <text class="invite-desc">
+          {{pendingInvite.invite_mode === 'open_link'
+            ? '这是公开邀请链接，不需要先出现在配对池里，直接分享给你的队友确认即可。'
+            : '把邀请链接分享给已选择的队友，对方确认后即可完成混双报名。'}}
+        </text>
       </view>
     </view>
   </view>
 
-  <view class="partner-card" wx:if="{{partnerMode === 'select' && !pendingInvite}}">
+  <view class="partner-card" wx:if="{{partnerMode === 'select'}}">
     <view class="card-header">
-      <text class="card-title">选择搭档</text>
-      <text class="card-count">可邀请 {{availablePartners.length}} 人</text>
+      <text class="card-title">{{pendingInvite ? '邀请队友' : '从配对池中选择'}}</text>
+      <text class="card-count">{{pendingInvite ? '已生成可分享链接' : ('可邀请 ' + availablePartners.length + ' 人')}}</text>
     </view>
-    <view class="partner-list">
+    <view class="partner-list" wx:if="{{!pendingInvite}}">
       <view
         class="partner-item {{selectedPartner && selectedPartner.id === item.id ? 'selected' : ''}}"
         wx:for="{{availablePartners}}"
@@ -67,20 +71,46 @@
         <view class="partner-avatar">🏓</view>
         <view class="partner-info">
           <text class="partner-name">{{item.name}}</text>
-          <text class="partner-college">{{item.college_name || item.school_name}}</text>
+          <text class="partner-college">
+            {{(item.gender === 'male' ? '男' : item.gender === 'female' ? '女' : '') +
+              ((item.gender && (item.school_name || item.college_name)) ? ' · ' : '') +
+              (item.school_name || '') +
+              (item.college_name ? ' · ' + item.college_name : '')}}
+          </text>
         </view>
         <view class="partner-check" wx:if="{{selectedPartner && selectedPartner.id === item.id}}">✓</view>
       </view>
       <view class="empty-tip" wx:if="{{availablePartners.length === 0}}">
-        <text>暂无可邀请搭档</text>
+        <text>当前配对池里还没有可邀请的人</text>
       </view>
+    </view>
+
+    <view class="invite-link-panel">
+      <text class="invite-link-title">不选池子里的人？</text>
+      <text class="invite-link-desc">{{pendingInvite ? '邀请链接已经准备好，直接发送到微信好友对话框即可。' : '直接给你的双打队友发邀请。'}}</text>
+      <button
+        wx:if="{{!pendingInvite}}"
+        class="inline-invite-btn"
+        bindtap="onCreateInviteLink"
+        disabled="{{isSubmitting}}"
+      >
+        {{isSubmitting ? '处理中...' : '邀请队友'}}
+      </button>
+      <button
+        wx:else
+        class="inline-invite-btn"
+        open-type="share"
+        data-share-path="{{pendingInvite.share_path}}"
+      >
+        邀请队友
+      </button>
     </view>
   </view>
 
   <view class="wait-tip" wx:if="{{partnerMode === 'wait' && !pendingInvite}}">
-    <view class="tip-icon">⌛</view>
+    <view class="tip-icon">⏳</view>
     <text class="tip-title">等待配对模式</text>
-    <text class="tip-desc">报名后你会出现在找搭档列表中，其他选手可直接向你发起邀请。</text>
+    <text class="tip-desc">报名后你会出现在找搭档列表中，其他选手可以直接向你发起邀请。</text>
   </view>
 
   <button
@@ -89,17 +119,9 @@
     bindtap="onSubmit"
     disabled="{{isSubmitting || (partnerMode === 'select' && !selectedPartner)}}"
   >
-    {{isSubmitting ? '提交中...' : '确认报名'}}
+    {{isSubmitting ? '提交中...' : partnerMode === 'wait' ? '加入配对池' : '邀请队友'}}
   </button>
 
-  <button
-    wx:if="{{pendingInvite}}"
-    class="submit-btn share-submit-btn"
-    open-type="share"
-    data-share-path="{{pendingInvite.share_path}}"
-  >
-    分享邀请给搭档
-  </button>
 </view>
 
-<view class="loading" wx:if="{{isLoading}}">加载中...</view>
+<view class="loading" wx:else>加载中...</view>

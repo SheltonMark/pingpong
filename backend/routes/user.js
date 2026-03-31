@@ -4,6 +4,7 @@ const { pool } = require('../config/database');
 const { calculateInitialRating } = require('../utils/ratingCalculator');
 const subscribeMessage = require('../utils/subscribeMessage');
 const { computeEventStatus } = require('./events');
+const { assertSafeSubmission, handleContentSecurityError } = require('../utils/contentSecurity');
 
 // 检查用户是否存在
 router.get('/check', async (req, res) => {
@@ -138,6 +139,18 @@ router.post('/register', async (req, res) => {
       });
     }
 
+    await assertSafeSubmission({
+      openid,
+      texts: [
+        { label: '姓名', value: name },
+        { label: '班级', value: class_name }
+      ],
+      images: [
+        { label: '头像', value: avatar_url }
+      ],
+      scene: 1
+    });
+
     // 检查用户是否存在，不存在则创建
     const [existing] = await pool.query('SELECT id FROM users WHERE openid = ?', [openid]);
 
@@ -202,6 +215,9 @@ router.post('/register', async (req, res) => {
 
     res.json({ success: true, message: '注册成功', data: users[0] });
   } catch (error) {
+    if (handleContentSecurityError(res, error)) {
+      return;
+    }
     console.error('用户注册失败:', error);
     res.status(500).json({ success: false, message: '服务器错误' });
   }
@@ -260,6 +276,19 @@ router.post('/update', async (req, res) => {
       });
     }
 
+    await assertSafeSubmission({
+      openid,
+      userId: user_id,
+      texts: [
+        { label: '姓名', value: name },
+        { label: '班级', value: class_name }
+      ],
+      images: [
+        { label: '头像', value: avatar_url }
+      ],
+      scene: 1
+    });
+
     // 更新用户信息
     await pool.execute(`
       UPDATE users SET
@@ -309,6 +338,9 @@ router.post('/update', async (req, res) => {
 
     res.json({ success: true, message: '更新成功', data: users[0] });
   } catch (error) {
+    if (handleContentSecurityError(res, error)) {
+      return;
+    }
     console.error('更新用户信息失败:', error);
     res.status(500).json({ success: false, message: '服务器错误' });
   }

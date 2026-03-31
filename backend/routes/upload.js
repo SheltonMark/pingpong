@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const cloudStorage = require('../utils/cloudStorage');
+const { assertSafeImageBuffer, handleContentSecurityError } = require('../utils/contentSecurity');
 
 // 确保上传目录存在（用于临时文件或本地存储回退）
 const uploadDir = path.join(__dirname, '../public/uploads');
@@ -73,6 +74,15 @@ router.post('/file', upload.single('file'), async (req, res) => {
     // 修复中文文件名乱码问题
     const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
 
+    if ((req.file.mimetype || '').startsWith('image/')) {
+      const moderationBuffer = req.file.buffer || fs.readFileSync(req.file.path);
+      await assertSafeImageBuffer(moderationBuffer, {
+        filename: originalName,
+        contentType: req.file.mimetype,
+        label: '上传图片'
+      });
+    }
+
     let fileUrl;
     let fileID = null;
 
@@ -125,6 +135,12 @@ router.post('/file', upload.single('file'), async (req, res) => {
       }
     });
   } catch (error) {
+    if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    if (handleContentSecurityError(res, error)) {
+      return;
+    }
     console.error('Upload error:', error);
     res.status(500).json({ success: false, message: '上传失败: ' + error.message });
   }

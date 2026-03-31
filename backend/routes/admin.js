@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const { pool } = require('../config/database');
 const subscribeMessage = require('../utils/subscribeMessage');
+const { assertSafeSubmission, handleContentSecurityError } = require('../utils/contentSecurity');
 // 格式化日期为 MySQL 格式
 function formatDateForMySQL(dateStr) {
   if (!dateStr) return null;
@@ -645,6 +646,20 @@ router.post('/events', requireAdmin, async (req, res) => {
       team_event_config
     } = req.body;
 
+    await assertSafeSubmission({
+      userId: req.adminUserId || user_id,
+      texts: [
+        { label: '赛事标题', value: title },
+        { label: '赛事描述', value: description },
+        { label: '赛事地点', value: location }
+      ],
+      images: (Array.isArray(description_images) ? description_images : []).map((image) => ({
+        label: '赛事图片',
+        value: image
+      })),
+      scene: 3
+    });
+
     const [result] = await pool.execute(`
       INSERT INTO events (
         title, description, description_images, event_type, event_format, scope,
@@ -670,6 +685,9 @@ router.post('/events', requireAdmin, async (req, res) => {
 
     res.json({ success: true, data: { id: result.insertId } });
   } catch (error) {
+    if (handleContentSecurityError(res, error)) {
+      return;
+    }
     console.error('Create event error:', error);
     res.json({ success: false, message: '创建赛事失败: ' + error.message });
   }
@@ -689,6 +707,20 @@ router.put('/events/:id', requireAdmin, async (req, res) => {
       gender_rule, required_male_count, required_female_count,
       team_event_config
     } = req.body;
+
+    await assertSafeSubmission({
+      userId: req.adminUserId,
+      texts: [
+        { label: '赛事标题', value: title },
+        { label: '赛事描述', value: description },
+        { label: '赛事地点', value: location }
+      ],
+      images: (Array.isArray(description_images) ? description_images : []).map((image) => ({
+        label: '赛事图片',
+        value: image
+      })),
+      scene: 3
+    });
 
     await pool.execute(`
       UPDATE events SET
@@ -716,6 +748,9 @@ router.put('/events/:id', requireAdmin, async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
+    if (handleContentSecurityError(res, error)) {
+      return;
+    }
     console.error('Update event error:', error);
     res.json({ success: false, message: '更新赛事失败: ' + error.message });
   }
@@ -1125,6 +1160,15 @@ router.post('/announcements', requireAdmin, async (req, res) => {
   try {
     const { title, content, link_type, link_id, school_id, user_id } = req.body;
 
+    await assertSafeSubmission({
+      userId: req.adminUserId || user_id,
+      texts: [
+        { label: '公告标题', value: title },
+        { label: '公告内容', value: content }
+      ],
+      scene: 3
+    });
+
     const [result] = await pool.execute(`
       INSERT INTO announcements (title, content, link_type, link_id, school_id, created_by, is_active, created_at)
       VALUES (?, ?, ?, ?, ?, ?, 1, NOW())
@@ -1132,6 +1176,9 @@ router.post('/announcements', requireAdmin, async (req, res) => {
 
     res.json({ success: true, data: { id: result.insertId } });
   } catch (error) {
+    if (handleContentSecurityError(res, error)) {
+      return;
+    }
     console.error('Create announcement error:', error);
     res.json({ success: false, message: '创建公告失败' });
   }
@@ -1143,6 +1190,15 @@ router.put('/announcements/:id', requireAdmin, async (req, res) => {
     const { id } = req.params;
     const { title, content, link_type, link_id, is_active } = req.body;
 
+    await assertSafeSubmission({
+      userId: req.adminUserId,
+      texts: [
+        { label: '公告标题', value: title },
+        { label: '公告内容', value: content }
+      ],
+      scene: 3
+    });
+
     await pool.execute(`
       UPDATE announcements SET title = ?, content = ?, link_type = ?, link_id = ?, is_active = ?
       WHERE id = ?
@@ -1150,6 +1206,9 @@ router.put('/announcements/:id', requireAdmin, async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
+    if (handleContentSecurityError(res, error)) {
+      return;
+    }
     console.error('Update announcement error:', error);
     res.json({ success: false, message: '更新公告失败' });
   }
@@ -1193,6 +1252,19 @@ router.post('/learning', requireAdmin, async (req, res) => {
   try {
     const { title, type, url, original_name, description, school_id, cover_url } = req.body;
 
+    await assertSafeSubmission({
+      userId: req.adminUserId,
+      texts: [
+        { label: '资料标题', value: title },
+        { label: '资料说明', value: description },
+        { label: '资料原始文件名', value: original_name }
+      ],
+      images: [
+        { label: '资料封面', value: cover_url }
+      ],
+      scene: 3
+    });
+
     const [result] = await pool.execute(`
       INSERT INTO learning_materials (title, type, url, original_name, description, school_id, cover_url, status, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, 'active', NOW())
@@ -1200,6 +1272,9 @@ router.post('/learning', requireAdmin, async (req, res) => {
 
     res.json({ success: true, data: { id: result.insertId } });
   } catch (error) {
+    if (handleContentSecurityError(res, error)) {
+      return;
+    }
     console.error('Create learning material error:', error);
     res.json({ success: false, message: '创建学习资料失败' });
   }
@@ -1211,6 +1286,19 @@ router.put('/learning/:id', requireAdmin, async (req, res) => {
     const { id } = req.params;
     const { title, type, url, original_name, description, status, cover_url } = req.body;
 
+    await assertSafeSubmission({
+      userId: req.adminUserId,
+      texts: [
+        { label: '资料标题', value: title },
+        { label: '资料说明', value: description },
+        { label: '资料原始文件名', value: original_name }
+      ],
+      images: [
+        { label: '资料封面', value: cover_url }
+      ],
+      scene: 3
+    });
+
     await pool.execute(`
       UPDATE learning_materials SET title = ?, type = ?, url = ?, original_name = ?, description = ?, status = ?, cover_url = ?
       WHERE id = ?
@@ -1218,6 +1306,9 @@ router.put('/learning/:id', requireAdmin, async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
+    if (handleContentSecurityError(res, error)) {
+      return;
+    }
     console.error('Update learning material error:', error);
     res.json({ success: false, message: '更新学习资料失败' });
   }

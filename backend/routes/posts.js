@@ -2,10 +2,12 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
+const { assertSafeSubmission, assertSafeTexts, handleContentSecurityError } = require('../utils/contentSecurity');
 
 // 发布帖子
 router.post('/', async (req, res) => {
   const connection = await pool.getConnection();
+  let transactionStarted = false;
   try {
     const { user_id, content, images, school_id } = req.body;
 
@@ -23,7 +25,20 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ success: false, message: '最多上传9张图片' });
     }
 
+    await assertSafeSubmission({
+      userId: user_id,
+      texts: [
+        { label: '帖子内容', value: content }
+      ],
+      images: (Array.isArray(images) ? images : []).map((image) => ({
+        label: '帖子图片',
+        value: image
+      })),
+      scene: 3
+    });
+
     await connection.beginTransaction();
+    transactionStarted = true;
 
     // 插入帖子
     const [result] = await connection.execute(
@@ -49,7 +64,12 @@ router.post('/', async (req, res) => {
       data: { post_id: postId }
     });
   } catch (error) {
-    await connection.rollback();
+    if (transactionStarted) {
+      await connection.rollback();
+    }
+    if (handleContentSecurityError(res, error)) {
+      return;
+    }
     console.error('发布帖子失败:', error);
     res.status(500).json({ success: false, message: '服务器错误' });
   } finally {
@@ -320,6 +340,16 @@ router.post('/:id/comments', async (req, res) => {
       return res.status(404).json({ success: false, message: '帖子不存在' });
     }
 
+    await assertSafeTexts(
+      [
+        { label: '评论内容', value: content }
+      ],
+      {
+        userId: user_id,
+        scene: 2
+      }
+    );
+
     const [result] = await pool.execute(
       'INSERT INTO comments (post_id, user_id, content, parent_id) VALUES (?, ?, ?, ?)',
       [id, user_id, content.trim(), parent_id || null]
@@ -336,6 +366,9 @@ router.post('/:id/comments', async (req, res) => {
       data: { comment_id: result.insertId }
     });
   } catch (error) {
+    if (handleContentSecurityError(res, error)) {
+      return;
+    }
     console.error('发表评论失败:', error);
     res.status(500).json({ success: false, message: '服务器错误' });
   }

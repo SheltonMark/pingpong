@@ -1,7 +1,7 @@
-<view class="invite-page">
+﻿<view class="invite-page">
   <view class="invite-card" wx:if="{{!isLoading && invitation}}">
     <view class="invite-icon">🏓</view>
-    <text class="invite-title">{{invitation.inviter_name || '搭档'}} 邀请你搭档报名</text>
+    <text class="invite-title">{{invitation.inviter_name || '搭档'}} 邀请你一起报名</text>
 
     <view class="event-info-card" wx:if="{{event}}">
       <text class="event-name">{{event.title}}</text>
@@ -13,8 +13,8 @@
       <button class="action-btn primary" bindtap="onGoRegister">去注册 / 登录</button>
     </view>
 
-    <view class="action-area" wx:elif="{{invitationState === 'pending_login'}}">
-      <text class="tip-text">确认后你们会直接组成双打搭档；如果拒绝，双方会回到找搭档列表。</text>
+    <view class="action-area" wx:elif="{{invitationState === 'pending_targeted'}}">
+      <text class="tip-text">确认后你会直接和对方组成混双搭档；如果拒绝，双方会回到等待配对列表。</text>
       <view class="action-row">
         <button class="action-btn secondary" bindtap="onRespond" data-action="reject" disabled="{{isSubmitting}}">
           {{isSubmitting ? '处理中...' : '拒绝邀请'}}
@@ -23,6 +23,13 @@
           {{isSubmitting ? '处理中...' : '确认搭档'}}
         </button>
       </view>
+    </view>
+
+    <view class="action-area" wx:elif="{{invitationState === 'pending_open_link'}}">
+      <text class="tip-text">这是分享邀请链接。确认后你会直接和对方组成混双搭档；如果不参加，直接关闭页面即可。</text>
+      <button class="action-btn primary" bindtap="onRespond" data-action="accept" disabled="{{isSubmitting}}">
+        {{isSubmitting ? '处理中...' : '确认搭档'}}
+      </button>
     </view>
 
     <view class="action-area" wx:elif="{{invitationState === 'pending_blocked'}}">
@@ -36,15 +43,15 @@
 
     <view class="action-area success" wx:elif="{{invitationState === 'rejected_self'}}">
       <view class="success-icon muted">已</view>
-      <text class="tip-text">你已拒绝本次邀请，双方已回到找搭档列表，可重新发起配对。</text>
+      <text class="tip-text">你已拒绝本次邀请，双方已回到等待配对列表，可重新发起配对。</text>
     </view>
 
     <view class="action-area" wx:elif="{{invitationState === 'accepted_other'}}">
-      <text class="tip-text">这条邀请已被处理，当前链接不能重复使用。</text>
+      <text class="tip-text">这条邀请已经被其他人处理，当前链接不能重复使用。</text>
     </view>
 
     <view class="action-area" wx:elif="{{invitationState === 'rejected_other'}}">
-      <text class="tip-text">这条邀请已被处理，双方已返回找搭档列表。</text>
+      <text class="tip-text">这条邀请已经被处理，双方已返回等待配对列表。</text>
     </view>
 
     <view class="action-area" wx:elif="{{invitationState === 'cancelled'}}">

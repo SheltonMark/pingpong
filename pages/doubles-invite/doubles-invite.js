@@ -1,4 +1,4 @@
-const app = getApp();
+﻿const app = getApp();
 
 function getCurrentUserId() {
   return app.globalData.userInfo?.id || app.globalData.userInfo?.user_id || null;
@@ -102,7 +102,7 @@ Page({
       } else if (invitation.response_allowed === false) {
         state = 'pending_blocked';
       } else {
-        state = 'pending_login';
+        state = invitation.invite_mode === 'open_link' ? 'pending_open_link' : 'pending_targeted';
       }
     } else if (invitation.status === 'accepted') {
       state = parseInt(invitation.invitee_id, 10) === parseInt(currentUserId, 10)

@@ -1,4 +1,4 @@
-// backend/routes/events.js
+﻿// backend/routes/events.js
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
@@ -454,6 +454,148 @@ async function getDoublesInvitationResponderEligibility(invitation, userId, conn
     message: '',
     user: users[0],
     registration
+  };
+}
+
+async function getHybridDoublesInvitationResponderEligibility(invitation, userId, connection = pool) {
+  const numericUserId = parseInt(userId, 10);
+  const inviteMode = invitation.invitee_id ? 'targeted' : 'open_link';
+
+  if (!Number.isInteger(numericUserId)) {
+    return {
+      canRespond: false,
+      message: '缺少用户ID',
+      user: null,
+      registration: null,
+      invite_mode: inviteMode
+    };
+  }
+
+  const [users] = await connection.query(
+    'SELECT id, name, gender FROM users WHERE id = ? LIMIT 1',
+    [numericUserId]
+  );
+  if (users.length === 0) {
+    return {
+      canRespond: false,
+      message: '用户不存在',
+      user: null,
+      registration: null,
+      invite_mode: inviteMode
+    };
+  }
+
+  if (parseInt(invitation.inviter_id, 10) === numericUserId) {
+    return {
+      canRespond: false,
+      message: '您是邀请发起人，无需处理这条邀请',
+      user: users[0],
+      registration: null,
+      invite_mode: inviteMode
+    };
+  }
+
+  if (invitation.invitee_id && parseInt(invitation.invitee_id, 10) !== numericUserId) {
+    return {
+      canRespond: false,
+      message: '这条邀请仅限被指定的搭档处理',
+      user: users[0],
+      registration: null,
+      invite_mode: 'targeted'
+    };
+  }
+
+  const [registrations] = await connection.query(
+    `SELECT id, status, partner_id, partner_status
+     FROM event_registrations
+     WHERE event_id = ? AND user_id = ? AND status != 'cancelled'
+     ORDER BY id DESC
+     LIMIT 1`,
+    [invitation.event_id, numericUserId]
+  );
+
+  const registration = registrations[0] || null;
+  const inviterId = parseInt(invitation.inviter_id, 10);
+  const registrationPartnerId = parseInt(registration?.partner_id, 10);
+  const isOpenLinkInvite = !invitation.invitee_id;
+
+  if (isOpenLinkInvite) {
+    if (!registration) {
+      return {
+        canRespond: true,
+        message: '',
+        user: users[0],
+        registration: null,
+        invite_mode: 'open_link'
+      };
+    }
+
+    if (registrationPartnerId && registrationPartnerId !== inviterId) {
+      return {
+        canRespond: false,
+        message: '您已与其他搭档组队，不能处理这条邀请',
+        user: users[0],
+        registration,
+        invite_mode: 'open_link'
+      };
+    }
+
+    if (registration.status === 'waiting_partner' && !registrationPartnerId) {
+      return {
+        canRespond: true,
+        message: '',
+        user: users[0],
+        registration,
+        invite_mode: 'open_link'
+      };
+    }
+
+    return {
+      canRespond: false,
+      message: '当前报名状态不能接受该邀请，请先退出当前配对后再重试',
+      user: users[0],
+      registration,
+      invite_mode: 'open_link'
+    };
+  }
+
+  if (!registration) {
+    return {
+      canRespond: false,
+      message: '您的报名状态已失效，请重新报名后再处理邀请',
+      user: users[0],
+      registration: null,
+      invite_mode: 'targeted'
+    };
+  }
+
+  if (registrationPartnerId && registrationPartnerId !== inviterId) {
+    return {
+      canRespond: false,
+      message: '您已与其他搭档组队，不能处理这条邀请',
+      user: users[0],
+      registration,
+      invite_mode: 'targeted'
+    };
+  }
+
+  const isExpectedPendingPair = registration.status === 'pending' && registrationPartnerId === inviterId;
+  if (!isExpectedPendingPair) {
+    return {
+      canRespond: false,
+      message: '您的配对状态已变更，请刷新后重试',
+      user: users[0],
+      registration,
+      invite_mode: 'targeted'
+    };
+  }
+
+  return {
+    canRespond: true,
+    message: '',
+    user: users[0],
+    registration,
+    invite_mode: 'targeted'
   };
 }
 
@@ -1130,9 +1272,10 @@ router.get('/:id', async (req, res) => {
 
     // 获取报名列表（双打赛事额外查询搭档信息）
     let registrationsSql = `
-      SELECT er.*, u.name, u.avatar_url, u.college_id,
+      SELECT er.*, u.name, u.avatar_url, u.college_id, u.gender,
              c.name as college_name, s.name as school_name,
              pu.name as partner_name, pu.avatar_url as partner_avatar_url,
+             pu.gender as partner_gender,
              ps.name as partner_school_name, pc.name as partner_college_name
       FROM event_registrations er
       JOIN users u ON er.user_id = u.id
@@ -1202,6 +1345,250 @@ router.get('/:id/available-partners', async (req, res) => {
     res.json({ success: true, data: partners });
   } catch (error) {
     console.error('获取可选搭档失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
+router.get('/:id/doubles-status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id } = req.query;
+
+    if (!user_id) {
+      return res.status(400).json({ success: false, message: '缺少用户ID' });
+    }
+
+    const event = await getEventById(id);
+    if (!event) {
+      return res.status(404).json({ success: false, message: '赛事不存在' });
+    }
+    if (event.event_type !== 'doubles') {
+      return res.status(400).json({ success: false, message: '该赛事不是双打赛事' });
+    }
+
+    const [registrations] = await pool.query(
+      `SELECT er.id,
+              er.status,
+              er.partner_id,
+              er.partner_status,
+              u.name as partner_name
+       FROM event_registrations er
+       LEFT JOIN users u ON er.partner_id = u.id
+       WHERE er.event_id = ?
+         AND er.user_id = ?
+         AND er.status != 'cancelled'
+       ORDER BY er.id DESC
+       LIMIT 1`,
+      [id, user_id]
+    );
+
+    const [availablePartners] = await pool.query(
+      `SELECT u.id, u.name, u.avatar_url, u.points, u.gender,
+              s.name as school_name, c.name as college_name
+       FROM event_registrations er
+       JOIN users u ON er.user_id = u.id
+       LEFT JOIN schools s ON u.school_id = s.id
+       LEFT JOIN colleges c ON u.college_id = c.id
+       WHERE er.event_id = ?
+         AND er.status = 'waiting_partner'
+         AND er.partner_id IS NULL
+         AND er.user_id != ?
+       ORDER BY u.points DESC, u.name`,
+      [id, user_id]
+    );
+
+    const registration = registrations[0] || null;
+    let activeInvitation = null;
+
+    const [invitations] = await pool.query(
+      `SELECT i.id,
+              i.invite_token,
+              i.invitee_id,
+              i.created_at,
+              u.name as invitee_name
+       FROM team_invitations i
+       LEFT JOIN users u ON i.invitee_id = u.id
+       WHERE i.event_id = ?
+         AND i.inviter_id = ?
+         AND i.type = 'doubles'
+         AND i.status = 'pending'
+       ORDER BY i.created_at DESC, i.id DESC
+       LIMIT 1`,
+      [id, user_id]
+    );
+
+    if (invitations.length > 0 && invitations[0].invite_token) {
+      const invitation = invitations[0];
+      activeInvitation = {
+        invite_token: invitation.invite_token,
+        share_path: `/pages/doubles-invite/doubles-invite?token=${invitation.invite_token}`,
+        invite_mode: invitation.invitee_id ? 'targeted' : 'open_link',
+        partner_id: invitation.invitee_id || registration?.partner_id || null,
+        partner_name: invitation.invitee_name || registration?.partner_name || ''
+      };
+    }
+
+    let registrationState = 'not_registered';
+    if (activeInvitation) {
+      registrationState = 'invite_pending';
+    } else if (registration?.status === 'waiting_partner') {
+      registrationState = 'waiting_partner';
+    } else if (registration?.status === 'confirmed') {
+      registrationState = 'confirmed';
+    } else if (registration?.status) {
+      registrationState = registration.status;
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        registration_state: registrationState,
+        partner_id: registration?.partner_id || null,
+        partner_name: registration?.partner_name || '',
+        pending_invite: activeInvitation,
+        available_partners: availablePartners
+      }
+    });
+  } catch (error) {
+    console.error('获取双打报名状态失败:', error);
+    res.status(500).json({ success: false, message: '服务器错误' });
+  }
+});
+
+router.post('/:id/doubles-open-invitations', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id } = req.body;
+
+    if (!user_id) {
+      return res.status(400).json({ success: false, message: '缺少用户ID' });
+    }
+
+    const event = await getEventById(id);
+    if (!event) {
+      return res.status(404).json({ success: false, message: '赛事不存在' });
+    }
+    if (event.event_type !== 'doubles') {
+      return res.status(400).json({ success: false, message: '该赛事不是双打赛事' });
+    }
+    if (computeEventStatus(event) !== 'registration') {
+      return res.status(400).json({ success: false, message: '赛事当前不在报名阶段' });
+    }
+
+    const [pendingInvitations] = await pool.query(
+      `SELECT id, invite_token, invitee_id
+       FROM team_invitations
+       WHERE event_id = ?
+         AND inviter_id = ?
+         AND type = 'doubles'
+         AND status = 'pending'
+       ORDER BY created_at DESC, id DESC
+       LIMIT 1`,
+      [id, user_id]
+    );
+
+    if (pendingInvitations.length > 0) {
+      const invitation = pendingInvitations[0];
+      if (invitation.invitee_id) {
+        return res.status(400).json({ success: false, message: '当前已有待确认的指定邀请，请先处理它。' });
+      }
+
+      return res.json({
+        success: true,
+        message: '已存在可分享的邀请链接',
+        data: {
+          invite_token: invitation.invite_token,
+          share_path: `/pages/doubles-invite/doubles-invite?token=${invitation.invite_token}`,
+          invite_mode: 'open_link'
+        }
+      });
+    }
+
+    const [activeRegistrations] = await pool.query(
+      `SELECT id, status, partner_id
+       FROM event_registrations
+       WHERE event_id = ?
+         AND user_id = ?
+         AND status != 'cancelled'
+       ORDER BY id DESC
+       LIMIT 1`,
+      [id, user_id]
+    );
+
+    if (activeRegistrations.length > 0) {
+      const registration = activeRegistrations[0];
+      if (registration.status === 'confirmed') {
+        return res.status(400).json({ success: false, message: '您已完成双打报名，不能再创建邀请链接' });
+      }
+      if (registration.status !== 'waiting_partner' || registration.partner_id) {
+        return res.status(400).json({ success: false, message: '当前已有待处理的配对，请先处理后再创建邀请链接' });
+      }
+    }
+
+    const connection = await pool.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      if (activeRegistrations.length === 0) {
+        const [cancelled] = await connection.query(
+          `SELECT id
+           FROM event_registrations
+           WHERE event_id = ?
+             AND user_id = ?
+             AND status = 'cancelled'
+           ORDER BY id DESC
+           LIMIT 1`,
+          [id, user_id]
+        );
+
+        if (cancelled.length > 0) {
+          await connection.execute(
+            `UPDATE event_registrations
+             SET status = 'waiting_partner',
+                 partner_id = NULL,
+                 partner_status = NULL,
+                 team_name = NULL,
+                 is_team_leader = 0,
+                 team_leader_id = NULL
+             WHERE id = ?`,
+            [cancelled[0].id]
+          );
+        } else {
+          await connection.execute(
+            `INSERT INTO event_registrations (event_id, user_id, status)
+             VALUES (?, ?, 'waiting_partner')`,
+            [id, user_id]
+          );
+        }
+      }
+
+      const inviteToken = createInviteToken();
+      await connection.execute(
+        `INSERT INTO team_invitations (event_id, inviter_id, invitee_id, invite_token, type, status)
+         VALUES (?, ?, NULL, ?, 'doubles', 'pending')`,
+        [id, user_id, inviteToken]
+      );
+
+      await connection.commit();
+
+      return res.json({
+        success: true,
+        message: '邀请链接已创建',
+        data: {
+          invite_token: inviteToken,
+          share_path: `/pages/doubles-invite/doubles-invite?token=${inviteToken}`,
+          invite_mode: 'open_link'
+        }
+      });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('创建双打邀请链接失败:', error);
     res.status(500).json({ success: false, message: '服务器错误' });
   }
 });
@@ -2281,7 +2668,7 @@ router.get('/doubles-invitations/:token', async (req, res) => {
     const invitation = rows[0];
     const event = await getEventById(invitation.event_id);
     const responderEligibility = user_id
-      ? await getDoublesInvitationResponderEligibility(invitation, user_id)
+      ? await getHybridDoublesInvitationResponderEligibility(invitation, user_id)
       : { canRespond: null, message: '' };
 
     if (!event || event.event_type !== 'doubles') {
@@ -2300,6 +2687,7 @@ router.get('/doubles-invitations/:token', async (req, res) => {
         inviter_avatar_url: invitation.inviter_avatar_url,
         invitee_id: invitation.invitee_id,
         invitee_name: invitation.invitee_name || '',
+        invite_mode: invitation.invitee_id ? 'targeted' : 'open_link',
         response_allowed: responderEligibility.canRespond !== false,
         response_block_reason: responderEligibility.canRespond === false ? responderEligibility.message : '',
         event: {
@@ -2353,7 +2741,7 @@ router.post('/doubles-invitations/:token/respond', async (req, res) => {
       return res.status(400).json({ success: false, message: '该邀请已处理' });
     }
 
-    const eligibility = await getDoublesInvitationResponderEligibility(invitation, user_id);
+    const eligibility = await getHybridDoublesInvitationResponderEligibility(invitation, user_id);
     if (!eligibility.canRespond) {
       return res.status(400).json({ success: false, message: eligibility.message });
     }
@@ -2382,29 +2770,92 @@ router.post('/doubles-invitations/:token/respond', async (req, res) => {
       const inviterReg = registrations.find((item) => parseInt(item.user_id, 10) === parseInt(invitation.inviter_id, 10));
       const inviteeReg = registrations.find((item) => parseInt(item.user_id, 10) === parseInt(user_id, 10));
 
-      if (!inviterReg || inviterReg.status !== 'pending' || parseInt(inviterReg.partner_id, 10) !== parseInt(user_id, 10)) {
-        await connection.rollback();
-        return res.status(400).json({ success: false, message: '发起人的配对状态已变更，请刷新后重试' });
-      }
-      if (!inviteeReg || inviteeReg.status !== 'pending' || parseInt(inviteeReg.partner_id, 10) !== parseInt(invitation.inviter_id, 10)) {
-        await connection.rollback();
-        return res.status(400).json({ success: false, message: '您的配对状态已变更，请刷新后重试' });
-      }
+      if (!invitation.invitee_id) {
+        if (action !== 'accept') {
+          await connection.rollback();
+          return res.status(400).json({ success: false, message: '公开邀请链接不支持拒绝，直接关闭页面即可' });
+        }
+        if (!inviterReg || inviterReg.status !== 'waiting_partner' || inviterReg.partner_id) {
+          await connection.rollback();
+          return res.status(400).json({ success: false, message: '发起人的配对状态已变更，请刷新后重试' });
+        }
+        if (inviteeReg && (inviteeReg.status !== 'waiting_partner' || inviteeReg.partner_id)) {
+          await connection.rollback();
+          return res.status(400).json({ success: false, message: '您当前的报名状态不能接受该邀请' });
+        }
 
-      if (action === 'accept') {
         await connection.execute(
           `UPDATE event_registrations
-           SET status = 'confirmed', partner_status = 'confirmed', confirmed_at = NOW()
-           WHERE event_id = ? AND user_id IN (?, ?)`,
-          [invitation.event_id, invitation.inviter_id, user_id]
+           SET status = 'confirmed', partner_id = ?, partner_status = 'confirmed', confirmed_at = NOW()
+           WHERE id = ?`,
+          [user_id, inviterReg.id]
         );
+
+        if (inviteeReg) {
+          await connection.execute(
+            `UPDATE event_registrations
+             SET status = 'confirmed', partner_id = ?, partner_status = 'confirmed', confirmed_at = NOW()
+             WHERE id = ?`,
+            [invitation.inviter_id, inviteeReg.id]
+          );
+        } else {
+          const [cancelledRows] = await connection.query(
+            `SELECT id
+             FROM event_registrations
+             WHERE event_id = ?
+               AND user_id = ?
+               AND status = 'cancelled'
+             ORDER BY id DESC
+             LIMIT 1`,
+            [invitation.event_id, user_id]
+          );
+
+          if (cancelledRows.length > 0) {
+            await connection.execute(
+              `UPDATE event_registrations
+               SET status = 'confirmed',
+                   partner_id = ?,
+                   partner_status = 'confirmed',
+                   confirmed_at = NOW(),
+                   team_name = NULL,
+                   is_team_leader = 0,
+                   team_leader_id = NULL
+               WHERE id = ?`,
+              [invitation.inviter_id, cancelledRows[0].id]
+            );
+          } else {
+            await connection.execute(
+              `INSERT INTO event_registrations (event_id, user_id, partner_id, partner_status, status, confirmed_at)
+               VALUES (?, ?, ?, 'confirmed', 'confirmed', NOW())`,
+              [invitation.event_id, user_id, invitation.inviter_id]
+            );
+          }
+        }
       } else {
-        await connection.execute(
-          `UPDATE event_registrations
-           SET status = 'waiting_partner', partner_id = NULL, partner_status = NULL
-           WHERE event_id = ? AND user_id IN (?, ?)`,
-          [invitation.event_id, invitation.inviter_id, user_id]
-        );
+        if (!inviterReg || inviterReg.status !== 'pending' || parseInt(inviterReg.partner_id, 10) !== parseInt(user_id, 10)) {
+          await connection.rollback();
+          return res.status(400).json({ success: false, message: '发起人的配对状态已变更，请刷新后重试' });
+        }
+        if (!inviteeReg || inviteeReg.status !== 'pending' || parseInt(inviteeReg.partner_id, 10) !== parseInt(invitation.inviter_id, 10)) {
+          await connection.rollback();
+          return res.status(400).json({ success: false, message: '您的配对状态已变更，请刷新后重试' });
+        }
+
+        if (action === 'accept') {
+          await connection.execute(
+            `UPDATE event_registrations
+             SET status = 'confirmed', partner_status = 'confirmed', confirmed_at = NOW()
+             WHERE event_id = ? AND user_id IN (?, ?)`,
+            [invitation.event_id, invitation.inviter_id, user_id]
+          );
+        } else {
+          await connection.execute(
+            `UPDATE event_registrations
+             SET status = 'waiting_partner', partner_id = NULL, partner_status = NULL
+             WHERE event_id = ? AND user_id IN (?, ?)`,
+            [invitation.event_id, invitation.inviter_id, user_id]
+          );
+        }
       }
 
       await connection.execute(

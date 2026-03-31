@@ -121,13 +121,13 @@
             <view class="pair-player">
               <image class="pair-avatar" src="{{item.player1.avatar_url || '/images/default-avatar.png'}}" mode="aspectFill" />
               <text class="pair-name">{{item.player1.name}}</text>
-              <text class="pair-college">{{item.player1.school_name || ''}}{{item.player1.college_name ? ' · ' + item.player1.college_name : ''}}</text>
+              <text class="pair-college">{{item.player1.gender_label ? item.player1.gender_label + ' · ' : ''}}{{item.player1.school_name || ''}}{{item.player1.college_name ? ' · ' + item.player1.college_name : ''}}</text>
             </view>
             <view class="pair-connector">&</view>
             <view class="pair-player">
               <image class="pair-avatar" src="{{item.player2.avatar_url || '/images/default-avatar.png'}}" mode="aspectFill" />
               <text class="pair-name">{{item.player2.name}}</text>
-              <text class="pair-college">{{item.player2.school_name || ''}}{{item.player2.college_name ? ' · ' + item.player2.college_name : ''}}</text>
+              <text class="pair-college">{{item.player2.gender_label ? item.player2.gender_label + ' · ' : ''}}{{item.player2.school_name || ''}}{{item.player2.college_name ? ' · ' + item.player2.college_name : ''}}</text>
             </view>
           </view>
         </view>
@@ -140,7 +140,7 @@
             <image class="player-avatar" src="{{item.avatar_url || '/images/default-avatar.png'}}" mode="aspectFill" />
             <view class="player-info">
               <text class="player-name">{{item.name}}</text>
-              <text class="player-college">{{item.school_name}}{{item.college_name ? ' · ' + item.college_name : ''}}</text>
+              <text class="player-college">{{item.gender_label ? item.gender_label + ' · ' : ''}}{{item.school_name}}{{item.college_name ? ' · ' + item.college_name : ''}}</text>
             </view>
             <view class="waiting-tag">等待中</view>
           </view>
@@ -166,7 +166,7 @@
                 <image class="team-member-avatar" src="{{item.avatar_url || '/images/default-avatar.png'}}" mode="aspectFill" />
                 <view class="team-member-info">
                   <text class="team-member-name">{{item.name}}{{item.is_team_leader ? '（领队）' : ''}}</text>
-                  <text class="team-member-meta">{{item.school_name || ''}}{{item.college_name ? ' · ' + item.college_name : ''}}</text>
+                  <text class="team-member-meta">{{item.gender_label ? item.gender_label + ' · ' : ''}}{{item.school_name || ''}}{{item.college_name ? ' · ' + item.college_name : ''}}</text>
                 </view>
               </view>
             </view>
@@ -182,7 +182,7 @@
             <image class="player-avatar" src="{{item.avatar_url || '/images/default-avatar.png'}}" mode="aspectFill" />
             <view class="player-info">
               <text class="player-name">{{item.name}}</text>
-              <text class="player-college">{{item.school_name}}{{item.college_name ? ' · ' + item.college_name : ''}}</text>
+              <text class="player-college">{{item.gender_label ? item.gender_label + ' · ' : ''}}{{item.school_name}}{{item.college_name ? ' · ' + item.college_name : ''}}</text>
             </view>
           </view>
         </view>

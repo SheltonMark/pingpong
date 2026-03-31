@@ -3,10 +3,12 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
 const subscribeMessage = require('../utils/subscribeMessage');
+const { assertSafeSubmission, handleContentSecurityError } = require('../utils/contentSecurity');
 
 // 发起约球
 router.post('/', async (req, res) => {
   const connection = await pool.getConnection();
+  let transactionStarted = false;
   try {
     const {
       user_id, title, description, location,
@@ -18,7 +20,23 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ success: false, message: '缺少用户ID' });
     }
 
+    await assertSafeSubmission({
+      userId: user_id,
+      texts: [
+        { label: '约球标题', value: title },
+        { label: '约球描述', value: description },
+        { label: '约球地点', value: location },
+        { label: '约球帖子内容', value: post_content }
+      ],
+      images: (Array.isArray(post_images) ? post_images : []).map((image) => ({
+        label: '约球图片',
+        value: image
+      })),
+      scene: 3
+    });
+
     await connection.beginTransaction();
+    transactionStarted = true;
 
     let postId = null;
 
@@ -68,7 +86,12 @@ router.post('/', async (req, res) => {
       data: { invitation_id: invitationId, post_id: postId }
     });
   } catch (error) {
-    await connection.rollback();
+    if (transactionStarted) {
+      await connection.rollback();
+    }
+    if (handleContentSecurityError(res, error)) {
+      return;
+    }
     console.error('发起约球失败:', error);
     res.status(500).json({ success: false, message: '服务器错误' });
   } finally {
