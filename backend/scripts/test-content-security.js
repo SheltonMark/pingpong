@@ -60,6 +60,34 @@ async function testAssertSafeTextsRejectsRiskyContent() {
   );
 }
 
+async function testAssertSafeTextsFallsBackWithoutOpenId() {
+  const payloads = [];
+
+  await contentSecurity.assertSafeTexts(
+    [{ label: '赛事标题', value: '测试赛事' }],
+    {
+      userId: null,
+      scene: 3,
+      textChecker: async (payload) => {
+        payloads.push(payload);
+        return { errcode: 0, result: { suggest: 'pass' } };
+      }
+    }
+  );
+
+  assert.deepStrictEqual(
+    payloads,
+    [
+      {
+        content: '测试赛事',
+        scene: 3,
+        version: 1
+      }
+    ],
+    'When no openid is available, text moderation should fall back to version 1 instead of failing closed'
+  );
+}
+
 function testResolveImageSourceSupportsCloudAndUploads() {
   assert.strictEqual(
     typeof contentSecurity.resolveImageSource,
@@ -173,6 +201,7 @@ async function testRequestWechatApiPostsJsonPayload() {
 async function main() {
   await testAssertSafeTextsPassesTrimmedContent();
   await testAssertSafeTextsRejectsRiskyContent();
+  await testAssertSafeTextsFallsBackWithoutOpenId();
   testResolveImageSourceSupportsCloudAndUploads();
   testInterpretCheckResultDistinguishesRejectAndServiceErrors();
   await testRequestWechatApiPostsJsonPayload();

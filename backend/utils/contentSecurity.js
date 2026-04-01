@@ -347,12 +347,14 @@ async function resolveOpenId({ openid, userId, queryExecutor = pool }) {
 function buildTextCheckPayload(content, { openid, scene = 3 } = {}) {
   const payload = {
     content,
-    version: 2,
     scene
   };
 
   if (openid) {
+    payload.version = 2;
     payload.openid = openid;
+  } else {
+    payload.version = 1;
   }
 
   return payload;
@@ -481,12 +483,6 @@ async function assertSafeTexts(entries, options = {}) {
   }
 
   const openid = await resolveOpenId(options);
-  if (!openid) {
-    throw new ContentSecurityServiceError(CONTENT_SECURITY_SERVICE_MESSAGE, {
-      reason: 'missing_openid_for_text_check'
-    });
-  }
-
   const textChecker = options.textChecker || defaultTextChecker;
   const scene = options.scene || 3;
 
