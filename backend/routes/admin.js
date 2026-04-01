@@ -2163,24 +2163,52 @@ router.delete('/colleges/:id', requireAdmin, async (req, res) => {
 
 // 删除赛事
 router.delete('/events/:id', requireAdmin, async (req, res) => {
+  const connection = await pool.getConnection();
   try {
     const { id } = req.params;
-    
-    // 检查是否有报名记录
-    const [regs] = await pool.execute(
-      'SELECT COUNT(*) as count FROM event_registrations WHERE event_id = ?',
+
+    await connection.beginTransaction();
+
+    const [events] = await connection.execute(
+      'SELECT id FROM events WHERE id = ? LIMIT 1',
       [id]
     );
-    
-    if (regs[0].count > 0) {
-      return res.json({ success: false, message: '该赛事已有报名记录，无法删除' });
+
+    if (events.length === 0) {
+      await connection.rollback();
+      return res.json({ success: false, message: '赛事不存在' });
     }
-    
-    await pool.execute('DELETE FROM events WHERE id = ?', [id]);
-    res.json({ success: true });
+
+    // 先解除不会级联删除的外键关系，再删除赛事主表
+    await connection.execute(
+      'UPDATE announcements SET link_event_id = NULL WHERE link_event_id = ?',
+      [id]
+    );
+    await connection.execute(
+      "UPDATE announcements SET link_id = NULL WHERE link_type = 'event' AND link_id = ?",
+      [id]
+    );
+    await connection.execute(
+      'DELETE FROM team_invitations WHERE event_id = ?',
+      [id]
+    );
+    await connection.execute(
+      'DELETE FROM events WHERE id = ?',
+      [id]
+    );
+
+    await connection.commit();
+    res.json({ success: true, message: '赛事已删除' });
   } catch (error) {
+    try {
+      await connection.rollback();
+    } catch (rollbackError) {
+      console.error('Delete event rollback error:', rollbackError);
+    }
     console.error('Delete event error:', error);
     res.json({ success: false, message: '删除赛事失败: ' + error.message });
+  } finally {
+    connection.release();
   }
 });
 

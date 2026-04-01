@@ -1,4 +1,5 @@
 const assert = require('assert');
+const http = require('http');
 const path = require('path');
 
 const contentSecurity = require('../utils/contentSecurity');
@@ -120,11 +121,61 @@ function testInterpretCheckResultDistinguishesRejectAndServiceErrors() {
   );
 }
 
+async function testRequestWechatApiPostsJsonPayload() {
+  assert.strictEqual(
+    typeof contentSecurity.requestWechatApi,
+    'function',
+    'contentSecurity should export requestWechatApi for transport coverage'
+  );
+
+  const server = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', (chunk) => { body += chunk; });
+    req.on('end', () => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        ok: true,
+        method: req.method,
+        path: req.url,
+        body: JSON.parse(body || '{}')
+      }));
+    });
+  });
+
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+
+  try {
+    const { port } = server.address();
+    const response = await contentSecurity.requestWechatApi({
+      protocol: 'http:',
+      hostname: '127.0.0.1',
+      port,
+      path: '/wxa/msg_sec_check?access_token=test-token',
+      method: 'POST',
+      json: { content: 'safe text', version: 2 }
+    });
+
+    assert.deepStrictEqual(
+      response,
+      {
+        ok: true,
+        method: 'POST',
+        path: '/wxa/msg_sec_check?access_token=test-token',
+        body: { content: 'safe text', version: 2 }
+      },
+      'requestWechatApi should send JSON payloads and parse JSON responses'
+    );
+  } finally {
+    await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+  }
+}
+
 async function main() {
   await testAssertSafeTextsPassesTrimmedContent();
   await testAssertSafeTextsRejectsRiskyContent();
   testResolveImageSourceSupportsCloudAndUploads();
   testInterpretCheckResultDistinguishesRejectAndServiceErrors();
+  await testRequestWechatApiPostsJsonPayload();
   console.log('All assertions passed');
 }
 

@@ -1,6 +1,7 @@
 const fs = require('fs');
+const http = require('http');
+const https = require('https');
 const path = require('path');
-const axios = require('axios');
 const { Blob } = require('buffer');
 
 const { pool } = require('../config/database');
@@ -12,6 +13,7 @@ const CONTENT_SECURITY_IMAGE_REJECT_MESSAGE = '图片未通过审核，请更换
 const CONTENT_SECURITY_SERVICE_MESSAGE = '内容安全校验失败，请稍后重试';
 const CONTENT_SECURITY_REJECT_CODES = new Set([87014, 20001]);
 const CONTENT_SECURITY_REJECT_SUGGESTS = new Set(['review', 'risky', 'reject', 'block']);
+const isInCloudRun = !!process.env.CBR_ENV_ID;
 
 class ContentSecurityError extends Error {
   constructor(message, code, statusCode, details = {}) {
@@ -93,6 +95,141 @@ function normalizeImageEntries(entries = []) {
 
 function resolveBaseUrl(baseUrl) {
   return (baseUrl || process.env.BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, '');
+}
+
+function isSelfSignedCertificateError(error) {
+  if (!error) {
+    return false;
+  }
+
+  const code = String(error.code || '').toUpperCase();
+  if (code === 'DEPTH_ZERO_SELF_SIGNED_CERT' || code === 'SELF_SIGNED_CERT_IN_CHAIN') {
+    return true;
+  }
+
+  return /self-signed certificate/i.test(String(error.message || ''));
+}
+
+async function requestWechatApi(options = {}) {
+  const {
+    protocol = (isInCloudRun ? 'http:' : 'https:'),
+    hostname = 'api.weixin.qq.com',
+    port,
+    path: requestPath = '/',
+    method = 'POST',
+    headers = {},
+    json,
+    body,
+    timeout = 10000,
+    insecure = false
+  } = options;
+
+  const requestBody = json == null
+    ? (body || null)
+    : Buffer.from(JSON.stringify(json));
+  const normalizedHeaders = { ...headers };
+
+  if (json != null && !normalizedHeaders['Content-Type']) {
+    normalizedHeaders['Content-Type'] = 'application/json';
+  }
+  if (requestBody && !normalizedHeaders['Content-Length']) {
+    normalizedHeaders['Content-Length'] = Buffer.byteLength(requestBody);
+  }
+
+  const isHttps = protocol === 'https:';
+  const transport = isHttps ? https : http;
+
+  try {
+    const responseText = await new Promise((resolve, reject) => {
+      const req = transport.request({
+        protocol,
+        hostname,
+        port: port || (isHttps ? 443 : 80),
+        path: requestPath,
+        method,
+        headers: normalizedHeaders,
+        timeout,
+        ...(isHttps && insecure ? { rejectUnauthorized: false } : {})
+      }, (res) => {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => {
+          if (res.statusCode >= 400) {
+            reject(new Error(`wechat api failed with status ${res.statusCode}: ${data}`));
+            return;
+          }
+          resolve(data);
+        });
+      });
+
+      req.on('error', reject);
+      req.on('timeout', () => {
+        req.destroy(new Error('wechat api request timeout'));
+      });
+
+      if (requestBody) {
+        req.write(requestBody);
+      }
+      req.end();
+    });
+
+    return responseText ? JSON.parse(responseText) : {};
+  } catch (error) {
+    if (isHttps && !insecure && isSelfSignedCertificateError(error)) {
+      return requestWechatApi({
+        ...options,
+        insecure: true
+      });
+    }
+    throw error;
+  }
+}
+
+async function downloadRemoteBuffer(url, options = {}) {
+  const parsed = new URL(url);
+  const isHttps = parsed.protocol === 'https:';
+  const transport = isHttps ? https : http;
+
+  try {
+    return await new Promise((resolve, reject) => {
+      const req = transport.request({
+        protocol: parsed.protocol,
+        hostname: parsed.hostname,
+        port: parsed.port || (isHttps ? 443 : 80),
+        path: `${parsed.pathname}${parsed.search}`,
+        method: 'GET',
+        timeout: options.timeout || 10000,
+        ...(isHttps && options.insecure ? { rejectUnauthorized: false } : {})
+      }, (res) => {
+        const chunks = [];
+        res.on('data', (chunk) => { chunks.push(chunk); });
+        res.on('end', () => {
+          if (res.statusCode >= 400) {
+            reject(new Error(`download image failed with status ${res.statusCode}`));
+            return;
+          }
+          resolve({
+            buffer: Buffer.concat(chunks),
+            contentType: res.headers['content-type'] || ''
+          });
+        });
+      });
+
+      req.on('error', reject);
+      req.on('timeout', () => {
+        req.destroy(new Error('download image timeout'));
+      });
+      req.end();
+    });
+  } catch (error) {
+    if (isHttps && !options.insecure && isSelfSignedCertificateError(error)) {
+      return downloadRemoteBuffer(url, {
+        ...options,
+        insecure: true
+      });
+    }
+    throw error;
+  }
 }
 
 function guessContentType(filename = '') {
@@ -263,31 +400,35 @@ function interpretCheckResult(result) {
 
 async function defaultTextChecker(payload) {
   const accessToken = await cloudStorage.getAccessToken();
-  const url = `https://api.weixin.qq.com/wxa/msg_sec_check?access_token=${accessToken}`;
-  const response = await axios.post(url, payload, { timeout: 10000 });
-  return response.data;
+  return requestWechatApi({
+    path: `/wxa/msg_sec_check?access_token=${accessToken}`,
+    method: 'POST',
+    json: payload,
+    timeout: 10000
+  });
 }
 
 async function defaultImageChecker(asset) {
   const accessToken = await cloudStorage.getAccessToken();
-  const url = `https://api.weixin.qq.com/wxa/img_sec_check?access_token=${accessToken}`;
-  const form = new FormData();
-  const blob = new Blob([asset.buffer], {
-    type: asset.contentType || 'application/octet-stream'
-  });
+  const boundary = `----ContentSecurity${Date.now().toString(36)}`;
+  const filename = asset.filename || 'image';
+  const contentType = asset.contentType || 'application/octet-stream';
 
-  form.append('media', blob, asset.filename || 'image');
+  const requestBody = Buffer.concat([
+    Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="media"; filename="${filename}"\r\nContent-Type: ${contentType}\r\n\r\n`),
+    asset.buffer,
+    Buffer.from(`\r\n--${boundary}--\r\n`)
+  ]);
 
-  const response = await fetch(url, {
+  return requestWechatApi({
+    path: `/wxa/img_sec_check?access_token=${accessToken}`,
     method: 'POST',
-    body: form
+    headers: {
+      'Content-Type': `multipart/form-data; boundary=${boundary}`
+    },
+    body: requestBody,
+    timeout: 20000
   });
-
-  if (!response.ok) {
-    throw new Error(`wechat image check failed with status ${response.status}`);
-  }
-
-  return response.json();
 }
 
 async function readImageAsset(sourceInfo) {
@@ -304,17 +445,12 @@ async function readImageAsset(sourceInfo) {
     throw new Error('image source is not readable');
   }
 
-  const response = await fetch(sourceInfo.url);
-  if (!response.ok) {
-    throw new Error(`download image failed with status ${response.status}`);
-  }
-
-  const arrayBuffer = await response.arrayBuffer();
+  const downloaded = await downloadRemoteBuffer(sourceInfo.url);
   const parsedUrl = new URL(sourceInfo.url);
   return {
-    buffer: Buffer.from(arrayBuffer),
+    buffer: downloaded.buffer,
     filename: path.basename(parsedUrl.pathname) || 'image',
-    contentType: response.headers.get('content-type') || guessContentType(parsedUrl.pathname)
+    contentType: downloaded.contentType || guessContentType(parsedUrl.pathname)
   };
 }
 
@@ -463,6 +599,8 @@ module.exports = {
   resolveImageSource,
   buildTextCheckPayload,
   interpretCheckResult,
+  requestWechatApi,
+  isSelfSignedCertificateError,
   handleContentSecurityError,
   isContentSecurityError
 };
