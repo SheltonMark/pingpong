@@ -1,61 +1,9 @@
 const app = getApp();
-
-function parseDateTimeValue(dateLike) {
-  if (!dateLike) {
-    return null;
-  }
-
-  if (dateLike instanceof Date) {
-    return Number.isNaN(dateLike.getTime()) ? null : dateLike;
-  }
-
-  if (typeof dateLike === 'number') {
-    const date = new Date(dateLike);
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
-
-  if (typeof dateLike === 'string') {
-    const value = dateLike.trim();
-    if (!value) {
-      return null;
-    }
-
-    const localMatch = value.match(
-      /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/
-    );
-    if (localMatch) {
-      const [, year, month, day, hour = '0', minute = '0', second = '0'] = localMatch;
-      return new Date(
-        Number(year),
-        Number(month) - 1,
-        Number(day),
-        Number(hour),
-        Number(minute),
-        Number(second)
-      );
-    }
-
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
-
-  return null;
-}
-
-function isSameCalendarDay(dateLike, now = new Date()) {
-  if (!dateLike) {
-    return false;
-  }
-
-  const date = parseDateTimeValue(dateLike);
-  if (!date) {
-    return false;
-  }
-
-  return date.getFullYear() === now.getFullYear()
-    && date.getMonth() === now.getMonth()
-    && date.getDate() === now.getDate();
-}
+const {
+  getChinaDateParts,
+  isSameChinaCalendarDay,
+  parseDateTimeValue
+} = require('../../utils/china-time');
 
 function buildDerivedActionButtonText(actionMode, canSubmit, timeStatus) {
   if (actionMode === 'checked_out') {
@@ -205,7 +153,7 @@ function deriveCheckInActionState({ activeRecord, records = [], withinRange = fa
   const hasCheckedOutToday = (records || []).some((record) =>
     record &&
     record.check_out_time &&
-    isSameCalendarDay(record.check_in_time, now)
+    isSameChinaCalendarDay(record.check_in_time, now)
   );
 
   if (hasCheckedOutToday) {
@@ -551,20 +499,28 @@ Page({
   },
 
   formatDate(dateStr) {
-    const date = parseDateTimeValue(dateStr);
-    if (!date) {
+    const parts = getChinaDateParts(dateStr);
+    if (!parts) {
       return '-';
     }
-    const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-    return `${date.getMonth() + 1}月${date.getDate()}日 ${weekDays[date.getDay()]}`;
+    const weekDays = [
+      '\u5468\u65e5',
+      '\u5468\u4e00',
+      '\u5468\u4e8c',
+      '\u5468\u4e09',
+      '\u5468\u56db',
+      '\u5468\u4e94',
+      '\u5468\u516d'
+    ];
+    return `${parts.month}\u6708${parts.day}\u65e5 ${weekDays[parts.weekday]}`;
   },
 
   formatDateTime(dateStr) {
-    const date = parseDateTimeValue(dateStr);
-    if (!date) {
+    const parts = getChinaDateParts(dateStr);
+    if (!parts) {
       return '-';
     }
-    return `${date.getMonth() + 1}月${date.getDate()}日 ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    return `${parts.month}\u6708${parts.day}\u65e5 ${String(parts.hour).padStart(2, '0')}:${String(parts.minute).padStart(2, '0')}`;
   },
 
   formatDuration(minutes) {

@@ -145,12 +145,66 @@ function testBackendUsesSafeLocalTimeWindowParsing() {
   );
 }
 
+function testCheckInTimeParsingIsTimezoneIndependent() {
+  const RealDate = Date;
+
+  class UTCDate extends RealDate {
+    constructor(...args) {
+      if (args.length >= 2) {
+        return new RealDate(RealDate.UTC(...args));
+      }
+      return new RealDate(...args);
+    }
+
+    static now() {
+      return RealDate.now();
+    }
+
+    static parse(value) {
+      return RealDate.parse(value);
+    }
+
+    static UTC(...args) {
+      return RealDate.UTC(...args);
+    }
+
+    static [Symbol.hasInstance](instance) {
+      return instance instanceof RealDate;
+    }
+  }
+
+  global.Date = UTCDate;
+
+  try {
+    const point = {
+      start_time: '2026-04-08 09:30:00',
+      end_time: '2026-04-08 10:30:00'
+    };
+    const now = new Date('2026-04-08T09:31:00+08:00');
+
+    assert.strictEqual(
+      checkinRouter.getPointTimeStatus(point, now),
+      'ok',
+      'Backend should treat MySQL datetime strings as China Standard Time even when the runtime timezone is UTC'
+    );
+
+    assert.strictEqual(
+      checkInModule.getPointTimeStatus(point, now),
+      'ok',
+      'Frontend should treat MySQL datetime strings as China Standard Time even when the runtime timezone is UTC'
+    );
+  } finally {
+    global.Date = RealDate;
+  }
+}
+
 function main() {
   testTeamEventUsesTeamCountForCapacity();
   testCheckedOutStateDisablesFurtherCheckIn();
   testFrontendUsesSafeLocalTimeWindowParsing();
   testFrontendPrefersCurrentlyActivePoint();
   testBackendUsesSafeLocalTimeWindowParsing();
+  testCheckInTimeParsingIsTimezoneIndependent();
   console.log('All assertions passed');
 }
 

@@ -1,48 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
-
-function parseDateTimeValue(dateLike) {
-  if (!dateLike) {
-    return null;
-  }
-
-  if (dateLike instanceof Date) {
-    return Number.isNaN(dateLike.getTime()) ? null : dateLike;
-  }
-
-  if (typeof dateLike === 'number') {
-    const date = new Date(dateLike);
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
-
-  if (typeof dateLike === 'string') {
-    const value = dateLike.trim();
-    if (!value) {
-      return null;
-    }
-
-    const localMatch = value.match(
-      /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/
-    );
-    if (localMatch) {
-      const [, year, month, day, hour = '0', minute = '0', second = '0'] = localMatch;
-      return new Date(
-        Number(year),
-        Number(month) - 1,
-        Number(day),
-        Number(hour),
-        Number(minute),
-        Number(second)
-      );
-    }
-
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
-
-  return null;
-}
+const { parseDateTimeValue } = require('../../utils/china-time');
 
 function getPointTimeStatus(point = {}, now = new Date()) {
   const startTime = parseDateTimeValue(point.start_time);
