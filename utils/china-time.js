@@ -20,7 +20,17 @@ function parseDateTimeValue(dateLike) {
       return null;
     }
 
-    const localMatch = value.match(
+    // 明确带 Z 或数字时区偏移的 ISO 串：交给 Date，表示绝对时刻（与库/容器 TZ 无关）
+    if (/[zZ]$/.test(value) || /[+-]\d{2}:?\d{2}$/.test(value)) {
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    // MySQL 等可能返回 "YYYY-MM-DD HH:mm:ss.ffffff"；去掉小数秒再走东八区墙钟解析，
+    // 避免在 UTC 容器里落到 new Date(naive) 被当成 UTC 而整体偏 8 小时
+    const withoutFrac = value.replace(/(\d{2}:\d{2}:\d{2})\.\d+/, '$1');
+
+    const localMatch = withoutFrac.match(
       /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/
     );
     if (localMatch) {
