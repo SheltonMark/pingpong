@@ -4,6 +4,8 @@ const bcrypt = require('bcryptjs');
 const { pool } = require('../config/database');
 const subscribeMessage = require('../utils/subscribeMessage');
 const { assertSafeSubmission, handleContentSecurityError } = require('../utils/contentSecurity');
+const { canCancelCaptainApplication, cancelCaptainApplication } = require('../utils/captainApplications');
+const { normalizeCampus, campusFilter, buildCheckinRecordFilter } = require('../utils/checkinFilters');
 // 格式化日期为 MySQL 格式
 function formatDateForMySQL(dateStr) {
   if (!dateStr) return null;
@@ -1392,6 +1394,7 @@ router.get('/checkin-points', requireAdmin, async (req, res) => {
       SELECT cp.*, s.name as school_name
       FROM check_in_points cp
       LEFT JOIN schools s ON cp.school_id = s.id
+      WHERE 1=1
     `;
     const params = [];
 
@@ -1400,16 +1403,24 @@ router.get('/checkin-points', requireAdmin, async (req, res) => {
       if (ids.length === 0) {
         return res.json({ success: true, data: [] });
       }
-      sql += ` WHERE (cp.school_id IN (${ids.map(() => '?').join(',')}) OR cp.school_id IS NULL)`;
+      sql += ` AND (cp.school_id IN (${ids.map(() => '?').join(',')}) OR cp.school_id IS NULL)`;
       params.push(...ids);
     }
+
+    if (req.query.school_id) {
+      sql += ' AND (cp.school_id = ? OR cp.school_id IS NULL)';
+      params.push(req.query.school_id);
+    }
+    const campusScope = campusFilter(req.query.campus);
+    sql += campusScope.sql;
+    params.push(...campusScope.params);
 
     sql += ' ORDER BY cp.created_at DESC';
     const [points] = await pool.query(sql, params);
     res.json({ success: true, data: points });
   } catch (error) {
     console.error('Get checkin points error:', error);
-    res.json({ success: false, message: '获取签到点失败' });
+    res.status(error.statusCode || 500).json({ success: false, message: error.statusCode ? error.message : '获取签到点失败' });
   }
 });
 
@@ -1418,6 +1429,7 @@ router.post('/checkin-points', requireAdmin, async (req, res) => {
   try {
     const { adminContext } = req;
     let { name, latitude, longitude, radius, school_id, start_time, end_time } = req.body;
+    const campus = normalizeCampus(req.body.campus);
 
     // 学校管理员强制使用自己的学校
     if (!adminContext.isSuperAdmin && adminContext.managedSchoolIds) {
@@ -1425,14 +1437,14 @@ router.post('/checkin-points', requireAdmin, async (req, res) => {
     }
 
     const [result] = await pool.execute(`
-      INSERT INTO check_in_points (name, latitude, longitude, radius, school_id, start_time, end_time, status, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'active', NOW())
-    `, [name, latitude, longitude, radius || 100, school_id || null, start_time || null, end_time || null]);
+      INSERT INTO check_in_points (name, latitude, longitude, radius, school_id, campus, start_time, end_time, status, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())
+    `, [name, latitude, longitude, radius || 100, school_id || null, campus, start_time || null, end_time || null]);
 
     res.json({ success: true, data: { id: result.insertId } });
   } catch (error) {
     console.error('Create checkin point error:', error);
-    res.json({ success: false, message: '创建签到点失败' });
+    res.status(error.statusCode || 500).json({ success: false, message: error.statusCode ? error.message : '创建签到点失败' });
   }
 });
 
@@ -1442,6 +1454,8 @@ router.put('/checkin-points/:id', requireAdmin, async (req, res) => {
     const { adminContext } = req;
     const { id } = req.params;
     let { name, latitude, longitude, radius, school_id, status, start_time, end_time } = req.body;
+    const hasCampus = Object.prototype.hasOwnProperty.call(req.body, 'campus');
+    const campus = normalizeCampus(req.body.campus);
 
     // 学校管理员只能改自己学校的签到点
     if (!adminContext.isSuperAdmin && adminContext.managedSchoolIds) {
@@ -1453,14 +1467,14 @@ router.put('/checkin-points/:id', requireAdmin, async (req, res) => {
     }
 
     await pool.execute(`
-      UPDATE check_in_points SET name = ?, latitude = ?, longitude = ?, radius = ?, school_id = ?, status = ?, start_time = ?, end_time = ?
+      UPDATE check_in_points SET name = ?, latitude = ?, longitude = ?, radius = ?, school_id = ?, status = ?, start_time = ?, end_time = ?, campus = IF(?, ?, campus)
       WHERE id = ?
-    `, [name, latitude, longitude, radius || 100, school_id !== undefined ? school_id : null, status || 'active', start_time || null, end_time || null, id]);
+    `, [name, latitude, longitude, radius || 100, school_id !== undefined ? school_id : null, status || 'active', start_time || null, end_time || null, hasCampus, campus, id]);
 
     res.json({ success: true });
   } catch (error) {
     console.error('Update checkin point error:', error);
-    res.json({ success: false, message: '更新签到点失败' });
+    res.status(error.statusCode || 500).json({ success: false, message: error.statusCode ? error.message : '更新签到点失败' });
   }
 });
 
@@ -1491,8 +1505,9 @@ router.delete('/checkin-points/:id', requireAdmin, async (req, res) => {
 // 获取签到记录
 router.get('/checkin-records', requireAdmin, async (req, res) => {
   try {
-    const { school_id, start_date, end_date, page = 1, limit = 100 } = req.query;
+    const { page = 1, limit = 100 } = req.query;
     const offset = (page - 1) * limit;
+    const filter = buildCheckinRecordFilter(req.query, req.adminContext);
 
     let sql = `
       SELECT ci.id,
@@ -1504,7 +1519,7 @@ router.get('/checkin-records', requireAdmin, async (req, res) => {
              END as duration_minutes,
              u.id as user_id, u.name as user_name, u.phone,
              s.name as school_name,
-             cp.name as point_name,
+             cp.name as point_name, cp.campus,
              (SELECT COUNT(*) FROM check_ins WHERE user_id = u.id) as checkin_count
       FROM check_ins ci
       JOIN users u ON ci.user_id = u.id
@@ -1512,20 +1527,8 @@ router.get('/checkin-records', requireAdmin, async (req, res) => {
       LEFT JOIN check_in_points cp ON ci.point_id = cp.id
       WHERE 1=1
     `;
-    const params = [];
-
-    if (school_id) {
-      sql += ' AND u.school_id = ?';
-      params.push(school_id);
-    }
-    if (start_date) {
-      sql += ' AND DATE(ci.check_in_time) >= ?';
-      params.push(start_date);
-    }
-    if (end_date) {
-      sql += ' AND DATE(ci.check_in_time) <= ?';
-      params.push(end_date);
-    }
+    sql += filter.sql;
+    const params = [...filter.params];
 
     sql += ' ORDER BY ci.check_in_time DESC LIMIT ? OFFSET ?';
     params.push(parseInt(limit), parseInt(offset));
@@ -1537,40 +1540,29 @@ router.get('/checkin-records', requireAdmin, async (req, res) => {
       SELECT COUNT(*) as total
       FROM check_ins ci
       JOIN users u ON ci.user_id = u.id
+      LEFT JOIN check_in_points cp ON ci.point_id = cp.id
       WHERE 1=1
     `;
-    const countParams = [];
-    if (school_id) {
-      countSql += ' AND u.school_id = ?';
-      countParams.push(school_id);
-    }
-    if (start_date) {
-      countSql += ' AND DATE(ci.check_in_time) >= ?';
-      countParams.push(start_date);
-    }
-    if (end_date) {
-      countSql += ' AND DATE(ci.check_in_time) <= ?';
-      countParams.push(end_date);
-    }
-    const [[{ total }]] = await pool.execute(countSql, countParams);
+    countSql += filter.sql;
+    const [[{ total }]] = await pool.execute(countSql, filter.params);
 
     res.json({ success: true, data: records, total });
   } catch (error) {
     console.error('Get checkin records error:', error);
-    res.json({ success: false, message: '获取签到记录失败' });
+    res.status(error.statusCode || 500).json({ success: false, message: error.statusCode ? error.message : '获取签到记录失败' });
   }
 });
 
 // 导出签到记录为CSV
 router.get('/checkin-records/export', requireAdmin, async (req, res) => {
   try {
-    const { school_id, start_date, end_date } = req.query;
+    const filter = buildCheckinRecordFilter(req.query, req.adminContext);
 
     let exportSql = `
       SELECT u.name as user_name,
              u.phone,
              s.name as school_name,
-             cp.name as point_name,
+             cp.name as point_name, cp.campus,
              DATE_FORMAT(ci.check_in_time, '%Y-%m-%d %H:%i:%s') as check_in_time_text,
              CASE
                WHEN ci.check_out_time IS NULL THEN ''
@@ -1587,30 +1579,18 @@ router.get('/checkin-records/export', requireAdmin, async (req, res) => {
       LEFT JOIN check_in_points cp ON ci.point_id = cp.id
       WHERE 1=1
     `;
-    const exportParams = [];
-
-    if (school_id) {
-      exportSql += ' AND u.school_id = ?';
-      exportParams.push(school_id);
-    }
-    if (start_date) {
-      exportSql += ' AND DATE(ci.check_in_time) >= ?';
-      exportParams.push(start_date);
-    }
-    if (end_date) {
-      exportSql += ' AND DATE(ci.check_in_time) <= ?';
-      exportParams.push(end_date);
-    }
+    exportSql += filter.sql;
 
     exportSql += ' ORDER BY ci.check_in_time DESC';
 
-    const [exportRows] = await pool.execute(exportSql, exportParams);
-    const headers = ['用户姓名', '手机号', '学校', '签到点', '签到时间', '签退时间', '总时长', '累计签到次数'];
+    const [exportRows] = await pool.execute(exportSql, filter.params);
+    const headers = ['用户姓名', '手机号', '学校', '校区', '签到点', '签到时间', '签退时间', '总时长', '累计签到次数'];
     const bom = '\uFEFF';
     const csvRows = exportRows.map((row) => ({
       用户姓名: row.user_name,
       手机号: row.phone,
       学校: row.school_name,
+      校区: row.campus || '未设置校区',
       签到点: row.point_name,
       签到时间: row.check_in_time_text,
       签退时间: row.check_out_time_text || '未签退',
@@ -1627,7 +1607,7 @@ router.get('/checkin-records/export', requireAdmin, async (req, res) => {
     return res.send(csvContent);
   } catch (error) {
     console.error('Export checkin records error:', error);
-    res.status(500).json({ success: false, message: '导出失败' });
+    res.status(error.statusCode || 500).json({ success: false, message: error.statusCode ? error.message : '导出失败' });
   }
 });
 
@@ -2219,10 +2199,19 @@ router.get('/captain-applications', requireAdmin, async (req, res) => {
   try {
     const { status, school_id, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
+    const context = req.adminContext;
+    const scopeIds = context.isSchoolAdmin ? context.managedSchoolIds : context.managedEventIds;
+    const scopeColumn = context.isSchoolAdmin ? 'e.school_id' : 'e.id';
+    const scopeSql = context.isSuperAdmin ? '' : scopeIds?.length
+      ? ` AND ${scopeColumn} IN (${scopeIds.map(() => '?').join(',')})` : ' AND 1=0';
+    const scopeParams = context.isSuperAdmin ? [] : (scopeIds || []);
 
     let sql = `
       SELECT ca.*,
-             e.title as event_title, e.event_type, e.event_start, e.school_id as event_school_id,
+             e.title as event_title, e.event_type, e.event_start, e.event_end,
+             e.status as event_status, e.school_id as event_school_id,
+             EXISTS(SELECT 1 FROM matches m WHERE m.event_id = e.id
+                    AND m.status IN ('ongoing', 'pending_confirm', 'finished')) AS has_started_match,
              u.name as applicant_name, u.phone as applicant_phone, u.avatar_url as applicant_avatar,
              s.name as school_name,
              r.name as reviewer_name
@@ -2233,7 +2222,8 @@ router.get('/captain-applications', requireAdmin, async (req, res) => {
       LEFT JOIN users r ON ca.reviewed_by = r.id
       WHERE 1=1
     `;
-    const params = [];
+    sql += scopeSql;
+    const params = [...scopeParams];
 
     if (status) {
       sql += ' AND ca.status = ?';
@@ -2256,7 +2246,8 @@ router.get('/captain-applications', requireAdmin, async (req, res) => {
       JOIN events e ON ca.event_id = e.id
       WHERE 1=1
     `;
-    const countParams = [];
+    countSql += scopeSql;
+    const countParams = [...scopeParams];
     if (status) {
       countSql += ' AND ca.status = ?';
       countParams.push(status);
@@ -2267,10 +2258,27 @@ router.get('/captain-applications', requireAdmin, async (req, res) => {
     }
     const [[{ total }]] = await pool.execute(countSql, countParams);
 
-    res.json({ success: true, data: applications, total });
+    res.json({ success: true, data: applications.map(application => ({
+      ...application,
+      can_cancel: !!(context.isSuperAdmin || context.isSchoolAdmin) && canCancelCaptainApplication(application)
+    })), total });
   } catch (error) {
     console.error('Get captain applications error:', error);
     res.json({ success: false, message: '获取领队申请列表失败' });
+  }
+});
+
+router.post('/captain-applications/:id/cancel', requireAdmin, async (req, res) => {
+  try {
+    await cancelCaptainApplication({
+      applicationId: req.params.id,
+      adminUserId: req.adminUserId,
+      adminContext: req.adminContext
+    }, pool);
+    res.json({ success: true, message: '领队申请已取消' });
+  } catch (error) {
+    if (!error.statusCode) console.error('Cancel captain application error:', error);
+    res.status(error.statusCode || 500).json({ success: false, message: error.statusCode ? error.message : '取消失败，请稍后重试' });
   }
 });
 
@@ -2304,11 +2312,17 @@ router.post('/captain-applications/:id/approve', requireAdmin, async (req, res) 
       }
     }
 
-    // 更新申请状态
-    await pool.execute(
-      'UPDATE captain_applications SET status = ?, reviewed_by = ?, reviewed_at = NOW() WHERE id = ?',
+    if (app.status !== 'pending') {
+      return res.json({ success: false, message: '申请状态已变化，请刷新后重试' });
+    }
+    // Conditional update also protects against a concurrent cancellation.
+    const [approval] = await pool.execute(
+      "UPDATE captain_applications SET status = ?, reviewed_by = ?, reviewed_at = NOW() WHERE id = ? AND status = 'pending'",
       ['approved', user_id, id]
     );
+    if (approval.affectedRows !== 1) {
+      return res.json({ success: false, message: '申请状态已变化，请刷新后重试' });
+    }
 
     // 检查是否已报名，如果已报名则更新为领队
     const [regs] = await pool.execute(
@@ -2384,10 +2398,16 @@ router.post('/captain-applications/:id/reject', requireAdmin, async (req, res) =
       }
     }
 
-    await pool.execute(
-      'UPDATE captain_applications SET status = ?, reviewed_by = ?, reviewed_at = NOW(), reject_reason = ? WHERE id = ?',
+    if (app.status !== 'pending') {
+      return res.json({ success: false, message: '申请状态已变化，请刷新后重试' });
+    }
+    const [rejection] = await pool.execute(
+      "UPDATE captain_applications SET status = ?, reviewed_by = ?, reviewed_at = NOW(), reject_reason = ? WHERE id = ? AND status = 'pending'",
       ['rejected', user_id, reject_reason || null, id]
     );
+    if (rejection.affectedRows !== 1) {
+      return res.json({ success: false, message: '申请状态已变化，请刷新后重试' });
+    }
 
     // 发送订阅消息通知申请人
     try {

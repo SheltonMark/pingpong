@@ -48,7 +48,7 @@ Page({
     myRegistration: null,
     loading: true,
     // 领队申请相关
-    captainStatus: null, // null: 未申请, pending: 待审批, approved: 已通过, rejected: 已拒绝
+    captainStatus: null, // null: 未申请, pending/approved/rejected/cancelled
     isCaptain: false,
     captainParticipating: true,
     canViewTeam: false,

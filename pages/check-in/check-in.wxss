@@ -4,6 +4,22 @@
   padding-bottom: 24rpx;
 }
 
+.campus-filter {
+  margin: 24rpx;
+  padding: 24rpx 28rpx;
+  border-radius: 20rpx;
+  background: #fff;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  font-size: 28rpx;
+}
+
+.campus-picker { color: #047857; padding: 8rpx 0 8rpx 24rpx; }
+.campus-hint { width: 100%; color: #6b7280; font-size: 24rpx; }
+
 .map-section {
   position: relative;
   width: 100%;

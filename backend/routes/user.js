@@ -549,6 +549,18 @@ router.post('/invitations/:invitationId/respond', async (req, res) => {
     try {
       await connection.beginTransaction();
 
+      if (invitation.type === 'team' && action === 'accept') {
+        // Serialize invitation acceptance with school-admin captain cancellation.
+        const [captains] = await connection.query(
+          'SELECT status FROM captain_applications WHERE event_id = ? AND user_id = ? FOR UPDATE',
+          [invitation.event_id, invitation.inviter_id]
+        );
+        if (captains[0]?.status !== 'approved') {
+          await connection.rollback();
+          return res.status(403).json({ success: false, message: '邀请人的领队资格已失效，不能接受此邀请' });
+        }
+      }
+
       await connection.query(
         'UPDATE team_invitations SET status = ?, responded_at = NOW() WHERE id = ?',
         [newStatus, invitationId]

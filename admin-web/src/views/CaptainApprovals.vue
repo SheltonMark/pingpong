@@ -5,10 +5,11 @@
     </div>
 
     <el-card>
-      <el-tabs v-model="activeTab" @tab-change="loadApplications">
+      <el-tabs v-model="activeTab" @tab-change="changeTab">
         <el-tab-pane label="待审批" name="pending" />
         <el-tab-pane label="已通过" name="approved" />
         <el-tab-pane label="已拒绝" name="rejected" />
+        <el-tab-pane label="已取消" name="cancelled" />
       </el-tabs>
 
       <el-table :data="applications" v-loading="loading" stripe>
@@ -41,7 +42,10 @@
             {{ formatDateTime(row.created_at) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column v-if="activeTab === 'cancelled'" label="取消时间" width="160">
+          <template #default="{ row }">{{ formatDateTime(row.cancelled_at) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
             <template v-if="row.status === 'pending'">
               <el-button size="small" type="success" @click="approveApplication(row)">通过</el-button>
@@ -50,11 +54,15 @@
             <template v-else-if="row.status === 'approved'">
               <span style="color: #67c23a">已通过</span>
             </template>
-            <template v-else>
+            <template v-else-if="row.status === 'rejected'">
               <el-tooltip :content="row.reject_reason || '无'" placement="top">
                 <span style="color: #f56c6c">已拒绝</span>
               </el-tooltip>
             </template>
+            <span v-else>已取消</span>
+            <el-button v-if="row.can_cancel" size="small" type="warning"
+              :loading="cancellingId === row.id" :disabled="!!cancellingId && cancellingId !== row.id"
+              @click="cancelApplication(row)">取消申请</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -82,17 +90,20 @@ const applications = ref([])
 const activeTab = ref('pending')
 const page = ref(1)
 const total = ref(0)
+const cancellingId = ref(null)
 
 const statusLabels = {
   pending: '待审批',
   approved: '已通过',
-  rejected: '已拒绝'
+  rejected: '已拒绝',
+  cancelled: '已取消'
 }
 
 const statusTypes = {
   pending: 'warning',
   approved: 'success',
-  rejected: 'danger'
+  rejected: 'danger',
+  cancelled: 'info'
 }
 
 const getUserId = () => {
@@ -114,6 +125,34 @@ const loadApplications = async () => {
     ElMessage.error('加载失败')
   } finally {
     loading.value = false
+  }
+}
+
+const changeTab = () => {
+  page.value = 1
+  loadApplications()
+}
+
+const cancelApplication = async (row) => {
+  if (cancellingId.value) return
+  try {
+    await ElMessageBox.confirm(
+      `确认取消 ${row.applicant_name} 的领队申请吗？取消后将停止其队伍管理权限，已有报名保留，可重新申请。此操作仅限比赛开始前。`,
+      '取消领队申请', { type: 'warning', confirmButtonText: '取消申请', cancelButtonText: '返回' }
+    )
+    cancellingId.value = row.id
+    const response = await fetch(`/api/admin/captain-applications/${row.id}/cancel`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: getUserId() })
+    })
+    const result = await response.json()
+    if (result.success) ElMessage.success('领队申请已取消')
+    else ElMessage.error(result.message || '取消失败')
+    await loadApplications()
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') ElMessage.error('取消失败，请稍后重试')
+  } finally {
+    cancellingId.value = null
   }
 }
 

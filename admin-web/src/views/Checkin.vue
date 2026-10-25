@@ -19,7 +19,15 @@
       </el-tabs>
 
       <div v-if="activeTab === 'points'">
-        <el-table :data="points" v-loading="loading" stripe>
+        <div class="filter-bar">
+          <el-select v-if="isSuperAdmin" v-model="pointFilter.school_id" placeholder="全部学校" clearable style="width: 200px">
+            <el-option v-for="school in schools" :key="school.id" :label="school.name" :value="school.id" />
+          </el-select>
+          <el-select v-model="pointFilter.campus" placeholder="全部校区" clearable style="width: 200px">
+            <el-option v-for="campus in pointCampusOptions" :key="campus.value" :label="campus.label" :value="campus.value" />
+          </el-select>
+        </div>
+        <el-table :data="filteredPoints" v-loading="loading" stripe>
           <el-table-column prop="id" label="ID" width="60" />
           <el-table-column prop="name" label="名称" min-width="150" />
           <el-table-column label="位置" min-width="200">
@@ -36,6 +44,9 @@
             <template #default="{ row }">
               {{ row.school_name || '所有学校' }}
             </template>
+          </el-table-column>
+          <el-table-column label="校区" width="130">
+            <template #default="{ row }">{{ row.campus || '未设置校区' }}</template>
           </el-table-column>
           <el-table-column label="签到时间范围" min-width="200">
             <template #default="{ row }">
@@ -67,6 +78,9 @@
           <el-select v-model="recordFilter.school_id" placeholder="选择学校" clearable style="width: 200px">
             <el-option v-for="school in schools" :key="school.id" :label="school.name" :value="school.id" />
           </el-select>
+          <el-select v-model="recordFilter.campus" placeholder="全部校区" clearable style="width: 200px">
+            <el-option v-for="campus in recordCampusOptions" :key="campus.value" :label="campus.label" :value="campus.value" />
+          </el-select>
           <el-date-picker
             v-model="recordFilter.dateRange"
             type="daterange"
@@ -82,6 +96,9 @@
           <el-table-column prop="user_name" label="用户" width="100" />
           <el-table-column prop="phone" label="手机号" width="130" />
           <el-table-column prop="school_name" label="学校" width="150" />
+          <el-table-column label="校区" width="130">
+            <template #default="{ row }">{{ row.campus || '未设置校区' }}</template>
+          </el-table-column>
           <el-table-column prop="point_name" label="签到点" min-width="150" />
           <el-table-column label="签到时间" width="160">
             <template #default="{ row }">
@@ -163,6 +180,13 @@
           </el-select>
         </el-form-item>
 
+        <el-form-item label="所属校区">
+          <el-select v-model="form.campus" filterable allow-create default-first-option clearable placeholder="选择或输入校区名称" maxlength="100">
+            <el-option v-for="campus in formCampusOptions" :key="campus.value" :label="campus.label" :value="campus.value" />
+          </el-select>
+          <span class="radius-hint">留空则归入“未设置校区”</span>
+        </el-form-item>
+
         <el-form-item label="签到开始时间">
           <el-date-picker
             v-model="form.start_time"
@@ -211,8 +235,11 @@ const recordsLoading = ref(false)
 const recordTotal = ref(0)
 const recordFilter = ref({
   school_id: null,
+  campus: '',
   dateRange: null
 })
+const pointFilter = ref({ school_id: null, campus: '' })
+const UNASSIGNED_CAMPUS = '__unassigned__'
 
 let map = null
 let marker = null
@@ -224,6 +251,7 @@ const form = ref({
   longitude: '',
   radius: 100,
   school_id: null,
+  campus: '',
   start_time: null,
   end_time: null
 })
@@ -242,6 +270,29 @@ const adminSchoolId = computed(() => {
   const schoolRole = adminRoles.find((role) => role.code === 'school_admin')
   return schoolRole?.school_id || JSON.parse(localStorage.getItem('adminUser') || '{}').school_id || null
 })
+
+const pointsForSchool = (schoolId) => points.value.filter((point) =>
+  !schoolId || !point.school_id || Number(point.school_id) === Number(schoolId)
+)
+const campusOptionsForSchool = (schoolId) => {
+  const schoolPoints = pointsForSchool(schoolId)
+  const names = [...new Set(schoolPoints.map((point) => (point.campus || '').trim()).filter(Boolean))]
+  const options = names.sort((a, b) => a.localeCompare(b, 'zh-CN')).map((name) => ({ value: name, label: name }))
+  if (schoolPoints.some((point) => !(point.campus || '').trim())) {
+    options.push({ value: UNASSIGNED_CAMPUS, label: '未设置校区' })
+  }
+  return options
+}
+const pointCampusOptions = computed(() => campusOptionsForSchool(pointFilter.value.school_id))
+const recordCampusOptions = computed(() => campusOptionsForSchool(recordFilter.value.school_id || adminSchoolId.value))
+const formCampusOptions = computed(() => campusOptionsForSchool(form.value.school_id).filter((option) => option.value !== UNASSIGNED_CAMPUS))
+const filteredPoints = computed(() => pointsForSchool(pointFilter.value.school_id).filter((point) => {
+  const campus = (point.campus || '').trim()
+  return !pointFilter.value.campus || (pointFilter.value.campus === UNASSIGNED_CAMPUS ? !campus : campus === pointFilter.value.campus)
+}))
+
+watch(() => pointFilter.value.school_id, () => { pointFilter.value.campus = '' })
+watch(() => recordFilter.value.school_id, () => { recordFilter.value.campus = '' })
 
 const initMap = () => {
   nextTick(() => {
@@ -424,6 +475,7 @@ const showCreateDialog = () => {
     longitude: '',
     radius: 100,
     school_id: isSuperAdmin.value ? 0 : adminSchoolId.value,
+    campus: '',
     start_time: null,
     end_time: null
   }
@@ -436,6 +488,7 @@ const editPoint = (row) => {
   form.value = {
     ...row,
     school_id: row.school_id || 0,
+    campus: row.campus || '',
     start_time: row.start_time || null,
     end_time: row.end_time || null
   }
@@ -444,6 +497,11 @@ const editPoint = (row) => {
 }
 
 const submitForm = async () => {
+  const campus = (form.value.campus || '').trim()
+  if (campus.length > 100 || campus === UNASSIGNED_CAMPUS) {
+    ElMessage.warning('校区名称不能超过100个字符，也不能使用保留标识')
+    return
+  }
   if (!form.value.name) {
     ElMessage.warning('请填写签到点名称')
     return
@@ -462,7 +520,8 @@ const submitForm = async () => {
     const submitData = {
       ...form.value,
       user_id: getUserId(),
-      school_id: form.value.school_id || null
+      school_id: form.value.school_id || null,
+      campus: campus || null
     }
 
     const res = await fetch(url, {
@@ -516,6 +575,9 @@ const loadRecords = async () => {
   recordsLoading.value = true
   try {
     const params = new URLSearchParams({ user_id: getUserId() })
+    if (recordFilter.value.campus) {
+      params.append('campus', recordFilter.value.campus)
+    }
     if (recordFilter.value.school_id) {
       params.append('school_id', recordFilter.value.school_id)
     }
@@ -541,6 +603,9 @@ const loadRecords = async () => {
 const exportRecords = async () => {
   try {
     const params = new URLSearchParams({ user_id: getUserId(), export: 'csv' })
+    if (recordFilter.value.campus) {
+      params.append('campus', recordFilter.value.campus)
+    }
     if (recordFilter.value.school_id) {
       params.append('school_id', recordFilter.value.school_id)
     }

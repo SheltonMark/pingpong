@@ -88,6 +88,38 @@ async function testAssertSafeTextsFallsBackWithoutOpenId() {
   );
 }
 
+async function testPlaceholderOpenIdsUseAuditedFallback() {
+  for (const openid of ['admin_zjgydx', 'dev_login-code', 'mock_openid_001', '   ']) {
+    const payloads = [];
+    await contentSecurity.assertSafeTexts([{ label: '赛事标题', value: '校园乒乓球赛' }], {
+      userId: 10,
+      queryExecutor: {
+        query: async (sql, params) => {
+          assert.deepStrictEqual(params, [10]);
+          return [[{ openid }]];
+        }
+      },
+      textChecker: async (payload) => {
+        payloads.push(payload);
+        return { errcode: 0 };
+      }
+    });
+    assert.strictEqual(payloads.length, 1, 'Placeholder identity must still be audited');
+    assert.strictEqual(payloads[0].version, 1, `Local identity ${openid} must not enter WeChat v2`);
+    assert.ok(!('openid' in payloads[0]), 'Local identity must not be sent as a WeChat openid');
+  }
+
+  const options = {
+    openid: 'admin_zjgydx',
+    textChecker: async () => ({ errcode: 87014, errmsg: 'risky content' })
+  };
+  await assert.rejects(() => contentSecurity.assertSafeTexts(['不合规内容'], options),
+    error => error.code === 'CONTENT_SECURITY_REJECTED');
+  await assert.rejects(() => contentSecurity.assertSafeTexts(['校园乒乓球赛'], {
+    ...options, textChecker: async () => ({ errcode: 40001, errmsg: 'invalid credential' })
+  }), error => error.code === 'CONTENT_SECURITY_UNAVAILABLE');
+}
+
 function testResolveImageSourceSupportsCloudAndUploads() {
   assert.strictEqual(
     typeof contentSecurity.resolveImageSource,
@@ -202,6 +234,7 @@ async function main() {
   await testAssertSafeTextsPassesTrimmedContent();
   await testAssertSafeTextsRejectsRiskyContent();
   await testAssertSafeTextsFallsBackWithoutOpenId();
+  await testPlaceholderOpenIdsUseAuditedFallback();
   testResolveImageSourceSupportsCloudAndUploads();
   testInterpretCheckResultDistinguishesRejectAndServiceErrors();
   await testRequestWechatApiPostsJsonPayload();

@@ -350,9 +350,12 @@ function buildTextCheckPayload(content, { openid, scene = 3 } = {}) {
     scene
   };
 
-  if (openid) {
+  // These identities are generated locally for web admins and development users.
+  // They cannot identify a WeChat user; keep auditing through the no-openid path.
+  const wechatOpenId = typeof openid === 'string' ? openid.trim() : '';
+  if (wechatOpenId && !/^(admin_|dev_|mock_)/i.test(wechatOpenId)) {
     payload.version = 2;
-    payload.openid = openid;
+    payload.openid = wechatOpenId;
   } else {
     payload.version = 1;
   }

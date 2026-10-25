@@ -1,4 +1,12 @@
 <view class="check-in-page">
+  <view class="campus-filter">
+    <text>签到校区</text>
+    <picker mode="selector" range="{{campusOptions}}" range-key="label" value="{{campusIndex}}"
+      disabled="{{!!activeRecord || isSubmitting}}" bindchange="onCampusChange">
+      <view class="campus-picker">{{campusOptions[campusIndex].label}} <text>⌄</text></view>
+    </picker>
+    <text class="campus-hint" wx:if="{{activeRecord}}">请先在原签到点签退，当前校区已锁定</text>
+  </view>
   <view class="map-section" wx:if="{{location && nearestPoint}}">
     <map
       id="checkInMap"
@@ -59,7 +67,7 @@
 
     <block wx:else>
       <text class="status-title">未找到签到点</text>
-      <text class="status-desc">附近没有可用的签到点</text>
+      <text class="status-desc">当前所选校区没有可用的签到点</text>
     </block>
 
     <view class="refresh-btn" bindtap="onRefreshLocation">

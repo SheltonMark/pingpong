@@ -91,6 +91,11 @@
           <text>申请被拒绝，可重新申请</text>
           <button class="apply-btn small" bindtap="onApplyCaptain">重新申请</button>
         </view>
+        <view wx:elif="{{captainStatus === 'cancelled'}}" class="captain-status rejected">
+          <text>领队申请已被管理员取消</text>
+          <button wx:if="{{event.status === 'registration' || event.status === 'pending_start' || event.status === 'draft'}}"
+            class="apply-btn small" bindtap="onApplyCaptain">重新申请</button>
+        </view>
         <view wx:elif="{{canViewTeam}}" class="captain-status approved">
           <text class="status-icon">✓</text>
           <view class="captain-status-texts">

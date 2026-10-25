@@ -37,8 +37,12 @@ backend/npm-debug.log
 *.tmp
 
 # 文档目录
-docs/
+docs/*
 *.txt
 *.md
 !README.md
 !CLAUDE.md
+
+# 项目调试知识库
+!docs/kb/
+!docs/kb/**

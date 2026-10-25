@@ -4,6 +4,7 @@ const {
   isSameChinaCalendarDay,
   parseDateTimeValue
 } = require('../../utils/china-time');
+const { UNASSIGNED_CAMPUS, getCampusOptions, filterPointsByCampus } = require('../../utils/checkin-campus');
 
 function buildDerivedActionButtonText(actionMode, canSubmit, timeStatus) {
   if (actionMode === 'checked_out') {
@@ -61,6 +62,7 @@ function buildFallbackActivePoint(activeRecord, location, calculateDistance) {
   return {
     id: activeRecord.point_id,
     name: activeRecord.point_name,
+    campus: activeRecord.campus,
     latitude: activeRecord.point_latitude,
     longitude: activeRecord.point_longitude,
     radius: activeRecord.point_radius,
@@ -176,6 +178,9 @@ Page({
   data: {
     location: null,
     nearestPoint: null,
+    campusOptions: [{ value: '', label: '全部校区' }],
+    selectedCampus: '',
+    campusIndex: 0,
     activeRecord: null,
     distance: null,
     canSubmit: false,
@@ -245,11 +250,21 @@ Page({
 
   buildTargetPoint(points = []) {
     return selectDisplayPoint({
-      points,
+      points: this.data.activeRecord ? points : filterPointsByCampus(points, this.data.selectedCampus),
       activeRecord: this.data.activeRecord,
       location: this.data.location,
       calculateDistance: (lat1, lng1, lat2, lng2) => this.calculateDistance(lat1, lng1, lat2, lng2)
     });
+  },
+
+  async onCampusChange(event) {
+    if (this.data.activeRecord || this.data.isSubmitting) return;
+    const index = Number(event.detail.value);
+    const option = this.data.campusOptions[index];
+    if (!option) return;
+    this.setData({ selectedCampus: option.value, campusIndex: index, nearestPoint: null,
+      distance: null, canSubmit: false, markers: [], circles: [] });
+    await this.loadNearestPoint();
   },
 
   buildActionButtonText(actionMode, canSubmit, timeStatus) {
@@ -274,14 +289,29 @@ Page({
       return;
     }
 
+    const requestSeq = (this._pointRequestSeq || 0) + 1;
+    this._pointRequestSeq = requestSeq;
+    this.setData({ isLoading: true, canSubmit: false });
     try {
       const res = await this.request('/api/checkin/points', {
         school_id: app.globalData.userInfo?.school_id,
         lat: this.data.location.lat,
         lng: this.data.location.lng
       });
+      if (requestSeq !== this._pointRequestSeq) return;
 
       const points = res.success ? (res.data || []) : [];
+      const campusOptions = getCampusOptions(points);
+      let selectedCampus = this.data.selectedCampus;
+      if (this.data.activeRecord) {
+        const activePoint = points.find(item => Number(item.id) === Number(this.data.activeRecord.point_id));
+        selectedCampus = activePoint?.campus || this.data.activeRecord.campus || UNASSIGNED_CAMPUS;
+      }
+      if (selectedCampus && !campusOptions.some(option => option.value === selectedCampus)) {
+        campusOptions.push({ value: selectedCampus, label: selectedCampus === UNASSIGNED_CAMPUS ? '未设置校区' : selectedCampus });
+      }
+      this.setData({ campusOptions, selectedCampus,
+        campusIndex: Math.max(0, campusOptions.findIndex(option => option.value === selectedCampus)) });
       const point = this.buildTargetPoint(points);
 
       if (!point) {
@@ -292,7 +322,8 @@ Page({
           markers: [],
           circles: [],
           statusDescription: '',
-          actionButtonText: '暂无可用签到点'
+          timeRangeText: '',
+          actionButtonText: '该校区暂无可用签到点'
         });
         return;
       }
@@ -382,9 +413,12 @@ Page({
         circles
       });
     } catch (error) {
-      console.error('Load check-in point failed:', error);
+      if (requestSeq === this._pointRequestSeq) {
+        console.error('Load check-in point failed:', error);
+        this.setData({ nearestPoint: null, distance: null, canSubmit: false, markers: [], circles: [] });
+      }
     } finally {
-      this.setData({ isLoading: false });
+      if (requestSeq === this._pointRequestSeq) this.setData({ isLoading: false });
     }
   },
 

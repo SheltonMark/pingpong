@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
-const { parseDateTimeValue } = require('../../utils/china-time');
+const { parseDateTimeValue } = require('../utils/china-time');
+const { campusFilter } = require('../utils/checkinFilters');
 
 function getPointTimeStatus(point = {}, now = new Date()) {
   const startTime = parseDateTimeValue(point.start_time);
@@ -20,6 +21,7 @@ async function getTodayActiveCheckIn(userId, connection = pool) {
   const [rows] = await connection.query(
     `SELECT ci.*,
             p.name as point_name,
+            p.campus,
             p.location,
             p.latitude as point_latitude,
             p.longitude as point_longitude,
@@ -42,7 +44,7 @@ async function getTodayActiveCheckIn(userId, connection = pool) {
 // 获取签到点列表
 router.get('/points', async (req, res) => {
   try {
-    const { school_id, lat, lng } = req.query;
+    const { school_id, campus, lat, lng } = req.query;
 
     let sql = `
       SELECT p.*, s.name as school_name,
@@ -58,13 +60,17 @@ router.get('/points', async (req, res) => {
       params.push(school_id);
     }
 
+    const campusScope = campusFilter(campus, 'p');
+    sql += campusScope.sql;
+    params.push(...campusScope.params);
+
     sql += ' ORDER BY distance ASC';
 
     const [points] = await pool.query(sql, params);
     res.json({ success: true, data: points });
   } catch (error) {
     console.error('获取签到点失败:', error);
-    res.status(500).json({ success: false, message: '服务器错误' });
+    res.status(error.statusCode || 500).json({ success: false, message: error.statusCode ? error.message : '服务器错误' });
   }
 });
 
@@ -219,6 +225,7 @@ router.get('/records', async (req, res) => {
     let sql = `
       SELECT c.*,
              p.name as point_name,
+             p.campus,
              p.location,
              p.latitude as point_latitude,
              p.longitude as point_longitude,
